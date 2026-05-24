@@ -15,7 +15,7 @@ whichever tools your host actually exposes.
 ## Reading the planner doc
 
 **Prefer a Drive/Workspace MCP if your host has one** — pass the doc
-file_id (`1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ`) to its
+file_id (`1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w`) to its
 read-file tool and ask for HTML output. HTML preserves strikethrough
 styling (items already obtained appear inside `<s>...</s>` tags or
 with `style="text-decoration:line-through"` on a span). Examples by
@@ -66,7 +66,7 @@ Read the grocery list from the weekly planner Google Doc, extract only the items
 
 # Inputs
 
-- Planner Google Doc: https://docs.google.com/document/d/1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ
+- Planner Google Doc: https://docs.google.com/document/d/1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w
 - Amazon cart URL: https://www.amazon.com/gp/cart/view.html?ref_=nav_cart
 - Whole Foods subcart URL: https://www.amazon.com/cart/localmarket?almBrandId=VUZHIFdob2xlIEZvb2Rz
 - Delivery address is Lakewood 80228. Amazon sign-in lives in the chrome-devtools-mcp profile (`~/.cache/chrome-devtools-mcp/chrome-profile`) — already signed in after the first manual login; abort the run if you see a sign-in page.
@@ -89,7 +89,7 @@ This only works when the browser MCP attaches to a Chrome instance
 that's already signed into Google — otherwise the mobilebasic page
 redirects to a "this browser may not be secure" wall. Procedure:
 
-1. `mcp__Claude_in_Chrome__navigate` to `https://docs.google.com/document/d/1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ/mobilebasic`
+1. `mcp__Claude_in_Chrome__navigate` to `https://docs.google.com/document/d/1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w/mobilebasic`
 2. Wait ~2s for render.
 3. Run JS to find struck-through items:
 
@@ -104,9 +104,19 @@ redirects to a "this browser may not be secure" wall. Procedure:
    });
    ```
 
-4. Get the full `GROCERIES` section text by slicing `document.body.innerText` from the "GROCERIES" anchor. Body text may exceed 3000 chars — read in slices.
+4. Get the full `GROCERIES` section text by slicing `document.body.innerText` from the matching anchor. Body text may exceed 3000 chars — read in slices.
 
-The doc contains a `GROCERIES` section organized by category (Produce, Protein, Dairy, Pantry, Frozen, Refrigerated/Other). Items that are already obtained are struck-through — SKIP THESE. Parse each ingredient with its quantity. Items often have parenthetical recipe labels like `"8 tbsp / 1 stick unsalted butter (pie)"` — strip the parenthetical.
+## 1a. The doc is a rolling planner — pick the right week's GROCERIES section
+
+The planner is now a single rolling doc with multiple weeks stacked top-to-bottom. The grocery section for each week has a heading like `GROCERIES · Week of <Month> <Day>` (using `·` U+00B7 middle dot as the separator; the year may or may not be in the heading — assume current year when absent).
+
+**Find every `GROCERIES · Week of <date>` heading in the doc. Parse the date out of each. Pick the heading whose date is the highest (most recent).** Then read only the list under THAT heading; ignore earlier weeks.
+
+This is "highest date wins" (not "first occurrence" and not "last occurrence in doc") — it stays correct regardless of how you order the weeks in the doc, and survives you adding next week's section above this week's.
+
+The section under the chosen heading is organized by category (Produce, Protein, Dairy, Pantry, Frozen, Refrigerated/Other). Items that are already obtained are struck-through (Google Docs encodes this with `text-decoration:line-through` on the `<li>` element's style attribute — NOT inside an inner `<span>` — make sure your strikethrough check inspects the `<li>` style, not just child spans). SKIP struck items.
+
+Parse each remaining ingredient with its quantity. Items often have parenthetical recipe labels like `"8 tbsp / 1 stick unsalted butter (pie)"` — strip the parenthetical.
 
 ## 2. Resolve ambiguities by reading the linked recipes — don't ask the user
 
