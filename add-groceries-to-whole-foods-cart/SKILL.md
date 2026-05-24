@@ -5,21 +5,60 @@ description: Parse the weekly grocery list from Jayson's Google Doc planner and 
 
 You are adding this week's groceries from Jayson's weekly planner Google Doc to his Amazon Whole Foods cart. This task is triggered manually on-demand — there is no schedule.
 
-# Tool-name translation (READ FIRST)
+# Host-environment translation (READ FIRST)
 
-This skill was originally written against the `Claude in Chrome` MCP. When run from the squad grocery-runner agent, the Chrome MCP server is named `chrome` and uses different tool names. Translate every reference below before calling:
+This skill is portable across hosts: Claude Code, Claude Desktop, and
+the squad grocery-runner agent. The doc-reading and Amazon-driving
+steps below are tool-agnostic; resolve the right MCP names from
+whichever tools your host actually exposes.
 
-| What the skill body says | Call this instead |
+## Reading the planner doc
+
+**Prefer a Drive/Workspace MCP if your host has one** — pass the doc
+file_id (`1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ`) to its
+read-file tool and ask for HTML output. HTML preserves strikethrough
+styling (items already obtained appear inside `<s>...</s>` tags or
+with `style="text-decoration:line-through"` on a span). Examples by
+host:
+
+- squad grocery-runner: `mcp__gdrive__read_file_content` with
+  `fileId` arg. Returns HTML.
+- Claude Code / Desktop with Google Drive connector: the connector's
+  read-file tool; pass the file_id and ask for HTML.
+
+**Only fall back to the mobilebasic-via-Chrome trick if no Drive MCP
+is available.** The fallback open the mobilebasic export
+(`/document/d/<ID>/mobilebasic`) in a browser MCP and reads spans
+with `line-through` styles. The Google web app blocks sign-in inside
+chrome-devtools-mcp's spawned profile as "insecure," so Chrome-based
+doc reads only work when the host's browser is your daily browser
+(via `--autoConnect` against an existing Chrome instance) — not in
+squad's grocery-runner default.
+
+## Driving Amazon
+
+Use whatever browser MCP your host exposes:
+
+| Original (Claude in Chrome) | squad chrome MCP equivalent |
 |---|---|
 | `mcp__Claude_in_Chrome__navigate` | `mcp__chrome__navigate_page` with `{type: "url", url: "..."}` |
 | `mcp__Claude_in_Chrome__javascript_tool` | `mcp__chrome__evaluate_script` with `{function: "() => { ...; return RESULT; }"}` — must wrap as a JS function expression, must `return` what you want |
-| `browser_batch` | not available — chain individual tool calls instead, one per step |
+| `browser_batch` | not available in squad — chain individual tool calls instead |
 
-For Drive reads (the mobilebasic export trick), use Chrome (`mcp__chrome__navigate_page` + `mcp__chrome__evaluate_script`) as the skill body describes — the mobilebasic HTML preserves strikethrough styling, which is what this skill needs.
+In the squad grocery-runner agent, chrome MCP runs against a
+squad-managed browser profile (resolved by the
+`{{.BrowserProfile "amazon"}}` template helper). Sign into Amazon
+once via `squad browser open amazon https://www.amazon.com/`; the
+session persists across subsequent runs. If Chrome navigation lands
+on an Amazon sign-in page on any later run, stop and tell Jayson —
+don't try to fill credentials.
 
-Chrome MCP runs against its own stable Chrome instance with a persistent profile at `~/.cache/chrome-devtools-mcp/chrome-profile` (no `--autoConnect`, so it does NOT attach to your daily browser). On the very first grocery-runner invocation a fresh Chrome window opens with no logins; sign into Amazon once there and the session persists across subsequent runs. If Chrome navigation lands on a sign-in page on any run after the first, stop and tell Jayson — don't try to fill credentials.
+## Confirmation prompt
 
-The grocery-runner agent currently exposes only the `chrome` MCP server. There is no `mcp__workspace__*` available, and no `Confirm` tool — confirm the parsed list with Jayson using whatever question-asking primitive is available to you (defaults to the host model's standard ask-user tool).
+If the host exposes a `Confirm` tool (squad does), call it for the
+go/no-go check in Step 3. Otherwise use the host's native
+ask-user primitive (`AskUserQuestion`, the Claude Code/Desktop
+elicitation, etc.).
 
 # Objective
 
@@ -34,11 +73,21 @@ Read the grocery list from the weekly planner Google Doc, extract only the items
 
 # Step-by-step
 
-## 1. Read the grocery list — use the mobilebasic export, NOT the Drive MCP
+## 1. Read the grocery list
 
-**Critical lesson from prior runs:** The Drive MCP's `read_file_content` returns a markdown representation that **does NOT preserve strikethrough formatting** (bold survives as `**text**` but strikethrough does not survive as `~~text~~`). It also truncates long docs. The Google Docs canvas-rendered edit view also has no DOM text. Skip both.
+**Preferred path: ask your host's Drive MCP for HTML.** When the
+read-file tool returns HTML (squad's `mcp__gdrive__read_file_content`
+does this by default; ask the connector explicitly otherwise),
+strikethrough survives as `<s>...</s>` or
+`style="text-decoration:line-through"` on a span. Plain-text /
+markdown exports from older Drive MCPs lose strikethrough — refuse
+those if a richer format is available.
 
-**Working approach** — open the mobilebasic export in Chrome and read styled spans:
+**Fallback path (only if no Drive MCP exposes HTML):** open the
+mobilebasic export in a browser MCP and read styled spans directly.
+This only works when the browser MCP attaches to a Chrome instance
+that's already signed into Google — otherwise the mobilebasic page
+redirects to a "this browser may not be secure" wall. Procedure:
 
 1. `mcp__Claude_in_Chrome__navigate` to `https://docs.google.com/document/d/1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ/mobilebasic`
 2. Wait ~2s for render.
