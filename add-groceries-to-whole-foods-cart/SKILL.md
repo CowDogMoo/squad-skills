@@ -7,7 +7,7 @@ You are adding this week's groceries from Jayson's weekly planner Google Doc to 
 
 # Tool-name translation (READ FIRST)
 
-This skill was originally written against the `Claude in Chrome` MCP. When run from the squad weekly-planner agent, the Chrome MCP server is named `chrome` and uses different tool names. Translate every reference below before calling:
+This skill was originally written against the `Claude in Chrome` MCP. When run from the squad grocery-runner agent, the Chrome MCP server is named `chrome` and uses different tool names. Translate every reference below before calling:
 
 | What the skill body says | Call this instead |
 |---|---|
@@ -15,13 +15,11 @@ This skill was originally written against the `Claude in Chrome` MCP. When run f
 | `mcp__Claude_in_Chrome__javascript_tool` | `mcp__chrome__evaluate_script` with `{function: "() => { ...; return RESULT; }"}` — must wrap as a JS function expression, must `return` what you want |
 | `browser_batch` | not available — chain individual tool calls instead, one per step |
 
-For Drive reads (the mobilebasic export trick), the skill body says to navigate via Chrome. That still works, but you can ALSO use the workspace MCP that's already wired up: `mcp__workspace__get_drive_file_content` with `file_id: "1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ"` returns the doc as plain text. **However, the workspace text export drops strikethrough formatting** — so if you need strikethrough detection (you do), still use the Chrome mobilebasic route via `mcp__chrome__navigate_page` + `mcp__chrome__evaluate_script` as the skill body describes.
+For Drive reads (the mobilebasic export trick), use Chrome (`mcp__chrome__navigate_page` + `mcp__chrome__evaluate_script`) as the skill body describes — the mobilebasic HTML preserves strikethrough styling, which is what this skill needs.
 
-Every Chrome call uses the user's actively-running Chrome (attached via `--autoConnect`). Amazon is already signed in there. You do not need to log in.
+Chrome MCP runs against its own stable Chrome instance with a persistent profile at `~/.cache/chrome-devtools-mcp/chrome-profile` (no `--autoConnect`, so it does NOT attach to your daily browser). On the very first grocery-runner invocation a fresh Chrome window opens with no logins; sign into Amazon once there and the session persists across subsequent runs. If Chrome navigation lands on a sign-in page on any run after the first, stop and tell Jayson — don't try to fill credentials.
 
-Other tools available in this agent:
-- `mcp__workspace__*` — Google Drive + Calendar (auth handled by the workspace daemon). Useful only as a backup if Chrome navigation fails.
-- `Confirm(summary, options)` — squad's confirmation tool. Use this in step 3 (the go/no-go check) instead of `AskUserQuestion` which the original skill body mentions.
+The grocery-runner agent currently exposes only the `chrome` MCP server. There is no `mcp__workspace__*` available, and no `Confirm` tool — confirm the parsed list with Jayson using whatever question-asking primitive is available to you (defaults to the host model's standard ask-user tool).
 
 # Objective
 
@@ -32,7 +30,7 @@ Read the grocery list from the weekly planner Google Doc, extract only the items
 - Planner Google Doc: https://docs.google.com/document/d/1-fjgU9MjdbxduyzC-Wq3obpW6tTgJH4s2vqbv4HonyQ
 - Amazon cart URL: https://www.amazon.com/gp/cart/view.html?ref_=nav_cart
 - Whole Foods subcart URL: https://www.amazon.com/cart/localmarket?almBrandId=VUZHIFdob2xlIEZvb2Rz
-- User's Amazon account is already signed in via Chrome. Delivery address is Lakewood 80228.
+- Delivery address is Lakewood 80228. Amazon sign-in lives in the chrome-devtools-mcp profile (`~/.cache/chrome-devtools-mcp/chrome-profile`) — already signed in after the first manual login; abort the run if you see a sign-in page.
 
 # Step-by-step
 
