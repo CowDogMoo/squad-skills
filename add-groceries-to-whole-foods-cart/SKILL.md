@@ -78,10 +78,15 @@ Read the grocery list from the weekly planner Google Doc, extract only the items
 **Preferred path: ask your host's Drive MCP for HTML.** When the
 read-file tool returns HTML (squad's `mcp__gdrive__read_file_content`
 does this by default; ask the connector explicitly otherwise),
-strikethrough survives as `<s>...</s>` or
-`style="text-decoration:line-through"` on a span. Plain-text /
-markdown exports from older Drive MCPs lose strikethrough — refuse
-those if a richer format is available.
+strikethrough survives as `<li style="...line-through...">` on the
+list-item element. Plain-text / markdown exports from older Drive
+MCPs lose strikethrough — refuse those if a richer format is
+available.
+
+**Important — call `read_file_content` ONCE.** Do not also call
+`mcp__gdrive__get_doc`; the structured JSON dump (~500 KB) won't
+fit in budget and isn't needed for strikethrough detection. The
+HTML export alone is enough.
 
 **Fallback path (only if no Drive MCP exposes HTML):** open the
 mobilebasic export in a browser MCP and read styled spans directly.
@@ -172,32 +177,104 @@ cards.slice(0, 6).map(c => ({
 3. **Smallest pack size** that satisfies the recipe quantity. Don't over-buy.
 4. Previous purchases — Amazon's `Buy it again` / `Purchased before` signal exists but is unreliable to detect from search-result DOM text (it matches recommendations too). Don't try to detect it programmatically; rely on the rules above.
 
-### Add-to-cart mechanic that works
+### Add-to-cart pattern — ONE evaluate_script per item
 
-For each chosen ASIN:
+To stay under the run's cost budget, do the whole per-item flow
+(search → pick best result → navigate → click add → verify) in a
+**single `mcp__chrome__evaluate_script` call per item**, using
+`fetch()` for any extra HTTP and `window.location` for navigations
+that need a real browser context. Each call should return a small
+JSON object (≤2 KiB) like:
 
-1. Navigate to `https://www.amazon.com/dp/<ASIN>`
-2. Wait ~2.2s for page render.
-3. If quantity > 1, set the dropdown:
+    {"asin": "B07...", "title": "...", "added": true, "cartCount": 7}
 
-   ```js
-   const qty = document.querySelector('#quantity, select[name="quantity"]');
-   qty.value = '2';
-   qty.dispatchEvent(new Event('change', {bubbles: true}));
-   ```
+DO NOT chain navigate_page → evaluate_script → navigate_page →
+evaluate_script per item. That's ~6 calls per item and burns the
+budget on tool-result bloat. The chrome MCP is configured with
+`max_result_bytes: 2048` — anything over that gets truncated, so
+return parsed JSON, never raw DOM.
 
-   **Warning:** Sometimes the qty=2 doesn't stick (clicked too fast). Verify `#nav-cart-count` increased by the expected delta after; if short, re-add.
-4. Click the button:
+Template for one item (the agent should embed this kind of script
+per item, parameterized):
 
-   ```js
-   document.querySelector('#add-to-cart-button-grocery, #add-to-cart-button')?.click();
-   ```
+```js
+async () => {
+  const q = "8 ounces button mushrooms";
+  // 1. Search
+  const searchHTML = await fetch(
+    "https://www.amazon.com/s?k=" + encodeURIComponent(q) + "&i=wholefoods"
+  ).then(r => r.text());
+  const sdoc = new DOMParser().parseFromString(searchHTML, "text/html");
+  const cards = [...sdoc.querySelectorAll('[data-component-type="s-search-result"]')];
+  // 2. Pick first organic / 365 / smallest pack — heuristic in plain JS
+  const picks = cards.slice(0, 8).map(c => ({
+    asin: c.getAttribute("data-asin"),
+    title: c.querySelector("h2 a span, h2 span")?.innerText || "",
+    price: c.querySelector(".a-price .a-offscreen")?.innerText || ""
+  })).filter(p => p.asin);
+  const pick = picks.find(p => /organic|365/i.test(p.title)) || picks[0];
+  if (!pick) return {q, error: "no results"};
+  // 3. Navigate to product (real navigation — sets cookies, gets CSRF)
+  window.location.href = "https://www.amazon.com/dp/" + pick.asin;
+  // execution context is destroyed here; the next evaluate_script will run on the product page
+  return {q, asin: pick.asin, title: pick.title.slice(0, 80), navigated: true};
+}
+```
 
-5. The page redirects to `/cart/smart-wagon?newItems=...`. **Tail JS calls after the click will error with "Inspected target navigated or closed"** — that's harmless, the add already happened. Verify by reading `#nav-cart-count` after a fresh navigation or wait.
+After the navigation the agent does ONE follow-up
+`evaluate_script` that clicks add-to-cart and reads the new cart
+count, then returns the result. That's **two** chrome calls per
+item total. With 9 items that's 18 chrome calls, well under
+budget.
 
-### Batching for speed
+Click + verify follow-up:
 
-Use `browser_batch` to run navigate → wait → click → wait → navigate → wait → readSearchResults all in one round trip. Each item is ~5 actions; aim for one item per batch call. Expect occasional batch failures on the post-click wait (page navigated) — recover by reading `#nav-cart-count` in a follow-up call. The click already worked.
+```js
+async () => {
+  const titleEl = document.querySelector("#productTitle");
+  const btn = document.querySelector("#add-to-cart-button-grocery, #add-to-cart-button");
+  const before = document.querySelector("#nav-cart-count")?.innerText || "0";
+  btn?.click();
+  // wait a beat for the cart count to update — DOM does it async
+  await new Promise(r => setTimeout(r, 1500));
+  const after = document.querySelector("#nav-cart-count")?.innerText || before;
+  return {
+    title: titleEl?.innerText?.slice(0, 80),
+    before, after,
+    added: after !== before
+  };
+}
+```
+
+`#nav-cart-count` may not update if Amazon navigated to a "smart
+wagon" interstitial; in that case `added` will be false but the
+item probably DID land in the cart. Trust the click and continue.
+
+### After each successful add — mark the item obtained in the doc
+
+Immediately after a successful add-to-cart for an item, call
+`mcp__gdrive__mark_items_obtained` with the planner file_id, the
+GROCERIES heading match for this week, and the item text you just
+added. This applies strikethrough to that line in the planner
+doc so future grocery runs (and the user) see it as done.
+
+Example call after adding mushrooms:
+
+    mcp__gdrive__mark_items_obtained({
+      "documentId": "<planner file_id>",
+      "tableHeadingMatch": "GROCERIES · Week of <Month> <Day>",
+      "items": ["button mushrooms"]
+    })
+
+Match is a case-insensitive substring against the line text in
+col 1 of any items row. Use a short distinctive snippet
+(`"button mushrooms"`) — not the whole quantity-prefixed string
+— so the match is robust to formatting variation.
+
+You can batch several items in one `items` array if you're adding
+in groups. Don't wait until the end to call this once for
+everything — if the run aborts midway, items added but not marked
+will get re-added on the next run.
 
 ### Items with no fresh organic option
 
