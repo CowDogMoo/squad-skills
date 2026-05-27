@@ -10,22 +10,14 @@ set -eo pipefail
 #     descriptions confuse host loaders)
 
 RED='\033[0;31m'
-YELLOW='\033[0;33m'
-GREEN='\033[0;32m'
 NC='\033[0m'
 
 errors=0
-warnings=0
 
 error() {
 	echo -e "${RED}  FAIL${NC} $1"
 	errors=$((errors + 1))
 }
-warn() {
-	echo -e "${YELLOW}  WARN${NC} $1"
-	warnings=$((warnings + 1))
-}
-pass() { echo -e "${GREEN}  OK${NC}   $1"; }
 
 check_skill() {
 	local skill_md="$1"
@@ -112,17 +104,13 @@ check_skill() {
 # Walk each path pre-commit passed in; only act on SKILL.md files.
 for path in "$@"; do
 	case "$path" in
-		*/SKILL.md) check_skill "$path" ;;
+	*/SKILL.md) check_skill "$path" ;;
 	esac
 done
 
 if [ "$errors" -gt 0 ]; then
 	echo -e "${RED}Skill compliance failed with ${errors} error(s).${NC}"
 	exit 1
-fi
-
-if [ "$warnings" -gt 0 ]; then
-	echo -e "${YELLOW}Skill compliance passed with ${warnings} warning(s).${NC}"
 fi
 
 exit 0
