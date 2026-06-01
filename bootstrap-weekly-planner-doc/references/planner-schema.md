@@ -1,98 +1,91 @@
 # Weekly planner doc schema
 
-The weekly-planner agent expects a Google Doc with this structure. The setup script in `../scripts/setup.py` creates a doc matching this contract; this document is the human-readable spec the script implements.
+This document describes the structure of the **template doc** (`TEMPLATE_ID` in `../scripts/setup.py`) that the bootstrap skill copies into a new user's Drive. The weekly-planner agent reads from copies of that template — so this spec defines the contract for both ends.
 
 ## Top-level shape
 
-The doc is a **rolling planner** — multiple weeks stacked top-to-bottom. Each week is one self-contained section. Adding next week's section doesn't disturb prior weeks; the agent picks the section whose date is the highest (most recent), so week order in the doc doesn't matter.
+The doc is a **rolling planner** — multiple weeks stacked top-to-bottom inside a single doc. Each week's content lives between two structural markers:
 
-A single week's section is:
+- `📅 Current Week` paragraph — marks where this week's section starts.
+- `📚 Previous Weeks` paragraph — marks where older weeks are archived.
 
-1. The week heading paragraph
-2. A 7-column planner table (one column per weekday)
-3. The GROCERIES heading paragraph
-4. A 2-column GROCERIES table (category + items)
-5. A blank line separator
+The template ships with **one** week (the upcoming one) under `📅 Current Week`, plus an empty `📚 Previous Weeks` section. The user adds more weeks as they roll forward (either by hand-copying the current-week's tables and bumping the dates, or with their own roll-week tooling).
 
-## Week heading
+A week's section is:
 
-Exact form:
-
-    WEEKLY FAMILY PLANNER · Week of <Month> <Day>, <Year>
-
-- Separator is `·` (U+00B7 middle dot), **not** a hyphen, em-dash, or bullet.
-- Month is the full English month name (`June`, not `Jun`).
-- Day has no leading zero (`7`, not `07`).
-- Year is the four-digit year.
-- The heading must occupy its own paragraph (no inline text on the same line).
-
-Example: `WEEKLY FAMILY PLANNER · Week of June 7, 2026`
-
-The agent locates each week's section by matching this exact heading pattern, parsing the date, and picking the highest date. If you rename "FAMILY" to something else, update the agent's regex to match.
+1. The planner table (9 rows × 8 cols)
+2. A blank-line separator paragraph
+3. The GROCERIES table (8 rows × 2 cols)
 
 ## Planner table
 
-Dimensions: `(1 + N) rows × 7 columns`, where `N` is the count of category rows (Commitments, Dinner, etc.). The default `N = 4` (Commitments, Childcare, Dinner with recipe links, Notes).
+Dimensions: **9 rows × 8 columns**. Column 0 is the label column; columns 1-7 are the seven weekdays (Sunday through Saturday).
 
-| Row | Column 0 | Columns 1-6 |
+| Row | Column 0 | Columns 1-7 |
 |---|---|---|
-| 0 | `SUNDAY <Month> <Day>` | weekday headers for Mon-Sat with dates |
-| 1 | `Commitments` | cell content for each weekday |
-| 2 | `Childcare` | cell content for each weekday |
-| 3 | `Dinner (with recipe links)` | cell content for each weekday |
-| 4 | `Notes` | cell content for each weekday |
+| 0 | `WEEKLY FAMILY PLANNER  ·  Week of <Month> <Day>, <Year>` (spans the full width via cell merge / styling) | — |
+| 1 | empty / decorative | weekday + date column headers, e.g. `SUNDAY June 7`, `MONDAY June 8`, … |
+| 2 | `⚑ Commitments` | scheduled commitments per weekday |
+| 3 | `👶 Childcare` | childcare details |
+| 4 | `🌿 Iris Outing` | outing notes |
+| 5 | `🥄 Iris Solids` | feeding notes |
+| 6 | `🐾 Dog Exercise` | dog activity |
+| 7 | `🍽️ Dinner` | dish name + recipe URL |
+| 8 | `📌 Notes` | freeform |
 
 Notes:
 
-- **Column 0 is Sunday.** Many planners start the week on Monday; this one is Sun-Sat. The setup script enforces this by rejecting `--start-date` values that aren't a Sunday.
-- Header dates in row 0 are weekday name (uppercased) + month + day, e.g. `MONDAY June 8`.
-- Year is in the week heading, not in the column headers. The agent infers the year for column headers from the heading.
-- Row labels live in column 0 only; columns 1-6 of row N hold the seven days' content for that category.
-- **Dinner cells should contain a dish name plus a recipe URL** when applicable. The agent looks for URLs in the cell (either as a hyperlink attached to the dish name or as plain text) to drive the recipe-fetch step.
-
-## GROCERIES heading
-
-Exact form:
-
-    GROCERIES · Week of <Month> <Day>
-
-- Same `·` separator as the week heading.
-- **No year here.** The agent matches this heading against the most-recent week section, so the year is unambiguous from context.
-- The heading lives in row 0, column 0 of the GROCERIES *table* (not as a standalone paragraph above the table). This is how the agent's `mcp__gdrive__replace_table_cells` tool locates the right table by heading text.
+- **The week heading lives INSIDE row 0** of the table, not as a standalone paragraph above the table. The agent locates each week's section by matching `WEEKLY FAMILY PLANNER  ·  Week of <date>` inside table cells, not in paragraph text.
+- Separator in the heading is `·` (U+00B7 middle dot) with **two spaces** on each side: `PLANNER  ·  Week`. Other headings (GROCERIES) use a single space — both are real, agent matches each in the right place.
+- **Column 0 is Sunday.** The setup script enforces this by rejecting `--start-date` values that aren't Sunday.
+- Row 1 column headers are `<WEEKDAY> <Month> <Day>` — full uppercase weekday + month + day. Year comes from the row-0 heading.
+- The Iris-/Dog-specific rows are starter content carried over from the template's source. Rename or delete rows that don't apply to your household; the agent reads row labels dynamically, so it'll match whatever you put in column 0.
 
 ## GROCERIES table
 
-Dimensions: `(2 + M) rows × 2 columns`, where `M` is the count of categories.
+Dimensions: **8 rows × 2 columns**.
 
 | Row | Column 0 | Column 1 |
 |---|---|---|
-| 0 | `GROCERIES · Week of <Month> <Day>` | (empty — heading visually spans both cols) |
-| 1 | `Covers: <dish names>` | (empty — Covers visually spans both cols) |
-| 2 | `Produce` | item list, one per line |
-| 3 | `Protein` | item list |
-| 4 | `Dairy` | item list |
-| 5 | `Pantry` | item list |
-| 6 | `Frozen` | item list |
-| 7 | `Refrigerated / Other` | item list |
+| 0 | `GROCERIES · Week of <Month> <Day>` (spans full width) | — |
+| 1 | `Covers: <dish names>` | — |
+| 2 | `🥬 Produce` | item list, one per line |
+| 3 | `🥩 Protein` | item list |
+| 4 | `🧈 Dairy` | item list |
+| 5 | `🧂 Pantry` | item list |
+| 6 | `❄️ Frozen` | item list |
+| 7 | `🥡 Refrigerated / Other` | item list |
 
 Notes:
 
-- Row index → category mapping is positional. The agent writes to specific row indices, so if you reorder categories you must update both ends.
-- Item-list cells are populated by the agent (each cell is one ingredient per line, no leading bullet). The setup script leaves these empty.
-- You can prepend emoji to category labels (`🥬 Produce`) — the agent matches by row index, not by label text, so cosmetic decoration is safe. Renaming `Produce` to `Veggies` is also safe as long as the row index stays put.
+- GROCERIES separator is single-space (`GROCERIES · Week`), unlike the planner heading's two-space form. Match each exactly.
+- **No year** in this heading — the agent matches against the most-recent week section, so the year is unambiguous from context.
+- Row index → category mapping is positional. Reorder cautiously; the weekly-planner agent's `replace_table_cells` calls reference specific row indices.
+- You can rename the labels (`Pantry` → `Dry Goods`, etc.) without breaking anything — the agent goes by row index, not by label text.
 
-## Customization knobs
+## Placeholders in the template
+
+The template doc carries these placeholders. The setup script substitutes them via `replaceAllText`:
+
+| Placeholder | Substituted with | Example |
+|---|---|---|
+| `{{WEEK_DATE}}` | `<Month> <Day>, <Year>` | `June 7, 2026` |
+| `{{GROCERIES_DATE}}` | `<Month> <Day>` | `June 7` |
+| `{{SUN_DATE}}` … `{{SAT_DATE}}` | `<Month> <Day>` for each day Sunday-Saturday | `June 7`, `June 8`, … `June 13` |
+
+After substitution, the doc has no placeholders left and is ready for the weekly-planner agent.
+
+## Customization
 
 Things you can change without touching the agent:
 
-- Doc title
-- Planner row labels (the agent reads them as configured; if your agent is parameterized via vars, sync the new labels there)
-- Adding more weeks to pre-seed
-- Adding emoji or formatting to category labels
+- Doc title (`--title` flag on setup.py)
+- Row labels in column 0 of the planner table (rename or remove rows)
+- Category labels in column 0 of the GROCERIES table
+- Styling (colors, fonts, column widths) — all preserved across copies
 
-Things that require the agent to change too:
+Things that DO affect the agent:
 
-- Adding/removing planner rows or GROCERIES categories (row-index references in the agent's `replace_table_cells` calls)
-- Renaming `FAMILY` in the heading (regex match)
-- Switching from Sunday-start to Monday-start weeks (date arithmetic)
-- Changing the `·` separator
+- Removing rows the agent references by name (e.g., `Dinner`, `Commitments`)
+- Changing the `·` separator or the heading prefix (`WEEKLY FAMILY PLANNER`, `GROCERIES`)
+- Switching from Sunday-start to Monday-start weeks (would require re-anchoring `column 1 = Sunday`)

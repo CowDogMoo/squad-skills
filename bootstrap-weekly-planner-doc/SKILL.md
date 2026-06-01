@@ -1,25 +1,25 @@
 ---
 name: bootstrap-weekly-planner-doc
-description: Create a new Google Doc weekly planner with the table structure the weekly-planner agent expects (rolling planner table + GROCERIES table, one section per week). Use when a user is first setting up the weekly-planner agent or wants to seed additional weeks ahead.
+description: Copy a fully-styled Google Doc weekly planner template into the user's Drive and substitute this week's dates. Use when a user is first setting up the weekly-planner agent and needs an empty planner doc to point it at.
 ---
 
 # Bootstrap weekly planner doc
 
-You are creating an empty Google Doc whose structure matches what the `weekly-planner` agent reads from: a rolling planner with `WEEKLY FAMILY PLANNER · Week of <date>` headings, a 7-column day-of-week planner table, and a 2-column GROCERIES table per week. The script in `scripts/setup.py` does the heavy lifting via the Google Docs API; this body is the runbook for running it.
+You are creating a new Google Doc weekly planner for the user by copying a public template (`TEMPLATE_ID` in `scripts/setup.py`) into their Drive and filling in this week's dates. The template carries all the styling — colored category bands, emoji prefixes, column widths, header formatting — so the resulting doc is presentable on first run, not a bare API-built skeleton. The script in `scripts/setup.py` does the work; this body is the runbook.
 
-# Why a script, not a `.docx` template?
+# Why copy-a-template vs build-via-API?
 
-The weekly-planner agent already needs OAuth + Docs/Drive APIs to operate (it calls `documents.batchUpdate` to write the grocery list each week), so the marginal cost of one more API-driven setup step is near zero — and the script makes the schema authoritative. `.docx` upload-to-Drive loses table column widths and merged-cell behavior unpredictably; programmatic build is reproducible.
+Programmatic `documents.batchUpdate` can build the structural skeleton fine, but every styling detail (per-row colors, column widths, paragraph styles, cell merges) has to be re-issued as additional API calls — and personal taste in styling is a moving target. Cloning a Drive file via `files.copy` preserves the template's appearance 1:1 with one API call. The script's only job after the copy is filling in the dates.
 
 # Inputs
 
-The caller (or the user running the script directly) provides:
+The caller (or the user running the script) provides:
 
 - A Google Cloud Console OAuth 2.0 Client ID of type "Desktop app", downloaded as `credentials.json`.
 - The first week's start date (must be a Sunday, ISO `YYYY-MM-DD`).
-- Optional: doc title (default `Family Planner`), number of weeks to pre-seed (default `1`).
+- Optional: doc title (default `Weekly Planner`).
 
-Scopes used: `documents` (create + modify the doc) and `drive.file` (the script only ever sees files it created — it does NOT grant read access to the user's whole Drive).
+Scopes used: `documents` (substitute date placeholders) + `drive.file` (copy the public template into the user's Drive). `drive.file` is per-file — the script can only see/modify files it created, never the user's broader Drive.
 
 # Step-by-step
 
@@ -29,16 +29,14 @@ If the user hasn't done it before:
 
 1. Open https://console.cloud.google.com/apis/credentials in the user's Google account.
 2. Create a new OAuth 2.0 Client ID. Application type: **Desktop app**.
-3. Download the resulting JSON; save as `credentials.json` in the same directory where you'll run `setup.py`.
-4. On the **OAuth consent screen** tab, ensure the Google account that will own the planner doc is listed as a Test User (or publish the consent screen to "In production" if you want any account).
+3. Download the resulting JSON; save as `credentials.json` in the directory where you'll run `setup.py`.
+4. On the **OAuth consent screen** tab, make sure the Google account that will own the planner doc is listed as a Test User (or publish the consent screen to "In production").
 
-This is a one-time setup. The script writes `token.json` after the first run; subsequent runs are non-interactive as long as the token is still valid (refresh tokens last ~6 months for unverified test apps).
+The script writes `token.json` after the first run; subsequent runs are non-interactive as long as the refresh token is valid.
 
 ## 2. Install Python dependencies
 
     python3 -m pip install --user google-api-python-client google-auth google-auth-oauthlib
-
-(Or use a venv — `python3 -m venv .venv && . .venv/bin/activate && pip install ...`.)
 
 ## 3. Run the setup script
 
@@ -46,50 +44,51 @@ From the directory holding `credentials.json`:
 
     python3 "$SQUAD_SKILL_DIR/scripts/setup.py" --start-date 2026-06-07
 
-On hosts that don't expose `$SQUAD_SKILL_DIR`, copy `scripts/setup.py` to a working directory first and call it directly:
-
-    python3 setup.py --start-date 2026-06-07
+On hosts that don't expose `$SQUAD_SKILL_DIR`, copy `scripts/setup.py` to a working directory first and call it directly.
 
 The first run opens a browser to the OAuth consent screen. Approve it; the script writes `token.json` and proceeds.
 
-Other flags:
+Flags:
 
-- `--title "My Planner"` — sets the doc title (default `Family Planner`).
-- `--weeks 4` — pre-seeds N weeks of empty sections (default 1).
+- `--start-date` (required) — Sunday `YYYY-MM-DD` that anchors the week.
+- `--title "My Planner"` — sets the doc title (default `Weekly Planner`).
 
 The script prints the new doc's URL and `file_id` to stdout. The `file_id` is what the `weekly-planner` agent needs in its config or vars.
 
-## 4. Verify the structure
+## 4. Verify the result
 
 Open the doc URL printed by the script. You should see:
 
-- A heading `WEEKLY FAMILY PLANNER · Week of <Month> <Day>, <Year>`.
-- A 7-column table with weekday headers in row 0 (Sunday through Saturday with the actual dates) and Commitments / Childcare / Dinner / Notes labels in column 0.
-- A `GROCERIES · Week of <Month> <Day>` heading inside row 0 of a second table.
-- A 2-column GROCERIES table with `Covers:` in row 1 and Produce / Protein / Dairy / Pantry / Frozen / Refrigerated rows below.
+- A fully-styled planner table with the week heading filled in (`WEEKLY FAMILY PLANNER  ·  Week of June 7, 2026` or similar), seven weekday columns with dates, and category rows for Commitments, Childcare, Iris Outing, Iris Solids, Dog Exercise, Dinner, Notes.
+- A styled GROCERIES table with category rows (Produce, Protein, Dairy, Pantry, Frozen, Refrigerated/Other) all empty.
+- A `📚 Previous Weeks` section heading underneath, ready for the user to archive future weeks.
 
-If anything looks off, see `references/planner-schema.md` for the exact contract. Differences from the spec will confuse the weekly-planner agent's date detection or its `replace_table_cells` calls.
+If any placeholders show through (`{{WEEK_DATE}}`, `{{SUN_DATE}}`, etc.), the script's `replaceAllText` pass didn't complete — re-run or report.
+
+The category rows include `Iris Outing`, `Iris Solids`, `Dog Exercise` because they were in the template's source planner. **Rename or delete rows that don't apply to your household** — the weekly-planner agent reads row labels dynamically.
 
 ## 5. Pass the file_id to the agent
 
-Configure the weekly-planner agent with the new `file_id`. Depending on host:
+Configure the weekly-planner agent with the new `file_id`:
 
-- **Squad agent vars**: set `PLANNER_DOC_ID` (or whatever var name the agent expects) in `agent.yaml` or via `--var PLANNER_DOC_ID=<id>` at run time.
-- **Claude Code / other hosts**: paste the `file_id` into the agent's kickoff prompt or wherever the agent reads doc IDs from.
+- **Squad**: set `PlannerDocId` via `--var PlannerDocId=<id>` or in `agent.yaml` vars.
+- **Claude Code / other hosts**: paste the `file_id` into the agent's kickoff prompt or wherever it reads doc IDs from.
 
-# When to re-run
+## 6. Adding more weeks later
 
-Run the script again to:
+The template ships with one week. To add another week (say, after rolling the current week into the `📚 Previous Weeks` section):
 
-- Pre-seed additional empty weeks for the future. Use the same doc by editing the script to call `append_week` against an existing `doc_id` instead of creating a new doc — or just re-run with a fresh `--title` and copy/paste the table into your existing doc.
-- Bootstrap a fresh doc for a different family member or co-parenting calendar.
+1. Re-run `setup.py` against a fresh date — but that creates a *new* doc, which probably isn't what you want.
+2. Or copy the planner+GROCERIES tables from the current week, paste them below `📅 Current Week`, and update the heading dates by hand.
+3. Or write a small `roll-week.py` script that does step 2 programmatically (a future enhancement; not shipped here).
 
 # Schema reference
 
-The detailed table-row contract lives in `references/planner-schema.md`. Read that before changing `PLANNER_ROWS` or `GROCERIES_CATEGORIES` in the script — the row indices are load-bearing and the weekly-planner agent's `replace_table_cells` calls depend on them.
+The detailed table-row contract lives in `references/planner-schema.md`. Read it before customizing if the agent stops finding sections after your edits — the heading regex and row-index references in the agent are sensitive to specific shapes.
 
 # Guardrails
 
-- The script's `drive.file` scope means it can only see/modify files it creates. It cannot read or delete other docs in the user's Drive — this is intentional and should not be widened.
-- The script uses OAuth installed-app flow. The `token.json` it writes contains a refresh token; treat it like a secret (it grants the script ongoing access to docs it has created). Don't commit it to git.
-- If `documents.create` fails, fix the auth before retrying. If the structural `batchUpdate` succeeds but the cell-content `batchUpdate` fails, the doc is left in a partial state — easier to delete the partial doc and re-run than to fix in place.
+- The `drive.file` scope means the script can only see/modify files it created (including the freshly-copied planner). It cannot read or delete other docs in the user's Drive.
+- `token.json` grants ongoing access to docs the script has created. Treat it like a secret; don't commit it to git.
+- If `files.copy` fails with a 403 about insufficient scopes, the OAuth client is missing `drive.file` — re-consent with the scope added. The error message will name it explicitly.
+- If `replaceAllText` succeeds but the doc still shows `{{...}}` placeholders, the template's text was edited in a way that broke the placeholders (e.g. a placeholder was split across two text runs by inline styling). Re-sanitize the template or report.
