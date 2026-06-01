@@ -39,17 +39,17 @@ to this repo by pointing it at the directory or referencing the file:
 
 # From any host that supports a user-skills directory — drop the
 # folder in place.
-cp -r add-groceries-to-whole-foods-cart /path/to/host/skills/
+cp -r comment-scrub-playbook /path/to/host/skills/
 ```
 
 ## Available Skills
 
 | Skill                                                                    | Description                                                                                                                                       |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [add-groceries-to-whole-foods-cart](./add-groceries-to-whole-foods-cart) | Parse a weekly grocery list from a Google Doc planner and add non-completed items to an Amazon/Whole Foods cart. Stops at cart, never checks out. |
-| [bootstrap-weekly-planner-doc](./bootstrap-weekly-planner-doc)           | Create a new Google Doc weekly planner with the table structure the weekly-planner agent expects (one section per week, planner + GROCERIES tables). |
+| [comment-scrub-playbook](./comment-scrub-playbook)                       | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command. |
 | [detect-llm-tells](./detect-llm-tells)                                   | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).     |
-| [extract-recipe-grocery-list](./extract-recipe-grocery-list)             | Fetch a list of recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle.       |
+| [doc-comments-discovery-and-fix-loop](./doc-comments-discovery-and-fix-loop) | Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify compilation, report. |
+| [score-coverage-and-report-gaps](./score-coverage-and-report-gaps)       | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta. |
 
 ## Skill Structure
 
@@ -102,9 +102,6 @@ across them. The pattern that works:
 3. Prefer the richer fallback path when the host exposes it (e.g. a
    Drive MCP that returns HTML preserves strikethrough formatting that
    a markdown export would drop).
-
-See [`add-groceries-to-whole-foods-cart/SKILL.md`](./add-groceries-to-whole-foods-cart/SKILL.md)
-for a worked example.
 
 ## Creating a Skill
 
