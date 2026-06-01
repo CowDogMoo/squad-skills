@@ -35,12 +35,12 @@ PLANNER_ROWS = [
 ]
 
 GROCERIES_CATEGORIES = [
-    "Produce",
-    "Protein",
-    "Dairy",
-    "Pantry",
-    "Frozen",
-    "Refrigerated / Other",
+    "🥬 Produce",
+    "🥩 Protein",
+    "🧈 Dairy",
+    "🧂 Pantry",
+    "❄️ Frozen",
+    "🥡 Refrigerated / Other",
 ]
 
 
@@ -80,12 +80,15 @@ def column_header(date):
 
 
 def append_week(docs, doc_id, start):
-    """Append one week's section (heading + 7-col planner table + GROCERIES heading + 2-col groceries table)."""
-    # Structural pass: append headings + empty tables to the doc body.
+    """Append one week's section (heading + 7-col planner table + 2-col groceries table)."""
+    # Structural pass: append the week heading paragraph, the planner table, a
+    # blank separator paragraph, the GROCERIES table, and a trailing blank.
+    # The GROCERIES heading lives in row 0 of its table, not as a standalone
+    # paragraph above it (the agent's replace_table_cells call finds it there).
     structural = [
         {"insertText": {"endOfSegmentLocation": {}, "text": week_heading(start) + "\n"}},
         {"insertTable": {"rows": 1 + len(PLANNER_ROWS), "columns": 7, "endOfSegmentLocation": {}}},
-        {"insertText": {"endOfSegmentLocation": {}, "text": "\n" + groceries_heading(start) + "\n"}},
+        {"insertText": {"endOfSegmentLocation": {}, "text": "\n"}},
         {"insertTable": {"rows": 2 + len(GROCERIES_CATEGORIES), "columns": 2, "endOfSegmentLocation": {}}},
         {"insertText": {"endOfSegmentLocation": {}, "text": "\n"}},
     ]
@@ -122,6 +125,106 @@ def append_week(docs, doc_id, start):
         for idx, text in writes
     ]
     docs.documents().batchUpdate(documentId=doc_id, body={"requests": content_requests}).execute()
+
+    # Styling pass: re-fetch the doc, locate the week heading paragraph and the
+    # two tables we just populated, and apply bold + heading style + light
+    # backgrounds to the label cells. Done after content so indices are stable.
+    apply_styling(docs, doc_id, start)
+
+
+def text_run_range(cell):
+    """Return (startIndex, endIndex) covering the text content of a populated cell, or None if empty."""
+    para = cell["content"][0].get("paragraph")
+    if not para:
+        return None
+    for el in para.get("elements", []):
+        run = el.get("textRun")
+        if run and run.get("content", "").strip():
+            return el["startIndex"], el["endIndex"] - 1  # drop trailing newline
+    return None
+
+
+def bold_request(rng):
+    start, end = rng
+    return {"updateTextStyle": {
+        "textStyle": {"bold": True},
+        "fields": "bold",
+        "range": {"startIndex": start, "endIndex": end},
+    }}
+
+
+def header_bg_request(table, row, col_span):
+    return {"updateTableCellStyle": {
+        "tableCellStyle": {"backgroundColor": {"color": {"rgbColor": {"red": 0.93, "green": 0.93, "blue": 0.93}}}},
+        "fields": "backgroundColor",
+        "tableRange": {
+            "tableCellLocation": {
+                "tableStartLocation": {"index": table["startIndex"]},
+                "rowIndex": row,
+                "columnIndex": 0,
+            },
+            "rowSpan": 1,
+            "columnSpan": col_span,
+        },
+    }}
+
+
+def apply_styling(docs, doc_id, start):
+    doc = docs.documents().get(documentId=doc_id).execute()
+    body = doc["body"]["content"]
+    body_tables = [el for el in body if "table" in el]
+    planner = body_tables[-2]
+    groceries = body_tables[-1]
+
+    # Find the week heading paragraph (most recent one before the planner table).
+    target_heading = week_heading(start)
+    heading_range = None
+    for el in body:
+        if "paragraph" not in el:
+            continue
+        para = el["paragraph"]
+        for pe in para.get("elements", []):
+            run = pe.get("textRun")
+            if run and run.get("content", "").rstrip("\n") == target_heading:
+                heading_range = (pe["startIndex"], pe["endIndex"] - 1)
+                break
+
+    requests = []
+
+    if heading_range:
+        requests.append({"updateParagraphStyle": {
+            "paragraphStyle": {"namedStyleType": "HEADING_1"},
+            "fields": "namedStyleType",
+            "range": {"startIndex": heading_range[0], "endIndex": heading_range[1]},
+        }})
+
+    # Planner table: bold header row (row 0, all 7 cols), bold label column
+    # (col 0, rows 1..N), light gray on header row.
+    requests.append(header_bg_request(planner, row=0, col_span=7))
+    for col in range(7):
+        rng = text_run_range(planner["table"]["tableRows"][0]["tableCells"][col])
+        if rng:
+            requests.append(bold_request(rng))
+    for row in range(1, 1 + len(PLANNER_ROWS)):
+        rng = text_run_range(planner["table"]["tableRows"][row]["tableCells"][0])
+        if rng:
+            requests.append(bold_request(rng))
+
+    # Groceries table: bold + light gray on heading (row 0) and Covers (row 1).
+    # Bold category labels (col 0, rows 2..N).
+    requests.append(header_bg_request(groceries, row=0, col_span=2))
+    requests.append(header_bg_request(groceries, row=1, col_span=2))
+    for row in (0, 1):
+        rng = text_run_range(groceries["table"]["tableRows"][row]["tableCells"][0])
+        if rng:
+            requests.append(bold_request(rng))
+    for row in range(2, 2 + len(GROCERIES_CATEGORIES)):
+        rng = text_run_range(groceries["table"]["tableRows"][row]["tableCells"][0])
+        if rng:
+            requests.append(bold_request(rng))
+
+    if requests:
+        docs.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute()
 
 
 def cell_insert_index(table, row, col):
