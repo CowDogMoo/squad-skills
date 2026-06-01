@@ -1,9 +1,9 @@
 ---
 name: add-groceries-to-whole-foods-cart
-description: Parse the weekly grocery list from Jayson's Google Doc planner and add non-completed items to his Amazon/Whole Foods cart (stops at cart, never checks out).
+description: Parse the weekly grocery list from a Google Doc planner and add non-completed items to an Amazon Whole Foods cart. Stops at cart, never checks out.
 ---
 
-You are adding this week's groceries from Jayson's weekly planner Google Doc to his Amazon Whole Foods cart. This task is triggered manually on-demand — there is no schedule.
+You are adding this week's groceries from a Google Doc planner to the user's Amazon Whole Foods cart. The caller provides the planner doc file_id and assumes the host's browser MCP is signed into Amazon. This task is triggered manually on-demand — there is no schedule.
 
 # Host-environment translation (READ FIRST)
 
@@ -15,8 +15,8 @@ whichever tools your host actually exposes.
 ## Reading the planner doc
 
 **Prefer a Drive/Workspace MCP if your host has one** — pass the doc
-file_id (`1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w`) to its
-read-file tool and ask for HTML output. HTML preserves strikethrough
+file_id (supplied by the caller) to its read-file tool and ask for
+HTML output. HTML preserves strikethrough
 styling (items already obtained appear inside `<s>...</s>` tags or
 with `style="text-decoration:line-through"` on a span). Examples by
 host:
@@ -50,7 +50,7 @@ squad-managed browser profile (resolved by the
 `{{.BrowserProfile "amazon"}}` template helper). Sign into Amazon
 once via `squad browser open amazon https://www.amazon.com/`; the
 session persists across subsequent runs. If Chrome navigation lands
-on an Amazon sign-in page on any later run, stop and tell Jayson —
+on an Amazon sign-in page on any later run, stop and tell the user —
 don't try to fill credentials.
 
 ## Confirmation prompt
@@ -66,10 +66,15 @@ Read the grocery list from the weekly planner Google Doc, extract only the items
 
 # Inputs
 
-- Planner Google Doc: https://docs.google.com/document/d/1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w
-- Amazon cart URL: https://www.amazon.com/gp/cart/view.html?ref_=nav_cart
-- Whole Foods subcart URL: https://www.amazon.com/cart/localmarket?almBrandId=VUZHIFdob2xlIEZvb2Rz
-- Delivery address is Lakewood 80228. Amazon sign-in lives in the chrome-devtools-mcp profile (`~/.cache/chrome-devtools-mcp/chrome-profile`) — already signed in after the first manual login; abort the run if you see a sign-in page.
+Inputs that come from the caller (per-user; never hard-coded in this skill):
+
+- Planner Google Doc `file_id` — the doc that holds this week's `GROCERIES · Week of <date>` section.
+- The host's browser MCP must be signed into Amazon already, with the delivery ZIP set on the Amazon account. If the cart loads on a sign-in page, abort and tell the user — never fill credentials.
+
+Fixed URLs you'll navigate to:
+
+- Amazon cart: https://www.amazon.com/gp/cart/view.html?ref_=nav_cart
+- Whole Foods subcart: https://www.amazon.com/cart/localmarket?almBrandId=VUZHIFdob2xlIEZvb2Rz
 
 # Step-by-step
 
@@ -94,7 +99,7 @@ This only works when the browser MCP attaches to a Chrome instance
 that's already signed into Google — otherwise the mobilebasic page
 redirects to a "this browser may not be secure" wall. Procedure:
 
-1. `mcp__Claude_in_Chrome__navigate` to `https://docs.google.com/document/d/1wOTsLdEym1ml9oKCAkjmSEE4sN5q-6A-CzHLlcxfq1w/mobilebasic`
+1. `mcp__Claude_in_Chrome__navigate` to `https://docs.google.com/document/d/<file_id>/mobilebasic` (substituting the caller-supplied `file_id`)
 2. Wait ~2s for render.
 3. Run JS to find struck-through items:
 
@@ -125,7 +130,7 @@ Parse each remaining ingredient with its quantity. Items often have parenthetica
 
 ## 2. Resolve ambiguities by reading the linked recipes — don't ask the user
 
-The doc's weekly planner table includes recipe URLs under the "Dinner" row. If the grocery list is ambiguous on quantity, size, "optional" status, or pack size — **fetch the recipe URLs directly via the Chrome MCP** rather than asking Jayson. He's explicitly told the agent to do this.
+The doc's weekly planner table includes recipe URLs under the "Dinner" row. If the grocery list is ambiguous on quantity, size, "optional" status, or pack size — **fetch the recipe URLs directly via the Chrome MCP** rather than asking the user. This is the configured behavior: ambiguity gets resolved by reading the recipe, not by pinging the user mid-run.
 
 Recipe URLs from the doc are NOT in WebFetch's provenance set (because they came via the Drive MCP), so use `mcp__Claude_in_Chrome__navigate` + `javascript_tool` to scrape `.tasty-recipes`, `.wprm-recipe-container`, or `.wprm-recipe` containers for the ingredient list.
 
@@ -137,11 +142,11 @@ Things the recipes resolve:
 
 ## 3. Confirm the parsed list with the user
 
-Before touching the cart, show Jayson:
+Before touching the cart, show the user:
 
 - The list of items you will add, organized by category, with quantities.
 - Any recipe-derived decisions (e.g. "going with ~1 lb salmon fillet; recipe range was 1-2 lb").
-- Anything truly outside the recipes that needs his input (e.g. whether to skip pantry staples he might already own — but note the strikethrough convention is the source of truth: if it's NOT struck through, he wants it).
+- Anything truly outside the recipes that needs the user's input (e.g. whether to skip pantry staples the user might already own — but note the strikethrough convention is the source of truth: if it's NOT struck through, treat it as wanted).
 
 Use `AskUserQuestion` with a clear go/no-go question. Don't proceed to cart adds until he confirms.
 
@@ -172,8 +177,8 @@ cards.slice(0, 6).map(c => ({
 
 ### Picking products — priority order
 
-1. **PRODUCE: organic by default.** Jayson explicitly directs organic for fresh produce, even if it's more expensive than conventional. If the only organic option is a larger bag (e.g. organic russet potatoes only come in a 5 lb bag, organic limes only in a 1 lb bag), buy the bag and flag the over-purchase. If no organic version exists (e.g. fresh jalapeños — Whole Foods only stocks jarred sliced organic), keep the conventional and flag it.
-2. **365 BY WHOLE FOODS MARKET** brand preference for pantry, dairy, frozen, refrigerated — usually cheapest and matches Jayson's pattern.
+1. **PRODUCE: organic by default.** Default to organic for fresh produce, even if it's more expensive than conventional. If the only organic option is a larger bag (e.g. organic russet potatoes only come in a 5 lb bag, organic limes only in a 1 lb bag), buy the bag and flag the over-purchase. If no organic version exists (e.g. fresh jalapeños — Whole Foods only stocks jarred sliced organic), keep the conventional and flag it. The caller can override this default in the kickoff prompt.
+2. **365 BY WHOLE FOODS MARKET** brand preference for pantry, dairy, frozen, refrigerated — usually cheapest and the standard Whole Foods house brand.
 3. **Smallest pack size** that satisfies the recipe quantity. Don't over-buy.
 4. Previous purchases — Amazon's `Buy it again` / `Purchased before` signal exists but is unreliable to detect from search-result DOM text (it matches recommendations too). Don't try to detect it programmatically; rely on the rules above.
 
@@ -284,7 +289,7 @@ Whole Foods does NOT carry fresh organic versions of some produce (verified: jal
 
 - If an item isn't available at Whole Foods, note it and skip — do NOT substitute without asking.
 - For ambiguous matches (e.g. "shrimp" — fresh vs frozen), check the recipe URL first. If still ambiguous, ask.
-- If you get logged out or hit a CAPTCHA, stop and tell Jayson.
+- If you get logged out or hit a CAPTCHA, stop and tell the user.
 
 ## 6. Stop at the cart
 
@@ -302,16 +307,16 @@ Items have different delete UIs in each view:
 
 After deletes, the cart's async update lags a few seconds. Wait 3-4s before re-reading `#nav-cart-count` or DOM state. The cart row will linger with a "moved to Saved for Later / Undo" message even after deletion — check `row.className` for `sc-list-item-optimistic-updates` to identify already-deleted rows.
 
-**Do NOT click "Proceed to checkout."** Do NOT place an order. Even if Jayson asks during the run, decline politely — checkout is out of scope.
+**Do NOT click "Proceed to checkout."** Do NOT place an order. Even if the user asks during the run, decline politely — checkout is out of scope.
 
 # Output
 
-Report back to Jayson with:
+Report back to the user with:
 
 - Items added, organized by category, with the matched product name and pack size.
 - Anything flagged: items where you bought a larger pack because the smaller size wasn't available organic; items unavailable; conventional kept because no organic exists; recipe quantities that don't match retail pack sizes.
 - The cart link.
-- A reminder that the cart is ready for him to review and check out himself.
+- A reminder that the cart is ready for the user to review and check out themselves.
 
 # Constraints
 
@@ -319,11 +324,11 @@ Report back to Jayson with:
 - Only add items that are NOT struck through in the doc.
 - **Produce: organic by default.** Other categories: 365 brand first, smallest pack second.
 - One unit per item unless the recipe needs more than one pack size (rare).
-- Resolve ambiguity from recipe URLs before asking Jayson.
+- Resolve ambiguity from recipe URLs before asking the user.
 
-# Verified item references (May 2026)
+# Reference picks (example, May 2026)
 
-Reference picks from a successful run — re-verify ASINs each time, they can change:
+Concrete picks from one user's run, illustrating the organic-produce / 365-brand / smallest-pack rules in practice. Other users will get different picks for different shopping lists; ASINs can change over time. Use this as a sanity check that the picking logic is producing reasonable results, not as a required pick set:
 
 | Need | ASIN | Product |
 |------|------|---------|
