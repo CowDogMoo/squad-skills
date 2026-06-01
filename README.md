@@ -48,6 +48,7 @@ cp -r add-groceries-to-whole-foods-cart /path/to/host/skills/
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [add-groceries-to-whole-foods-cart](./add-groceries-to-whole-foods-cart) | Parse a weekly grocery list from a Google Doc planner and add non-completed items to an Amazon/Whole Foods cart. Stops at cart, never checks out. |
 | [detect-llm-tells](./detect-llm-tells)                                   | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).     |
+| [extract-recipe-grocery-list](./extract-recipe-grocery-list)             | Fetch a list of recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle.       |
 
 ## Skill Structure
 
