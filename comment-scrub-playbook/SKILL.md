@@ -1,6 +1,10 @@
 ---
 name: comment-scrub-playbook
 description: Classify source-code comments into five delete-candidate categories (states-the-obvious, LLM-generated, no-info, non-idiomatic, visual noise) and decide delete vs. trim vs. keep. Use when scrubbing useless or LLM-slop comments from a codebase.
+allowed-tools: Read, Glob
+metadata:
+  author: Jayson Grace
+  version: 1.1.0
 ---
 
 # Comment Scrub Playbook
@@ -185,3 +189,151 @@ This skill produces, for each comment block the caller hands it:
 The caller assembles these into Edits and runs the language-specific
 build-verify command (`go build ./...`, `cargo check`,
 `python -m compileall`, `tsc --noEmit`, etc.) before reporting.
+
+# Examples
+
+## Example 1 — Pure narration (Category 1) → DELETE
+
+Input (Go):
+
+```go
+// Increment counter
+counter++
+```
+
+Decision: `DELETE`. Category 1 fires (verb-phrase test: comment
+verb+object = `Increment counter`, code = `counter++`). The block is
+deleted entirely. Whitespace collapses to at most one blank line.
+
+## Example 2 — Mixed obvious + useful "why" → TRIM
+
+Input (Python):
+
+```python
+# Loop through items and write each to disk.
+# Note: order matters here — the audit log replays them in arrival
+# order, so writing out of order silently corrupts replay state.
+for item in items:
+    write(item)
+```
+
+Decision: `TRIM`. The first line is Category 1 narration; the second
+and third add the *why* (replay correctness). Keep only the audit-log
+note:
+
+```python
+# Order matters: the audit log replays items in arrival order, so
+# writing out of order silently corrupts replay state.
+for item in items:
+    write(item)
+```
+
+## Example 3 — Exported Go doc, tautological → KEEP
+
+Input (Go):
+
+```go
+// NewClient creates a new Client.
+func NewClient() *Client { ... }
+```
+
+Decision: `KEEP`. Go tooling enforces doc comments on exported
+identifiers. Even tautological docs stay; the `doc-comments-discovery-
+and-fix-loop` skill rewrites them later. The scrub agent does not
+delete here.
+
+## Example 4 — LLM cluster (Category 2) → DELETE
+
+Input (Node):
+
+```js
+/**
+ * This function takes a configuration object and returns a validated
+ * configuration. Moreover, it ensures robust handling of edge cases
+ * and provides comprehensive error reporting.
+ */
+function validateConfig(cfg) { ... }
+```
+
+Decision: `DELETE`. Run through `detect-llm-tells`:
+- Cat 1 Vocabulary: "robust," "comprehensive," "ensures" — fires.
+- Cat 5 Transitions: "Moreover" — fires.
+- Cat 6 Tech-doc: signature-restating ("takes a configuration object
+  and returns a validated configuration") — fires.
+
+3 categories → FLAG MEDIUM → delete. The function name + types already
+say everything this comment says.
+
+## Example 5 — Numbered step labels (Category 5) → DELETE
+
+Input (Rust):
+
+```rust
+// Step 1: Parse the input
+// Step 2: Validate the schema
+// Step 3: Execute the query
+let parsed = parse(input)?;
+let validated = validate(parsed)?;
+execute(validated)
+```
+
+Decision: `DELETE` all three comment lines. Category 5 visual noise
+(numbered step labels in source comments are always deletions). The
+code is already three statements — the numbered prose is redundant.
+Format strings showing step numbers to end users are exempt; these are
+comments, not strings.
+
+# Troubleshooting
+
+## Error: "Tooling enforcement" rule conflicts with Category 1
+
+**Symptom:** An exported Go function has a doc comment that's pure
+narration (`// NewFoo creates a new Foo`). Category 1 says delete;
+Go tooling says keep.
+
+**Solution:** Tooling enforcement wins. Mark `KEEP` and let the
+`doc-comments-discovery-and-fix-loop` skill rewrite the comment in a
+later pass. The decision matrix line "Exported-identifier doc comment,
+language has tooling enforcement, even if tautological" handles this
+explicitly.
+
+## Error: Category 2 firing on terse, idiomatic human comments
+
+**Symptom:** Short Go-style comment like `// fast path: skip when cache
+hot` getting Category 2 flagged by `detect-llm-tells`.
+
+**Solution:** `detect-llm-tells` requires 3+ converging categories.
+A single Tier 1 word is not enough on a short block. If the cluster
+threshold isn't met, do NOT flag Category 2. Re-read the cluster
+scoring section of `detect-llm-tells`.
+
+## Error: Whitespace looks wrong after a deletion
+
+**Symptom:** Two consecutive blank lines where the deleted block used
+to be.
+
+**Solution:** Apply the whitespace discipline rule: after deleting a
+block, leave at most one blank line. Collapse multiple blanks. Never
+leave a dangling empty `//` / `///` / `#` line either.
+
+## Error: Build broke after scrub pass
+
+**Symptom:** `go build ./...` fails (or equivalent) after the agent
+applied the scrub.
+
+**Solution:** The skill never modifies code, signatures, imports, or
+string literals — only comment text. If the build broke, the most
+likely cause is an Edit that accidentally consumed a non-comment line.
+Revert the offending file with the caller's revert mechanism, then
+re-run the scrub but with stricter per-edit verification. If the
+caller forbids `git checkout` (Rust), use Edit-to-undo.
+
+## Error: Code example inside a doc-comment got mangled
+
+**Symptom:** A `/// ```` fenced example or `>>>` doctest lost
+indentation or had words removed.
+
+**Solution:** Code inside doc-comment examples is **executable test
+code** and is on the always-exempt list. Never enter that block as a
+scrub target. If you already did, revert the file and skip the
+example body on the retry pass.

@@ -1,6 +1,10 @@
 ---
 name: score-coverage-and-report-gaps
 description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use from any language-specific test-coverage agent; the caller supplies the coverage tool, idiom patterns, and target percentage.
+allowed-tools: Read, Glob, Edit, Write, Bash
+metadata:
+  author: Jayson Grace
+  version: 1.1.0
 ---
 
 # Score Coverage and Report Gaps
@@ -241,3 +245,132 @@ This skill is the loop and the discipline. The caller owns:
   pure logic inside (query builders, transforms, validation,
   config parsing) and test that. Only specific I/O-bound
   functions go in Skipped Functions.
+
+# Examples
+
+## Example 1 — Go service at 58%, target 75%
+
+Caller: `agents/go-test-coverage`. Coverage command:
+`go test ./... -coverprofile=coverage.out -count=1`. Target: 75%.
+Cap: 20 iter.
+
+Phase 1: baseline 58.2%. Gap analysis turns up:
+- 2 packages with no `_test.go` files at all (`internal/parser/`,
+  `internal/cache/`).
+- 14 funcs at 0% coverage; top concentration in `internal/parser/`.
+
+Phase 2 priority order: parser package first (no test file, most
+zero-coverage funcs in one place), then cache package, then
+scattered zero-coverage funcs across handlers.
+
+Phase 3: write `internal/parser/parser_test.go` as one `Write` call
+with table-driven tests (caller's idiom) — `t.Run` per case. Then
+`internal/cache/cache_test.go`. Per-package coverage after each
+package hits target.
+
+Phase 4: final `go test ./... -cover` → 76.4%. Build verify
+`go build ./...` → PASS.
+
+Phase 5 report includes Delta (58.2% → 76.4%), Discovered Gaps,
+Tested Packages table, Skipped Functions (4 I/O wrappers around
+`os.Exit` and DB pool init), and Validation row.
+
+## Example 2 — Total above target but gaps still required
+
+Phase 1: total coverage 81% (above 75% target). Tempted to skip
+gap analysis.
+
+Action: run the gap analysis anyway. The MANDATORY rule fires
+regardless of total. Find that 3 modules have 100% but 2 modules
+have 0% — the average hides the bimodal split. Report them in
+Discovered Gaps so the orchestrator can decide whether to do a
+targeted pass on the untested modules.
+
+## Example 3 — Python package with entry-point carve-out
+
+Caller: `agents/python-test-coverage`. Source includes `cli/main.py`
+which wires `argparse` to handlers and calls `sys.exit`.
+
+Phase 2 priority: write tests for the handler functions (pure
+logic). Mark `main()` itself as entry-point exception (50-60%
+target, not 75%).
+
+Phase 3: tests cover the handlers via direct imports. `main()` is
+covered partially through `runpy`-style invocation but stays under
+60% because `sys.exit` paths can't be exercised without mocking
+(forbidden by hard rule).
+
+Phase 5 Skipped Functions notes `main` with reason
+"entry-point/CLI carve-out; sys.exit unmockable".
+
+# Troubleshooting
+
+## Error: Gap-analysis section missing from report
+
+**Symptom:** Report has coverage delta but no "Discovered Gaps"
+section.
+
+**Cause:** Phase 1.5 was skipped because the total exceeded target.
+
+**Solution:** The gap analysis is MANDATORY regardless of total.
+Re-run the caller's zero-coverage enumeration command and append a
+Discovered Gaps section before emitting the report. A run without it
+is a failure even if the percentage is great.
+
+## Error: Tempted to mock `os.Exit` / `process.exit` / `std::process::exit`
+
+**Symptom:** Entry-point file (`cmd/`, `main.rs`, `src/index.*`,
+`bin/`) below target; the only way to hit more lines is to mock
+process exit.
+
+**Solution:** Don't. Hard rule. Apply the entry-point carve-out
+(50-60%) and document the unmockable lines in Skipped Functions.
+Mocking process exit produces tests that pass without verifying
+real behavior.
+
+## Error: Wrote a test-only interface/trait into source code
+
+**Symptom:** Source file gained a new interface/trait/protocol whose
+only consumer is the test file.
+
+**Cause:** Cross-cutting rule "No test-only interfaces" violated.
+
+**Solution:** Revert the source-file change. Use whatever exists in
+the source today, or skip the function and document why. Adding
+testability scaffolding is out of scope — the skill's job is to
+write tests against existing code.
+
+## Error: Empty test file in the diff
+
+**Symptom:** A `*_test.go` / `test_*.py` / `*.test.ts` file exists
+with imports but no actual `Test*` / `it` / `test` block.
+
+**Cause:** Iteration ran out mid-write or model batched
+incorrectly.
+
+**Solution:** Empty test files are FORBIDDEN. Either complete the
+file with at least one real test, or delete it. The verify command
+won't catch this on its own (zero tests is "passing"); the human
+reader will reject the diff.
+
+## Error: Iteration cap hit before final verify
+
+**Symptom:** Out of iterations with tests still being written.
+
+**Solution:** Apply the wind-down protocol. Stop writing. Run the
+final coverage command. Emit the report with whatever the current
+delta is and a Skipped Functions section listing what didn't get
+done due to budget. A partial accurate report beats no report.
+
+## Error: Skipped a whole file because "it touches the database"
+
+**Symptom:** File added to Skipped Functions with reason
+"requires DB" or "I/O-bound".
+
+**Cause:** Invalid skip reason.
+
+**Solution:** Open the file. Find the pure logic — query builders,
+transforms, validation, config parsing, error formatters — and test
+those. Only the specific I/O-bound function (the one that actually
+opens the connection) is a legitimate skip. The rest of the file is
+fair game.

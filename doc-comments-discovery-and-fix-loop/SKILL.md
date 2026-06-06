@@ -1,6 +1,10 @@
 ---
 name: doc-comments-discovery-and-fix-loop
 description: Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify the result compiles, and report. Use from any language-specific doc-comments agent; the caller supplies language style and verify command.
+allowed-tools: Read, Glob, Edit, Bash
+metadata:
+  author: Jayson Grace
+  version: 1.1.0
 ---
 
 # Doc Comments Discovery and Fix Loop
@@ -187,3 +191,123 @@ The skill is the loop. The caller owns:
 - Do NOT touch test files, generated files, or vendored
   directories — they're filtered in Phase 1 and should never
   appear in Phase 2.
+
+# Examples
+
+## Example 1 — Small Go codebase, missing exported docs
+
+Caller: `agents/go-doc-comments`. Iteration cap: 12. Verify:
+`go build ./...`.
+
+Phase 1: Glob `**/*.go` minus `_test.go`/`vendor/` → 18 files.
+
+Phase 2 (Read in batches of 5): catalog finds 9 exported funcs and 2
+exported types with no doc comment, 3 fragment comments, 1 godoc
+gap (blank line between comment and decl).
+
+Prioritize: complex multi-param functions first, then simple
+getters, then types.
+
+Phase 3 (Edit): batch fixes per file. For each:
+- Add summary line starting with the declared name
+  (`// ParseConfig reads the YAML at path and returns a normalized
+  Config.`).
+- Close the godoc gap (delete the blank line between comment and
+  decl).
+- Rewrite fragments into complete sentences.
+
+Phase 4: `go build ./...` → PASS. Report includes touched files,
+skipped table (3 trivial getters: `Len`, `Name`, `String`), and
+the verify result.
+
+## Example 2 — Rust crate with `pub unsafe fn` missing `# Safety`
+
+Caller: `agents/rust-doc-comments`. Revert mechanism: Edit-to-undo
+(NOT `git checkout`). Verify: `cargo build`.
+
+Phase 2 prioritization: the `# Safety` violation on a `pub unsafe fn`
+jumps to the top — safety-critical comes first regardless of file
+order.
+
+Phase 3:
+- Add `/// # Safety` block describing the invariants the caller must
+  uphold (the caller's style ruleset specifies the wording).
+- Read the edited region back after every Edit (Rust convention,
+  since `git checkout` is forbidden).
+- Move on only after Read confirms placement.
+
+Phase 4: `cargo build` → PASS. Report flags the safety fix at the
+top.
+
+## Example 3 — Verify fails after a fix
+
+Verify command (`cargo build`) errors after a doc-comment edit on
+`src/parser.rs`.
+
+Action:
+1. Identify the offending file (parser.rs).
+2. Apply the caller-declared revert (Edit-to-undo for Rust).
+3. Move the parser.rs finding to the skipped table with reason
+   "build-failed; reverted".
+4. Continue with remaining files. Do NOT proceed past a still-failing
+   build.
+
+Phase 4 report shows the skipped row plus PASS on the final verify.
+
+# Troubleshooting
+
+## Error: Doc-comment edit broke the build
+
+**Symptom:** Verify command fails after a batch of Edits.
+
+**Solution:** Identify the offending file (usually obvious from the
+compiler error). Apply the caller-declared revert mechanism — `git
+checkout -- <file>` for most languages, Edit-to-undo for Rust. Move
+the file's findings to the skipped table with reason
+"build-failed". Continue with the remaining files. Do NOT proceed
+past a still-failing build into Phase 4.
+
+## Error: Edit changed code logic, not just comments
+
+**Symptom:** Diff shows a function body or signature changed.
+
+**Cause:** The skill's hard rule is comments-only. A code change
+means the Edit's `old_string` was ambiguous and matched into code,
+or the model edited the wrong region.
+
+**Solution:** Revert the file. Re-do the doc fix with more specific
+context (include 1-2 lines above the comment in `old_string` to
+disambiguate). If the same fix keeps catching code, skip the
+finding and note it in the skipped table.
+
+## Error: Re-reading the whole codebase after each fix
+
+**Symptom:** The loop is reading files it already cataloged in
+Phase 2.
+
+**Cause:** Misapplied read-then-edit cadence.
+
+**Solution:** Read each file ONCE in Phase 2. Cache findings.
+Phase 3 reads only the edited region of edited files, never the
+whole file again. Phase 4 runs verify and uses the Phase-2 notes
+for the skipped table — no re-exploration.
+
+## Error: Iteration cap hit before Phase 4
+
+**Symptom:** Out of iterations with fixes still queued.
+
+**Solution:** Apply the wind-down protocol. Stop adding new fixes.
+Run verify on what's already changed. Emit a partial report listing
+what was done, what was skipped due to budget, and the verify
+result. A partial report beats no report.
+
+## Error: Trivial getters keep getting doc comments added
+
+**Symptom:** `Len`, `Name`, `String`, `len`, `is_empty` all gaining
+mechanical one-line docs.
+
+**Cause:** Proportionality rule violated.
+
+**Solution:** Self-documenting names need NO comment. Move them to
+the skipped table as "trivial". Only document when the name leaves
+real ambiguity (units, encoding, invariants, lifetime, ownership).
