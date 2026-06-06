@@ -209,6 +209,7 @@ Prioritize: complex multi-param functions first, then simple
 getters, then types.
 
 Phase 3 (Edit): batch fixes per file. For each:
+
 - Add summary line starting with the declared name
   (`// ParseConfig reads the YAML at path and returns a normalized
   Config.`).
@@ -230,6 +231,7 @@ jumps to the top — safety-critical comes first regardless of file
 order.
 
 Phase 3:
+
 - Add `/// # Safety` block describing the invariants the caller must
   uphold (the caller's style ruleset specifies the wording).
 - Read the edited region back after every Edit (Rust convention,
@@ -245,6 +247,7 @@ Verify command (`cargo build`) errors after a doc-comment edit on
 `src/parser.rs`.
 
 Action:
+
 1. Identify the offending file (parser.rs).
 2. Apply the caller-declared revert (Edit-to-undo for Rust).
 3. Move the parser.rs finding to the skipped table with reason

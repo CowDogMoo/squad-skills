@@ -255,6 +255,7 @@ Caller: `agents/go-test-coverage`. Coverage command:
 Cap: 20 iter.
 
 Phase 1: baseline 58.2%. Gap analysis turns up:
+
 - 2 packages with no `_test.go` files at all (`internal/parser/`,
   `internal/cache/`).
 - 14 funcs at 0% coverage; top concentration in `internal/parser/`.

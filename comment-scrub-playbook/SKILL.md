@@ -256,6 +256,7 @@ function validateConfig(cfg) { ... }
 ```
 
 Decision: `DELETE`. Run through `detect-llm-tells`:
+
 - Cat 1 Vocabulary: "robust," "comprehensive," "ensures" — fires.
 - Cat 5 Transitions: "Moreover" — fires.
 - Cat 6 Tech-doc: signature-restating ("takes a configuration object
@@ -330,7 +331,7 @@ caller forbids `git checkout` (Rust), use Edit-to-undo.
 
 ## Error: Code example inside a doc-comment got mangled
 
-**Symptom:** A `/// ```` fenced example or `>>>` doctest lost
+**Symptom:** A ```` `/// ``` ```` fenced example or `>>>` doctest lost
 indentation or had words removed.
 
 **Solution:** Code inside doc-comment examples is **executable test
