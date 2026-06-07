@@ -60,28 +60,75 @@ budget OR you have used 80% of your iteration budget.
 
 For each batch:
 
-1. **Read iteration:** parallel `Read` calls for one or two `.go` source
-   files per package in the batch. Pick the largest files by line count.
-   Skip `_test.go` files unless you need an idiom hint.
-2. **Write iteration:** parallel `Write` calls for one `_test.go` per
-   package in the batch. Each file must contain at least one real
-   `func Test*(t *testing.T)` with meaningful assertions on the package's
-   lowest-coverage functions. Empty stubs are forbidden.
+1. **Read iteration:** parallel `Read` calls per package in the batch:
+   - **One or two `.go` source files** (largest by line count). Confirm
+     the package's actual on-disk import path (look at the file header
+     and your earlier `go list` output) and the names/signatures of the
+     functions you intend to test. Do NOT guess import paths or symbol
+     names from package name alone.
+   - **Every existing `_test.go` in that package.** You MUST know what
+     is already tested before you write anything. Skipping this step is
+     how previous runs deleted thousands of lines of working tests.
+2. **Write/Edit iteration:** parallel calls, one per package in the batch.
+   - If a `_test.go` for the target source file **already exists**, use
+     `Edit` (or a new `_test.go` for a different source file in the
+     same package) to ADD test functions. **Never `Write` over an
+     existing `_test.go` — `Write` truncates the file and destroys the
+     existing tests.**
+   - If no `_test.go` exists for the target source file, use `Write` to
+     create one named per the 1:1 rule (`foo.go` → `foo_test.go`).
+   - Every new function must reference symbols you actually saw in
+     Step 1's source read. If you couldn't confirm a symbol exists,
+     don't reference it.
+   - Each file must contain at least one real `func Test*(t *testing.T)`
+     with meaningful assertions on the package's lowest-coverage
+     functions. Empty stubs are forbidden.
 3. Move to the next batch. Do NOT re-measure coverage between batches.
 
-Aim for 3+ packages per Write iteration. Single-package Write iterations
+Aim for 3+ packages per Write/Edit iteration. Single-package iterations
 are wasteful — you have ~25 iterations and a long queue.
 
 # Step 3 — Verify and report (last 2–3 iterations)
 
 Run `go build ./...` then `go test ./...` once. Fix only test code on
-failure. Then emit the caller's OUTPUT FORMAT report. Re-run the original
-Step-1 measurement command to get the "After" coverage number.
+failure.
+
+**Re-measurement is mandatory for the "After" coverage number.** Run
+`go test -cover ./... 2>&1 | grep "coverage:"` and copy real package
+percentages into your report. If you skip this step, the "After"
+column MUST say "not measured" — never invent a percentage based on
+what the tests "should" achieve.
+
+Then emit the caller's OUTPUT FORMAT report. The report is a transcript
+of your work, not a projection:
+
+- **Files Touched** lists only files you actually `Write`'d or
+  `Edit`'d this run. A file you only `Read` does not belong here.
+- **Tests Added / Tests Written** count only `func Test*` you
+  appended this run. Read-only files contribute 0.
+- **After %** is from the re-measurement above, or "not measured".
+  Never fabricate.
 
 # Hard constraints (these override your judgment)
 
 - **Only `_test.go` files** with `Write` / `Edit`. Source edits are out of
   scope; document required source changes under Skipped Functions.
+- **Never destroy existing tests.** `Write` truncates. Before any `Write`
+  on an existing path, you must have read its current contents and be
+  preserving every `Test*` function in it. Default to `Edit` for any
+  `_test.go` that already exists. If you absolutely must `Write` over an
+  existing test file (e.g. a wholesale restructure), every prior
+  `Test*` function must appear in the new contents.
+- **`Edit` failed → re-Read, fix the anchor, retry `Edit`. NEVER fall
+  back to `Write` on a file you just tried to `Edit`.** "Text not
+  found" means your `old_string` is wrong, not that the file should
+  be overwritten. Three failed Edit attempts on the same file → skip
+  the package and document it under Skipped Functions. Falling back
+  to `Write` here is how previous runs destroyed working tests.
+- **Verify before you reference.** Import paths and symbol names must
+  come from a file you actually read in Step 1, not from the package
+  name or your prior assumptions. A test that won't compile costs more
+  than the test would have earned in coverage.
 - **No coverage commands during writing.** `go test -cover`,
   `go test -coverprofile`, and `go tool cover` are forbidden between
   Step 1 and Step 3. The queue in `/tmp/squad-targets.txt` is your sole
