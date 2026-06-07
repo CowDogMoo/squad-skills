@@ -54,9 +54,18 @@ repos:
         language: script
         types: [json, yaml]
 
-  - repo: https://github.com/cowdogmoo/squad
-    # Pinned to the squad main commit that merged the hook (#77).
-    # Bump after squad cuts a release tag.
-    rev: 02a937c
+  # Calls into squad's validator directly. The squad repo also ships
+  # the equivalent declaration in .pre-commit-hooks.yaml under
+  # `id: squad-skill-validate` with `language: golang` so future repos
+  # without a Go toolchain can consume it that way — for this repo we
+  # already install squad in CI, so the local form avoids pre-commit's
+  # internal `git fetch --tags` step which trips actions/checkout's
+  # injected credentials in the GHA runner.
+  - repo: local
     hooks:
       - id: squad-skill-validate
+        name: Validate Anthropic Agent Skill manifests
+        entry: squad skill validate
+        language: system
+        files: '(^|/)SKILL\.md$'
+        pass_filenames: true

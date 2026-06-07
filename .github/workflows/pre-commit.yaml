@@ -56,20 +56,11 @@ jobs:
           go install mvdan.cc/sh/v3/cmd/shfmt@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: Install squad (for skill validation hook)
+        run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c
+
       - name: Install prettier
         run: npm install -g prettier
 
       - name: Run pre-commit
-        env:
-          # actions/checkout v6 injects credentials via a temp config file
-          # referenced through GIT_CONFIG_* env vars. pre-commit's golang
-          # language plugin clones the squad repo and runs
-          # `git fetch origin --tags`; that fetch picks up the temp token
-          # (scoped to squad-skills) and gets rejected, so git prompts for
-          # a username — which has no TTY in CI. The squad repo is public,
-          # so anonymous fetch works. Force git to ignore inherited config
-          # and silence any interactive prompts.
-          GIT_CONFIG_GLOBAL: /dev/null
-          GIT_CONFIG_SYSTEM: /dev/null
-          GIT_TERMINAL_PROMPT: "0"
         run: pre-commit run --all-files --show-diff-on-failure --color=always
