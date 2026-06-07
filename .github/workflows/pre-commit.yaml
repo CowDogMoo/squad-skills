@@ -57,17 +57,18 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Install squad (for skill validation hook)
-        # Resolve the squad module exclusively through proxy.golang.org —
-        # the runner's credential helper makes direct github.com fetches
-        # fail with "Repository not found" even for the public squad repo,
-        # and `go install` only falls back to direct when the proxy can't
-        # answer. Forcing GOPROXY to a single proxy keeps the fetch on the
-        # HTTPS proxy code path, which serves arbitrary commits of public
-        # modules without git auth.
-        env:
-          GOPROXY: https://proxy.golang.org
-          GOSUMDB: sum.golang.org
-        run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c48d0a88eb7ef5dc3f543646860b687fb9
+        # `go install github.com/cowdogmoo/squad/cmd/squad@...` fails on
+        # the hosted runner: proxy.golang.org returns 404 for arbitrary
+        # squad commits and the direct fetch fallback hits the runner's
+        # auth-prompting credential helper. Cloning the public source over
+        # plain HTTPS and building locally sidesteps both — the GHA git
+        # client allows anonymous reads against public repos.
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          git clone --depth 1 https://github.com/CowDogMoo/squad.git "$tmp"
+          cd "$tmp" && go build -o "$tmp/bin/squad" ./cmd/squad
+          install -m 0755 "$tmp/bin/squad" "$(go env GOPATH)/bin/squad"
 
       - name: Install prettier
         run: npm install -g prettier
