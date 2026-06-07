@@ -17,3 +17,6 @@ Thumbs.db
 
 # Claude Code local config — never commit
 .claude/
+
+# Squad local session state — never commit
+.squad/
