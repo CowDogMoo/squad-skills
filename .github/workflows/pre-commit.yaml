@@ -17,9 +17,18 @@ on:
     - cron: "0 0 * * 0"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PYTHON_VERSION: "3.13.7"
   GO_VERSION: "1.26.4"
+  SHFMT_VERSION: "v3.10.0"
+  PRETTIER_VERSION: "3.3.3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   pre-commit:
@@ -53,7 +62,7 @@ jobs:
 
       - name: Install shell formatting tools
         run: |
-          go install mvdan.cc/sh/v3/cmd/shfmt@latest
+          go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Install squad (for skill validation hook)
@@ -71,7 +80,7 @@ jobs:
           install -m 0755 "$tmp/bin/squad" "$(go env GOPATH)/bin/squad"
 
       - name: Install prettier
-        run: npm install -g prettier
+        run: npm install -g "prettier@${PRETTIER_VERSION}"
 
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure --color=always
