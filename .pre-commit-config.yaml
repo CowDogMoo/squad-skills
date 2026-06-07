@@ -55,8 +55,8 @@ repos:
         types: [json, yaml]
 
   - repo: https://github.com/cowdogmoo/squad
-    # SHA of the squad commit that added the hook. Pre-commit refuses
-    # branch refs as mutable; swap for a tag once squad cuts a release.
-    rev: 26db62287f4176bac3e583d4e422c5a9f0669c7c
+    # Pinned to the squad main commit that merged the hook (#77).
+    # Bump after squad cuts a release tag.
+    rev: 02a937c
     hooks:
       - id: squad-skill-validate
