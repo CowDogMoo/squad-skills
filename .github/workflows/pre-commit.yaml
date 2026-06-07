@@ -1,0 +1,77 @@
+---
+name: Pre-Commit
+on:
+  merge_group:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+  schedule:
+    # Run once a week (see https://crontab.guru)
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.13.7"
+  GO_VERSION: "1.26.4"
+
+jobs:
+  pre-commit:
+    name: Pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # pre-commit's `language: golang` initialization runs
+          # `git fetch origin --tags` on the cloned squad repo. With the
+          # default credential helper still configured for this repo's
+          # token, that fetch prompts for a username (the helper is
+          # scoped to squad-skills, not cowdogmoo/squad). Anonymous
+          # access works for the public squad repo, so drop the helper.
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pre-commit and pyyaml
+        run: python3 -m pip install pre-commit pyyaml
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Install shell formatting tools
+        run: |
+          go install mvdan.cc/sh/v3/cmd/shfmt@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install squad (for skill validation hook)
+        # `go install github.com/cowdogmoo/squad/cmd/squad@...` fails on
+        # the hosted runner: proxy.golang.org returns 404 for arbitrary
+        # squad commits and the direct fetch fallback hits the runner's
+        # auth-prompting credential helper. Cloning the public source over
+        # plain HTTPS and building locally sidesteps both — the GHA git
+        # client allows anonymous reads against public repos.
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          git clone --depth 1 https://github.com/CowDogMoo/squad.git "$tmp"
+          cd "$tmp" && go build -o "$tmp/bin/squad" ./cmd/squad
+          install -m 0755 "$tmp/bin/squad" "$(go env GOPATH)/bin/squad"
+
+      - name: Install prettier
+        run: npm install -g prettier
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure --color=always
