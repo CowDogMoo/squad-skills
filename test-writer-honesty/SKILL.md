@@ -91,7 +91,7 @@ A truthful "FAIL — undefined symbol X" is worth more than a false "PASS".
 
 If your build or test command fails on a file whose `_test.<ext>` you edited this run, YOU caused it. Do not label it "unrelated". Re-read the file, identify the malformed area, and fix it before reporting. Common causes (language varies):
 
-- Re-declared variables (`:=` reuse in Go, `let` shadowing without intent)
+- Redeclared variables (`:=` reuse in Go, `let` shadowing without intent)
 - Duplicate function declarations
 - Imports added in the wrong place
 - Missing imports for names you referenced
