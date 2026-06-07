@@ -56,23 +56,21 @@ jobs:
           go install mvdan.cc/sh/v3/cmd/shfmt@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Disable git credential helpers so anonymous github.com works
-        # The GHA runner ships with a credential helper that intercepts
-        # every github.com URL and demands a username. For public repos
-        # like squad, anonymous HTTPS is sufficient; clearing the helper
-        # lets `go install` and pre-commit's internal git fetches succeed.
+      - name: Authenticate git to github.com via GITHUB_TOKEN
+        # Squad's only tag (`v0.0.0-skill-validate-hook`) looks like a
+        # malformed pseudo-version to Go's module resolver, so `go install`
+        # bypasses the proxy and tries a direct git fetch. The hosted
+        # runner's credential helper then demands interactive auth and
+        # fails. Configure the workflow's automatic GITHUB_TOKEN as the
+        # credential for github.com URLs so the direct fetch succeeds
+        # against the public squad repo.
         run: |
-          git config --global credential.helper ""
-          git config --global --unset-all credential.helper || true
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install squad (for skill validation hook)
-        # The `v0.0.0-skill-validate-hook` tag looks like a malformed
-        # pseudo-version to Go (the canonical form is
-        # `v0.0.0-YYYYMMDDHHMMSS-XXXXXXXXXXXX`), so `go install` rejects it
-        # before consulting the module proxy and falls through to a direct
-        # git fetch that requires auth. Install from the tag's commit
-        # instead — Go accepts a bare SHA and resolves it to a real
-        # pseudo-version internally.
+        # Use the commit that the `v0.0.0-skill-validate-hook` tag points
+        # at — `go install` accepts a bare SHA and resolves it through the
+        # token-authenticated git fetch above.
         run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c48d0a88eb7ef5dc3f543646860b687fb9
 
       - name: Install prettier
