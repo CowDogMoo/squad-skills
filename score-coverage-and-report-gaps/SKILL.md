@@ -79,8 +79,16 @@ to the coverage measurement in Phase 1.
 
 # Phase 1 — Measure baseline
 
-1. Run the caller's coverage command.
-2. Record total coverage and per-package/per-file breakdown.
+**Phase 1 is EXACTLY ONE iteration.** Fuse the caller's coverage command and
+the gap-analysis incantation into a single Bash invocation that pipes each
+artifact to its own `/tmp/<artifact>.out` file. After Phase 1, do not re-run
+coverage commands until Phase 4. Repeated measurement (running `go test -cover`
+or `pytest --cov` multiple times with varying filters) was the dominant cost
+driver in failed runs of language-specific agents. For any per-package detail
+you need later, `grep` / `awk` over the saved artifact files.
+
+1. Run the caller's coverage command, capturing output to a file.
+2. Record total coverage and per-package/per-file breakdown — to files.
 3. **MANDATORY gap analysis** — run even if the total exceeds the
    target. Without it, the run is a failure (the orchestrator
    needs the gap list to decide on the next stage). The caller
@@ -88,6 +96,10 @@ to the coverage measurement in Phase 1.
    - Packages/modules with no test files at all.
    - Functions at 0% coverage, ranked by file with most.
    - The top 20-30 specific zero-coverage functions by impact.
+
+All three artifacts emerge from the SAME Bash call. After Phase 1, treat
+`go test -cover` / `pytest --cov` / `cargo llvm-cov` etc. as forbidden tool
+calls until Phase 4.
 
 # Phase 2 — Prioritize
 
