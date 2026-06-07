@@ -54,9 +54,8 @@ repos:
         language: script
         types: [json, yaml]
 
-      - id: validate-skill-compliance
-        name: Validate skill compliance
-        entry: .hooks/validate-skill-compliance.sh
-        language: script
-        files: '(^[^._][^/]*/)SKILL\.md$'
-        pass_filenames: true
+  - repo: https://github.com/cowdogmoo/squad
+    # Bump to a tag once the hook lands on squad's main branch.
+    rev: feat/skill-allowed-tools-enforcement
+    hooks:
+      - id: squad-skill-validate
