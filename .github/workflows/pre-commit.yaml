@@ -66,7 +66,14 @@ jobs:
           git config --global --unset-all credential.helper || true
 
       - name: Install squad (for skill validation hook)
-        run: go install github.com/cowdogmoo/squad/cmd/squad@v0.0.0-skill-validate-hook
+        # The `v0.0.0-skill-validate-hook` tag looks like a malformed
+        # pseudo-version to Go (the canonical form is
+        # `v0.0.0-YYYYMMDDHHMMSS-XXXXXXXXXXXX`), so `go install` rejects it
+        # before consulting the module proxy and falls through to a direct
+        # git fetch that requires auth. Install from the tag's commit
+        # instead — Go accepts a bare SHA and resolves it to a real
+        # pseudo-version internally.
+        run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c48d0a88eb7ef5dc3f543646860b687fb9
 
       - name: Install prettier
         run: npm install -g prettier
