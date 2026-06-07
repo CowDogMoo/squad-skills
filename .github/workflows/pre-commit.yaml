@@ -56,21 +56,17 @@ jobs:
           go install mvdan.cc/sh/v3/cmd/shfmt@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Authenticate git to github.com via GITHUB_TOKEN
-        # Squad's only tag (`v0.0.0-skill-validate-hook`) looks like a
-        # malformed pseudo-version to Go's module resolver, so `go install`
-        # bypasses the proxy and tries a direct git fetch. The hosted
-        # runner's credential helper then demands interactive auth and
-        # fails. Configure the workflow's automatic GITHUB_TOKEN as the
-        # credential for github.com URLs so the direct fetch succeeds
-        # against the public squad repo.
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
       - name: Install squad (for skill validation hook)
-        # Use the commit that the `v0.0.0-skill-validate-hook` tag points
-        # at — `go install` accepts a bare SHA and resolves it through the
-        # token-authenticated git fetch above.
+        # Resolve the squad module exclusively through proxy.golang.org —
+        # the runner's credential helper makes direct github.com fetches
+        # fail with "Repository not found" even for the public squad repo,
+        # and `go install` only falls back to direct when the proxy can't
+        # answer. Forcing GOPROXY to a single proxy keeps the fetch on the
+        # HTTPS proxy code path, which serves arbitrary commits of public
+        # modules without git auth.
+        env:
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
         run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c48d0a88eb7ef5dc3f543646860b687fb9
 
       - name: Install prettier
