@@ -59,5 +59,21 @@ jobs:
       - name: Install prettier
         run: npm install -g prettier
 
+      - name: Strip GitHub auth config that breaks pre-commit's git fetch
+        # actions/checkout leaves global http.https://github.com/.extraheader
+        # in place even with persist-credentials: false. pre-commit's golang
+        # language clones the squad repo, then runs `git fetch origin --tags`
+        # against it — the extraheader's token is scoped to this workflow's
+        # repo, so the fetch is rejected and git prompts for a username,
+        # which has no TTY in CI. Anonymous public access works fine, so
+        # remove the rewrites before pre-commit runs.
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader || true
+          git config --global --unset-all url.https://github.com/.insteadOf || true
+          git config --global --remove-section http.https://github.com/ || true
+          git config --global --remove-section url.https://github.com/ || true
+          # Make git fail fast instead of hanging if anything still tries to prompt.
+          echo "GIT_TERMINAL_PROMPT=0" >> "$GITHUB_ENV"
+
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure --color=always
