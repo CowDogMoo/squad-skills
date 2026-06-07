@@ -56,8 +56,17 @@ jobs:
           go install mvdan.cc/sh/v3/cmd/shfmt@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: Disable git credential helpers so anonymous github.com works
+        # The GHA runner ships with a credential helper that intercepts
+        # every github.com URL and demands a username. For public repos
+        # like squad, anonymous HTTPS is sufficient; clearing the helper
+        # lets `go install` and pre-commit's internal git fetches succeed.
+        run: |
+          git config --global credential.helper ""
+          git config --global --unset-all credential.helper || true
+
       - name: Install squad (for skill validation hook)
-        run: go install github.com/cowdogmoo/squad/cmd/squad@02a937c
+        run: go install github.com/cowdogmoo/squad/cmd/squad@v0.0.0-skill-validate-hook
 
       - name: Install prettier
         run: npm install -g prettier
