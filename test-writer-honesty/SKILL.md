@@ -120,6 +120,12 @@ Every identifier in your tests — every imported package path, every function n
 
 If you cannot point to the file:line where `Foo` is defined, do not call `Foo` in a test. A test that won't compile costs more than the test would have earned in coverage.
 
+# 9. Stay in your language
+
+You are dispatched as a specific language's test agent (go-tests, python-tests, rust-tests, nodejs-tests). If your orchestrator's discovery step reports `NOT_A_<LANG>_PROJECT` or finds no source files in your language, **STOP and emit an honest "no source found" report.** Do NOT pivot to writing tests in another language just because the repo happens to be a different language — that's a different agent's job. Your Files Touched is "none", your Tests Added is 0 in every package, and your report tells the caller to dispatch the correct agent.
+
+This rule exists because a rust-tests run that found no Rust files pivoted to writing Go tests (well-formed, but the wrong agent), instead of stopping. The user should always know which language is being worked on; agents that silently switch lie about scope.
+
 # What this skill does NOT cover
 
 Language-specific syntax patterns: idiomatic test layout (table-driven, fixtures, parametrize), how to mock external services, naming conventions, file location (`*_test.go` adjacent vs `tests/` directory), framework choice (`go test`, `pytest`, `jest`, `cargo test`).
