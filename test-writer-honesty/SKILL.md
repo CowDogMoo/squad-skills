@@ -126,6 +126,34 @@ You are dispatched as a specific language's test agent (go-tests, python-tests, 
 
 This rule exists because a rust-tests run that found no Rust files pivoted to writing Go tests (well-formed, but the wrong agent), instead of stopping. The user should always know which language is being worked on; agents that silently switch lie about scope.
 
+# 10. No contortion tests for coverage
+
+A test exists to catch a bug or document a behavior. If it does neither, delete it instead of writing it. Coverage % is the side effect of real tests, not the goal.
+
+The following patterns are FORBIDDEN even when they would raise coverage. They are dishonest because they look like tests but exercise no code under test:
+
+- **Field-assignment-then-readback.** Constructing a value, assigning each field, and asserting each field reads back the same value tests the language's struct/dict semantics, not the package. Example to avoid (Go): `s := pkg.Status{ServicePath: "/x"}; if s.ServicePath != "/x" { t.Error(...) }`. Equivalent Python: `s = Status(path="/x"); assert s.path == "/x"`. Skip it.
+- **Sentinel-existence "tests."** `if pkg.ErrFoo == nil { t.Fatal }` only asserts the package declares the var. Tests the compiler. Skip.
+- **Constructor-echo "tests."** Calling `New(x)` and asserting the new value's only-public-field equals `x` when there is no transformation or validation in between. Skip.
+- **Functional duplicates.** Before adding `TestFoo_Bar`, scan the package's existing test files for any test that already covers the same input → behavior under a different name (`TestFooBar`, `TestFoo_BarCase`, snake-case vs camel-case variants). A different name is not a different test. Skip.
+- **"Should not panic" with no assertions.** A test body that calls a function, has no asserts, and relies on the absence of a panic is only a smoke test. It is allowed ONLY when the function under test could plausibly panic on the inputs given AND no observable side effect is available to assert on. Otherwise skip.
+
+If you find yourself writing one of these to fill a coverage gap, the gap is telling you the code is too trivial to test. Document it under Skipped Functions with reason "no testable behavior" — that is the honest report.
+
+# 11. Test names must describe the branch the test actually exercises
+
+A test named `TestFoo_WhenBudgetExceeded` is a claim that the test causes `Foo` to take the budget-exceeded branch. The test body MUST satisfy that claim.
+
+Concretely: if the function under test gates a branch on `errors.Is(err, sentinel)` / `isinstance(err, SentinelError)` / `err instanceof Sentinel`, your test's input must actually match that predicate. Constructing a fresh error with the same *message* as the sentinel is not the same as wrapping it — `errors.Is` (or its equivalent) will return false and the test will silently hit a different branch.
+
+Before drafting a test name that promises a specific path:
+
+1. Re-read the function's branch condition.
+2. Verify that the input you're passing satisfies the condition. (For Go: if it's `errors.Is(err, X)`, your error must be `X` itself or wrap it with `%w`. For Python: if it's `except X`, your raised error must be `X` or a subclass. For TS/JS: if it's `instanceof X`, same constraint.)
+3. If you can't satisfy the condition with available test helpers, either build the satisfying input or rename the test — do NOT ship a name that lies about which path runs.
+
+A name that promises a path the body doesn't exercise is worse than a missing test: it fools the next reader (and the next agent) into thinking the path is covered.
+
 # What this skill does NOT cover
 
 Language-specific syntax patterns: idiomatic test layout (table-driven, fixtures, parametrize), how to mock external services, naming conventions, file location (`*_test.go` adjacent vs `tests/` directory), framework choice (`go test`, `pytest`, `jest`, `cargo test`).
