@@ -1,6 +1,6 @@
 ---
 name: enqueue-coverage-targets-go
-description: "Orchestrator-workers pattern for Go test coverage. Load this on iteration 1 of a coverage-raising agent run. It hands you a single deterministic Bash command that enumerates packages below target into /tmp/squad-targets.txt, then puts you in worker mode where your only job is reading source files and writing _test.go files for the queued targets. Replaces the multi-phase discover-then-decide loop with a fixed shape: orchestrator computes the queue, you drain it."
+description: "Orchestrator-workers pattern for Go test coverage: a deterministic Bash command queues packages below target into /tmp/squad-targets.txt, then you drain it by reading source and writing _test.go files. Load on iteration 1 of any Go coverage-raising agent run."
 allowed-tools: Bash, Read, Write, Edit
 metadata:
   author: Jayson Grace

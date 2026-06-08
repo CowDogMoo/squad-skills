@@ -44,26 +44,48 @@ cp -r comment-scrub-playbook /path/to/host/skills/
 
 ## Available Skills
 
-| Skill                                                                    | Description                                                                                                                                       |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [comment-scrub-playbook](./comment-scrub-playbook)                       | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command. |
-| [detect-llm-tells](./detect-llm-tells)                                   | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).     |
+| Skill                                                                        | Description                                                                                                                                                                            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [comment-scrub-playbook](./comment-scrub-playbook)                           | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command.           |
+| [detect-llm-tells](./detect-llm-tells)                                       | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).                                          |
 | [doc-comments-discovery-and-fix-loop](./doc-comments-discovery-and-fix-loop) | Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify compilation, report. |
-| [score-coverage-and-report-gaps](./score-coverage-and-report-gaps)       | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta. |
+| [enqueue-coverage-targets-go](./enqueue-coverage-targets-go)                 | Orchestrator-workers pattern for Go test coverage: compute the queue of packages below target with one Bash command, then drain it by writing `_test.go` files.                        |
+| [enqueue-coverage-targets-nodejs](./enqueue-coverage-targets-nodejs)         | Orchestrator-workers pattern for Node.js/TypeScript test coverage: queue source files below target via `vitest`/`jest --coverage`, then drain it by writing `*.test.ts` files.         |
+| [enqueue-coverage-targets-python](./enqueue-coverage-targets-python)         | Orchestrator-workers pattern for Python test coverage: queue modules below target via `pytest --cov`, then drain it by writing `test_*.py` files.                                      |
+| [enqueue-coverage-targets-rust](./enqueue-coverage-targets-rust)             | Orchestrator-workers pattern for Rust test coverage: queue source files below target via `cargo llvm-cov`, then drain it by writing inline `#[cfg(test)]` blocks.                      |
+| [extract-recipe-grocery-list](./extract-recipe-grocery-list)                 | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations.                       |
+| [score-coverage-and-report-gaps](./score-coverage-and-report-gaps)           | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta.                            |
+| [test-writer-honesty](./test-writer-honesty)                                 | Shared discipline rules for any test-writing agent: never clobber existing tests, never fall back to `Write` when `Edit` fails, tie the final report to `git diff --stat`.             |
 
 ## Skill Structure
 
+Layout follows Anthropic's
+[Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf):
+
 ```text
 skill-name/
-└── SKILL.md
+├── SKILL.md       # required — main skill file
+├── scripts/       # optional — executable code (Python, Bash, etc.)
+├── references/    # optional — supporting docs loaded on demand
+└── assets/        # optional — templates, fixtures, fonts, icons
 ```
+
+Only `SKILL.md` is required. Put a `references/<topic>.md` next to
+`SKILL.md` and link to it from the body when you have a lookup table or
+catalog that doesn't need to be in context every run — see
+[`detect-llm-tells/references/`](./detect-llm-tells/references) for an
+example.
+
+**No `README.md` inside a skill folder.** The repo-level README is for
+human visitors; all skill-facing documentation belongs in `SKILL.md` or
+`references/`.
 
 `SKILL.md` is markdown with YAML frontmatter:
 
 ```markdown
 ---
 name: skill-name
-description: One sentence that tells the host when to use this skill. Be specific — this is the only thing the host sees at routing time.
+description: One sentence covering both WHAT the skill does and WHEN to use it. Mention the file types or trigger phrases a user is likely to say.
 ---
 
 # Body
@@ -74,10 +96,27 @@ and guardrails ("never check out", "stop if you see a sign-in page").
 
 ### Frontmatter rules
 
-| Field         | Required | Notes                                                                                  |
-| ------------- | -------- | -------------------------------------------------------------------------------------- |
-| `name`        | yes      | Must match the directory name exactly.                                                 |
-| `description` | yes      | Single line. Drives skill selection — vague descriptions get the skill missed.         |
+| Field           | Required | Notes                                                                                                                                                                |
+| --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`          | yes      | kebab-case; must match the directory name exactly. No spaces, capitals, or underscores. Must not contain `claude` or `anthropic` (reserved).                         |
+| `description`   | yes      | Single line, ≤1024 chars. Drives skill selection, so it **must** include both WHAT the skill does and WHEN to use it (trigger conditions). No `<` or `>` characters. |
+| `license`       | no       | SPDX identifier if the skill is published (e.g. `MIT`, `Apache-2.0`).                                                                                                |
+| `compatibility` | no       | 1–500 chars. Environment requirements (target host, system packages, network access).                                                                                |
+| `metadata`      | no       | Free-form map. Common keys: `author`, `version`, `mcp-server`.                                                                                                       |
+| `allowed-tools` | no       | Claude Code-specific; comma-separated tool allowlist applied when the skill loads.                                                                                   |
+
+### Description heuristics
+
+A description routes the skill, so it needs to read like a routing hint,
+not a tagline:
+
+- ✅ `Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Use when scrubbing useless or LLM-slop comments from a codebase.`
+- ❌ `Helps with comments.` (no WHAT, no WHEN)
+- ❌ `Implements the Comment entity model with hierarchical relationships.` (too technical, no user-facing trigger)
+
+Include phrases users would actually say ("scrubbing comments", "doc
+comments", "weekly shopping list") and mention file types or commands
+when they're a strong signal.
 
 ### Body conventions
 
@@ -131,10 +170,13 @@ pre-commit run --all-files
 A skill is ready when:
 
 - `name` matches the directory.
-- `description` would let the host pick it correctly from a list of 30
-  unrelated skills.
+- `description` covers WHAT and WHEN, and would let the host pick it
+  correctly from a list of 30 unrelated skills.
 - The body is followable cold — no relying on conversation history.
 - Guardrails are explicit ("never X", "stop if Y").
+- `SKILL.md` stays under ~5,000 words; bulky lookup tables live in
+  `references/`.
+- No `README.md` lives inside the skill folder.
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 ---
 name: enqueue-coverage-targets-python
-description: "Orchestrator-workers pattern for Python test coverage. Load this on iteration 1 of a coverage-raising agent run. It hands you a single deterministic Bash command that runs pytest --cov, enumerates modules below the target into /tmp/squad-targets.txt, then puts you in worker mode where your only job is reading source files and writing test_*.py files for the queued targets. Replaces the multi-phase discover-then-decide loop with a fixed shape: orchestrator computes the queue, you drain it."
+description: "Orchestrator-workers pattern for Python test coverage: a deterministic Bash command runs pytest --cov and queues modules below target into /tmp/squad-targets.txt, then you drain it by writing test_*.py files. Load on iteration 1 of any Python coverage-raising agent run."
 allowed-tools: Bash, Read, Write, Edit
 metadata:
   author: Jayson Grace

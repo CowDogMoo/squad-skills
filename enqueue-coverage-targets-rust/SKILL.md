@@ -1,6 +1,6 @@
 ---
 name: enqueue-coverage-targets-rust
-description: "Orchestrator-workers pattern for Rust test coverage. Load this on iteration 1 of a coverage-raising agent run. It hands you a single deterministic Bash command that runs cargo llvm-cov (or cargo tarpaulin as fallback), enumerates source files below the target into /tmp/squad-targets.txt, then puts you in worker mode where your only job is reading source files and writing inline `#[cfg(test)] mod tests` blocks for the queued targets. Replaces the multi-phase discover-then-decide loop with a fixed shape: orchestrator computes the queue, you drain it."
+description: "Orchestrator-workers pattern for Rust test coverage: a deterministic Bash command runs cargo llvm-cov (fallback cargo tarpaulin) and queues source files below target into /tmp/squad-targets.txt, then you drain it by writing inline #[cfg(test)] mod tests blocks. Load on iteration 1 of any Rust coverage-raising agent run."
 allowed-tools: Bash, Read, Write, Edit
 metadata:
   author: Jayson Grace
