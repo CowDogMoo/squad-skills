@@ -76,6 +76,34 @@ with open("/tmp/squad-targets.txt", "w") as f:
         f.write(f"{path}\t{pct:.1f}%\t(target {target}%)\n")
 print(f"queued {len(rows)} files below {target}% (tool={tool})")
 PY
+python3 - "$TOOL" <<'PY' 2>/dev/null || true
+import json, sys
+tool = sys.argv[1]
+rows = []
+if tool == "llvm-cov":
+    try:
+        with open("/tmp/squad-rust/cov.json") as f:
+            d = json.load(f)
+        for fn in d["data"][0].get("functions", []):
+            for fname in fn.get("filenames", []):
+                rows.append((fname, fn.get("count", 0), fn["name"]))
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        pass
+elif tool == "tarpaulin":
+    try:
+        with open("/tmp/squad-rust/tarpaulin-report.json") as f:
+            d = json.load(f)
+        for fname, info in d.get("files", {}).items():
+            for tr in info.get("traces", []):
+                rows.append((fname, tr.get("stats", {}).get("Line", 0), f"line:{tr.get('line', 0)}"))
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        pass
+# Per-function uncovered targets file — for test-writer-honesty §14
+# (mechanical target selection). Format: <file>\t<hit-count>\t<fn-name>
+with open("/tmp/squad-uncovered.out", "w") as f:
+    for fname, count, name in rows:
+        f.write(f"{fname}\t{count}\t{name}\n")
+PY
 echo "=== /tmp/squad-targets.txt (worker queue) ==="
 cat /tmp/squad-targets.txt 2>/dev/null || echo "(empty queue)"
 echo "=== queue size ==="
@@ -87,6 +115,19 @@ Export `SQUAD_COVERAGE_TARGET` to your run's target percent before invoking, or 
 `/tmp/squad-targets.txt` columns are tab-separated: `<source-file-path>\t<pct>%\t(target N%)`. Sorted ascending by current coverage so the worst-covered files are first.
 
 If neither coverage tool is installed, the queue will be empty — document the missing tool under Skipped Functions and exit honestly. Do NOT install packages on the user's system.
+
+# Step 1a — Mechanical target selection (for test-writer-honesty §14)
+
+The Step-1 command also wrote `/tmp/squad-uncovered.out` (per-function
+or per-line hit counts, depending on tool). Before writing any test
+inside source file `<file>`, run:
+
+```bash
+grep -F "<file>" /tmp/squad-uncovered.out | sort -k2 -n | head -8
+```
+
+Test ONLY the FIRST 3-5 listed entries (those with the LOWEST hit
+counts). Entries not in that top-8 are FORBIDDEN targets per §14.
 
 # Step 2 — Worker mode (every iteration after Step 1)
 

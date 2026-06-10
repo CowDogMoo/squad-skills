@@ -154,6 +154,88 @@ Before drafting a test name that promises a specific path:
 
 A name that promises a path the body doesn't exercise is worse than a missing test: it fools the next reader (and the next agent) into thinking the path is covered.
 
+# 12. Never rename or replace an existing test function
+
+`Write` truncation (§1) is the obvious destruction mode. The subtler one is
+`Edit`-based destruction: deleting an existing test function and writing a
+near-duplicate under a different spelling.
+
+The pattern (from a real run that destroyed 6 tests):
+
+1. Existing file has `TestFindMissedFiresFireOnce` (camelCase).
+2. Agent decides snake_case-with-underscore is "cleaner": `TestFindMissedFires_FireOnce`.
+3. Agent emits an `Edit` whose `old_string` covers the existing function and whose `new_string` replaces it with the renamed-and-rewritten version.
+4. The new version covers the SAME code path under a different name — net loss of test surface, coverage dropped.
+
+**The diff of any pre-existing test file you touch this run MUST have ZERO
+`-<test-decl>` lines** (where `<test-decl>` is the new-test prefix your
+calling agent declared in the caller checklist: `func Test` for Go, `def
+test_` for Python, `fn ` inside `mod tests` for Rust, `test(`/`it(` for
+JS/TS).
+
+If an existing test name bothers you for style reasons, **leave it alone.**
+Rename = destruction. Same code path under a new spelling is a
+functional duplicate (§10) AND destruction of working tests (§1).
+
+# 13. Never use `_2` / `_3` / `Extra` / `Alt` / `New` to dodge a duplicate-name compile error
+
+You write a test. The compiler/runner errors: "duplicate `TestFoo`
+declaration." Your instinct is to rename your new one to `TestFoo2` (or
+`testFoo_2`, `TestFooNew`, `TestFooAlt`, `TestFooExtra`) and re-emit. That
+instinct is wrong.
+
+The duplicate-name error is a **signal** that `TestFoo` already exists and
+already covers the case your new test was going to cover. The new test
+under `TestFoo2` would be a functional duplicate (§10) — same input, same
+behavior, different spelling. No coverage gain; just clutter.
+
+**The right response:**
+
+1. `Read` the existing `TestFoo` body.
+2. Confirm it exercises the case you intended.
+3. SKIP — do not write a sibling.
+4. If it does NOT exercise your intended case, REPLACE its inputs (carefully, preserving the existing assertions) — but never add a `_2`-suffixed sibling.
+
+Worked example (a real run that wasted iterations): agent wrote
+`TestStoreFindByID2` and `TestIsManifestFile2` because `TestStoreFindByID`
+and `TestIsManifestFile` already existed. Coverage gain: zero. The
+sibling-named tests exercised the same paths under different spellings.
+
+# 14. Mechanical target selection — query, don't guess
+
+Before writing a test for ANY function in a target file/module/package,
+your iteration must include a deterministic query that tells you WHICH
+functions in that target have the lowest coverage. Examples (the calling
+orchestrator supplies the exact command):
+
+- Go: `grep <pkg> /tmp/squad-funcs.out | sort -k3 -n | head -8`
+- Python: `python -c "import json; d=json.load(open('/tmp/squad-cov.json'))['files']['<file>']; print('\\n'.join(map(str, d['missing_lines'][:20])))"`
+- Rust: `jq -r '.data[].files[] | select(.filename == "<file>") | .summary.functions' /tmp/squad-rust/cov.json` (or the tarpaulin equivalent)
+- Node.js: `node -e "const c=require('/tmp/squad-node/coverage-final.json')['<abs-path>']; const fns = Object.entries(c.fnMap).map(([k,v])=>[c.f[k],v.name]); fns.sort((a,b)=>a[0]-b[0]); console.log(fns.slice(0,8))"`
+
+The exact query is per-language and per-orchestrator. The principle is
+constant: write tests for ONLY the functions/lines that the query lists in
+its top 3-5 entries. Functions not in that top-N are FORBIDDEN targets —
+testing them is what causes "I added 10 tests and coverage moved 0%."
+
+Picking by feel ("this function looks easy to test") was the dominant
+failure mode of every prior run that under-delivered. Replace discretion
+with the query.
+
+# 15. Iteration budget honesty
+
+If you hit your iteration cap (or your model's tool-call cap) before
+running the final verification + coverage re-measurement, **say so
+explicitly in the report.** Forms this takes:
+
+- "After: not measured (iteration cap hit before final `<cov-cmd>`)" — required per §7, but this section makes the *cause* visible.
+- "Packages untouched this run: X, Y, Z" — list them by name; do not hide them by silence.
+- "I burned the first N iterations on cache-served reads / inventory before producing any edits, which left no budget for the planned M-iter verify+report block." — concrete self-attribution.
+
+The model of an honest run that fell short is preferable to the
+appearance of a complete run that fabricated. Say what you did, say what
+you didn't get to, say why.
+
 # What this skill does NOT cover
 
 Language-specific syntax patterns: idiomatic test layout (table-driven, fixtures, parametrize), how to mock external services, naming conventions, file location (`*_test.go` adjacent vs `tests/` directory), framework choice (`go test`, `pytest`, `jest`, `cargo test`).
@@ -169,5 +251,6 @@ Your calling agent (e.g. `go-tests`, `python-tests`) should reference this skill
 - Build command (`go build ./...`, `tsc --noEmit`, `cargo build --tests`).
 - Test command (`go test ./...`, `pytest`, `cargo test`, `jest`).
 - Coverage command for the "After" measurement.
+- **Mechanical-target query (§14):** the exact Bash command the agent runs to list a target file's lowest-coverage functions/lines. Without this, §14 has no teeth.
 
 The honesty rules above stay constant; only the commands vary.

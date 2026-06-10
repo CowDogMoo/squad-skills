@@ -54,6 +54,19 @@ print(f'queued {len(rows)} modules below {target}%')
 totals = data.get('totals', {})
 print(f\"overall: {totals.get('percent_covered', 0):.1f}%\")
 "
+python -c "
+import json
+try:
+    d = json.load(open('/tmp/squad-cov.json'))
+except FileNotFoundError:
+    raise SystemExit(0)
+# Per-line uncovered targets file — for test-writer-honesty §14
+# (mechanical target selection). Format: <file>:<line>
+with open('/tmp/squad-uncovered.out', 'w') as out:
+    for path, info in d.get('files', {}).items():
+        for ln in info.get('missing_lines', []):
+            out.write(f'{path}:{ln}\n')
+" 2>/dev/null || true
 echo "=== /tmp/squad-targets.txt (worker queue) ==="
 cat /tmp/squad-targets.txt 2>/dev/null || echo "(empty queue)"
 echo "=== queue size ==="
@@ -65,6 +78,20 @@ Export `SQUAD_COVERAGE_TARGET` to your run's target percent before invoking, or 
 `/tmp/squad-targets.txt` columns are tab-separated: `<source-file-path>\t<pct>%\t(target N%)`. Sorted ascending by current coverage so the worst-covered files are first.
 
 If `pytest --cov` is not installed, the JSON file won't exist and the queue will be empty — your job becomes documenting the missing tool under Skipped Functions and exiting honestly. Do NOT install packages on the user's system.
+
+# Step 1a — Mechanical target selection (for test-writer-honesty §14)
+
+The Step-1 command also wrote `/tmp/squad-uncovered.out` (one
+`<file>:<line>` per uncovered statement). Before writing any test for a
+queue module `<file>`, run:
+
+```bash
+grep -F "<file>:" /tmp/squad-uncovered.out | head -15
+```
+
+Target tests at the lines in that list — they're the lines the existing
+test suite does NOT execute. Writing tests for already-covered code is
+how prior runs added many tests and moved coverage 0%.
 
 # Step 2 — Worker mode (every iteration after Step 1)
 

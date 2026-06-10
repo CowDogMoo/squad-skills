@@ -53,6 +53,20 @@ or it defaults to 75. (e.g. add `export SQUAD_COVERAGE_TARGET=95` at the top.)
 `/tmp/squad-targets.txt` columns are tab-separated: `<pkg>\t<pct>%\t(target N%)`.
 Sorted ascending by current coverage so the worst packages are first.
 
+# Step 1a — Mechanical target selection (for test-writer-honesty §14)
+
+The Step-1 command also produced `/tmp/squad-funcs.out` (per-function
+coverage from `go tool cover -func`). Before writing any test for a
+queue package `<pkg>`, run:
+
+```bash
+grep <pkg> /tmp/squad-funcs.out | sort -k3 -n | head -8
+```
+
+Test ONLY the FIRST 3-5 listed functions (those with the LOWEST
+coverage). Functions not in that top-8 are FORBIDDEN targets per §14 —
+testing them is how prior runs added many tests and moved coverage 0%.
+
 # Step 2 — Worker mode (every iteration after Step 1)
 
 Read `/tmp/squad-targets.txt` once. That list is your queue. Drain it in
