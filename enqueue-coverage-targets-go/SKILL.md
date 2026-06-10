@@ -30,13 +30,14 @@ env -u SQUAD_SKILL_DIR go test ./... -coverprofile=/tmp/squad-cov.out \
 go tool cover -func=/tmp/squad-cov.out > /tmp/squad-funcs.out
 go test -cover ./... 2>&1 | grep "coverage:" > /tmp/squad-pkg-cov.out
 TARGET="${SQUAD_COVERAGE_TARGET:-75}"
-awk -v target="$TARGET" '
+CMD_TARGET="${SQUAD_CMD_COVERAGE_TARGET:-$TARGET}"
+awk -v target="$TARGET" -v cmd_target="$CMD_TARGET" '
   {
     pct = 0; pkg = ""
     for (i=1; i<=NF; i++) if ($i ~ /coverage:/) { pct = $(i+1)+0 }
     for (i=1; i<=NF; i++) if ($i ~ /github\.com/) { pkg = $i }
     if (pkg == "") next
-    tgt = (pkg ~ /\/cmd\//) ? 50 : target
+    tgt = (pkg ~ /\/cmd\//) ? cmd_target : target
     if (pct < tgt) printf "%s\t%.1f%%\t(target %d%%)\n", pkg, pct, tgt
   }
 ' /tmp/squad-pkg-cov.out | sort -t$'\t' -k2 -n > /tmp/squad-targets.txt
