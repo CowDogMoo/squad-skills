@@ -170,7 +170,7 @@ The pattern (from a real run that destroyed 6 tests):
 **The diff of any pre-existing test file you touch this run MUST have ZERO
 `-<test-decl>` lines** (where `<test-decl>` is the new-test prefix your
 calling agent declared in the caller checklist: `func Test` for Go, `def
-test_` for Python, `fn ` inside `mod tests` for Rust, `test(`/`it(` for
+test_` for Python, `fn` inside `mod tests` for Rust, `test(`/`it(` for
 JS/TS).
 
 If an existing test name bothers you for style reasons, **leave it alone.**
