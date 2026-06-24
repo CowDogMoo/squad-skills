@@ -82,6 +82,12 @@ catalog every public declaration with at least one of:
   Google-style, `@param`/`@throws` for Node).
 - Module-level / file-level / package-level docstring missing.
 
+**Before prioritizing, drop self-documenting names.** Do NOT catalog a
+declaration whose name already fully conveys its behavior — getters,
+`String`/`new`/`len`/`is_empty`, trivial constructors. A doc that would
+only restate the identifier is a non-finding: record it in the skipped
+table as "trivial" and never put it in the fix queue.
+
 **Prioritize:**
 
 1. **Safety-critical and unsafe** — missing `# Safety` on Rust
@@ -94,7 +100,9 @@ catalog every public declaration with at least one of:
 5. **Module / package / file-level** docs last.
 
 Coverage is mandatory for small/medium codebases. For large
-codebases, document what was deferred.
+codebases, document what was deferred. Coverage is satisfied for
+trivial / self-documenting names by listing them in the skipped
+table, not by documenting them — a restating comment is not coverage.
 
 # Phase 3 — Fix and Verify
 
@@ -216,6 +224,9 @@ Phase 3 (Edit): batch fixes per file. For each:
 - Close the godoc gap (delete the blank line between comment and
   decl).
 - Rewrite fragments into complete sentences.
+- Deliberately add NO comment to `Name`, `Len`, and `String` — their
+  names already convey their behavior, so any comment would just
+  restate the identifier. They go to the skipped table, not the diff.
 
 Phase 4: `go build ./...` → PASS. Report includes touched files,
 skipped table (3 trivial getters: `Len`, `Name`, `String`), and
