@@ -1,10 +1,15 @@
 ---
 name: detect-llm-tells
 description: Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories). Use when scrubbing LLM slop from documentation, READMEs, or source-code comments.
-allowed-tools: Read, Glob
+# NOTE: intentionally no `allowed-tools`. squad applies a skill's allowed-tools
+# session-wide and never pops it, so a restrictive list here would permanently
+# strip edit tools from the agents that load this skill (degpt,
+# go-scrub-comments, rust-scrub-comments) — the very rewrite step they exist
+# for. This is a scoring/knowledge skill; the caller's run mode governs tool
+# access (readonly mode is still enforced by the readonly backstop).
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Detect LLM Tells
