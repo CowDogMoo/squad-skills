@@ -24,6 +24,7 @@ Anti-bot note: Damn Delicious and a few others return `403` to plain `curl` but 
 ## Inputs
 
 The user invocation may include:
+
 - A season (`"spring"`, `"summer"`, `"fall"`, `"winter"`) — honor it.
 - A count (default 8–10).
 - Specific constraints ("vegetarian only", "no seafood", "under 30 min").
@@ -53,6 +54,7 @@ For each target slot (aim for 12–15 candidates to end up with 8–10 verified)
 - `site:cookieandkate.com vegetarian summer dinner`
 
 Aim for variety across:
+
 - **Protein**: chicken, beef/pork, seafood, vegetarian (≥2 of each in the final 10)
 - **Style**: grill, sheet pan, skillet, pasta, salad-as-meal, tacos
 - **Cuisine**: Mediterranean, Mexican, Asian, BBQ/American, Italian
