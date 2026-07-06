@@ -1,0 +1,13 @@
+{
+  "name": "squad-skills",
+  "displayName": "Squad Skills",
+  "version": "0.1.0",
+  "description": "Model-agnostic, host-portable skills for the squad ecosystem: comment scrubbing, LLM-tell detection, coverage orchestration, doc-comment discovery loops, and test-writer discipline.",
+  "author": {
+    "name": "Jayson Grace",
+    "url": "https://github.com/CowDogMoo"
+  },
+  "repository": "https://github.com/CowDogMoo/squad-skills",
+  "license": "MIT",
+  "skills": ["./"]
+}
