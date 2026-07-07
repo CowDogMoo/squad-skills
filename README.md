@@ -30,6 +30,23 @@ Skills here are:
 
 ## Quick Start
 
+### As a Claude Code plugin
+
+This repo is a Claude Code plugin (`.claude-plugin/plugin.json`),
+registered in the `cowdogmoo` marketplace hosted by
+[squad-agents](https://github.com/cowdogmoo/squad-agents). The
+squad-agents plugin declares this one as a dependency — its agents
+load skills from here at runtime — and dependencies are not
+auto-installed, so install both:
+
+```text
+/plugin marketplace add cowdogmoo/squad-agents
+/plugin install squad-skills@cowdogmoo
+/plugin install squad-agents@cowdogmoo
+```
+
+### Any other host
+
 Skills live in a directory containing a single `SKILL.md`. Wire a host
 to this repo by pointing it at the directory or referencing the file:
 
