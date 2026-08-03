@@ -1,6 +1,6 @@
 ---
 name: detect-llm-tells
-description: Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories). Use when scrubbing LLM slop from documentation, READMEs, or source-code comments.
+description: Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories), plus a document-level pass for diffuse tells that per-paragraph scoring cannot see. Use when scrubbing LLM slop from documentation, READMEs, talk scripts, or source-code comments.
 # NOTE: intentionally no `allowed-tools`. squad applies a skill's allowed-tools
 # session-wide and never pops it, so a restrictive list here would permanently
 # strip edit tools from the agents that load this skill (degpt,
@@ -9,7 +9,7 @@ description: Score prose paragraphs or code comments against 8 LLM-generated-tex
 # access (readonly mode is still enforced by the readonly backstop).
 metadata:
   author: Jayson Grace
-  version: 1.2.0
+  version: 1.3.0
 ---
 
 # Detect LLM Tells
@@ -67,6 +67,37 @@ A few categories are strong enough that one clear example counts toward the clus
 - **Model-specific opener phrases** (Category 7, full phrases not single words)
 
 For Tier 2/3 vocabulary, transitional phrases, and em-dash use, require **2+ instances** within the same unit before that category fires. Single occurrences are baseline noise.
+
+## Document-level scoring (second pass, prose callers only)
+
+Cluster scoring is per-unit, so it is structurally blind to any tell that
+contributes only one instance per paragraph. A document can score clean at every
+paragraph and still read as LLM-drafted. After scoring all units in a document,
+run one document-level pass against "Document-level patterns" in
+`references/categories.md`: diffuse promotional register, pitch-deck arc,
+templated section hinges, and cross-paragraph punctuation density.
+
+Rules for this pass:
+
+- It produces **document-level findings**, reported separately. They are not paragraph flags.
+- They **never** count toward any unit's 3-category cluster, and never promote a LOW paragraph to FLAG. The cluster threshold is the false-positive guard; this pass must not weaken it.
+- Report the measured rate against the threshold, not an impression ("11.4 em dashes per 500 words, vs >4 strong").
+- Skip for code-comment callers. Comment blocks are not documents.
+
+A document with zero flagged paragraphs and one document-level finding is a
+normal, correct outcome — say so plainly rather than reaching for a paragraph to
+flag.
+
+## Genre governs the baseline
+
+Score against the conventions of what the text actually is:
+
+- **Spoken scripts** (talks, demos, narration): judge as delivery. Contractions, sentence fragments, direct address, and "So," / "Now," openers are correct, not tells. Long unbreathable sentences and stacked tricolons are worse here than on the page. Bold formatting is inert — a script is heard.
+- **Marketing copy**: promotional register is the genre, not a tell. Suppress the Category 4 promotional signal entirely; keep vocabulary and structure.
+- **Academic / business / ESL prose**: raise the threshold to 4+ categories per Category 8.
+- **READMEs and technical docs**: the default baseline these categories were written against.
+
+If the caller states the genre, use it. If not, infer from the file and say which baseline you applied.
 
 ## What this skill does NOT cover
 
@@ -164,6 +195,19 @@ flag. Stanford HAI found 61.3% false positive rate on TOEFL essays.
 flag aggressively. Academic paper, business prose, ESL author: raise
 the threshold to 4+ categories, and consult Category 8 caveats in
 `references/categories.md`.
+
+## Error: Document obviously reads like LLM output, but every paragraph scores clean
+
+**Cause:** The tell is diffuse. Promotional register, a pitch-deck arc, and
+document-wide em-dash density each contribute about one instance per paragraph,
+so no unit ever reaches 3 categories. This is the expected failure mode of
+per-unit scoring, not a scoring mistake.
+
+**Solution:** Run the document-level pass (see "Document-level scoring" above)
+and report those findings separately. Do NOT lower the cluster threshold or
+stretch weak per-paragraph signals to force a flag — that trades a real miss for
+a false positive on good prose. Report honestly: "0 paragraphs flagged, 2
+document-level findings" is a complete and correct result.
 
 ## Error: Couldn't decide between FLAG and NO-FLAG
 

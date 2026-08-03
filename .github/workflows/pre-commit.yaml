@@ -22,7 +22,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.13.7"
-  GO_VERSION: "1.26.4"
+  GO_VERSION: "1.26.5"
   SHFMT_VERSION: "v3.10.0"
   PRETTIER_VERSION: "3.3.3"
 
@@ -72,6 +72,13 @@ jobs:
         # auth-prompting credential helper. Cloning the public source over
         # plain HTTPS and building locally sidesteps both — the GHA git
         # client allows anonymous reads against public repos.
+        #
+        # GOTOOLCHAIN=auto overrides the `local` value setup-go exports, so
+        # squad builds against whatever its own go.mod asks for. Without it,
+        # every squad Go bump breaks this repo's CI until GO_VERSION above
+        # is bumped to match.
+        env:
+          GOTOOLCHAIN: auto
         run: |
           set -euo pipefail
           tmp=$(mktemp -d)

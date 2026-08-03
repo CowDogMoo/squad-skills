@@ -89,6 +89,9 @@ LLM vocabulary tells evolve as models are updated and fine-tuned:
 - **Compulsive revision, no improvisation**: Reads like it was endlessly edited but never spontaneous. Every sentence is grammatically perfect. Human first drafts (even published ones) have rough edges.
 - **Uniform register across topics**: LLMs maintain the same level of formality whether describing a critical security patch or a minor whitespace fix. Humans naturally shift register based on stakes.
 - **"Despite its challenges..." formula**: Rigid acknowledgment of problems immediately dismissed with optimism. LLMs rarely let a negative point stand without a "however" or "that said" pivot.
+- **Promotional / pitch register**: Sales vocabulary in what should be a technical document: "big win," "high-value," "unlock," "game-changing," "best-in-class," "empowers," "opportunity," "prime real estate," "takes it to the next level." Distinct from Overemphasis above — overemphasis inflates *importance* ("crucial," "remarkable"); promotional register borrows the *sales frame*: benefits, wins, value, and a closing ask. LLMs default to it whenever a document describes a product, project, or capability.
+  - **Threshold**: diffuse by nature — typically one hype word per paragraph, so it rarely fires as a per-unit category and is easy to miss with paragraph-only scoring. Count it across the whole document: 4+ promotional terms per 1000 words, or any call-to-action closer ("start experimenting today," "give it a try," "reach out to learn more"), is a document-level signal. See "Document-level patterns" below.
+- **Editorializing your own evidence**: "the results are strong," "a staggering amount of waste," "impressively fast" placed right before or after the actual numbers. Writers who trust their data present it unadorned; LLMs attach an adjective telling the reader how to feel about a measurement that already speaks for itself. One instance is weak; three across a document that reports real numbers is a reliable signal.
 
 ## 5. Transitional Phrases
 
@@ -157,6 +160,28 @@ These apply to the first sentence of a response or document section:
 - Paraphrasing, editing, or prompting for a specific style can mask most of these signals.
 - The strongest long-term signal is not any single word but the combination of uniform cadence + absence of genuine opinion + suspiciously complete coverage of a topic.
 - Individual word tells are becoming less reliable as LLM vocabulary enters human speech. Cluster scoring (3+ tell categories converging) remains the most robust detection method.
+
+# Document-level patterns
+
+**These are not a 9th category and never count toward the 3-category cluster.**
+They are scored once per document, in a separate pass, and reported separately.
+Keeping them out of the cluster is deliberate: the per-unit threshold exists to
+suppress false positives on good prose, and folding a document-wide signal into
+it would let one diffuse pattern flip every paragraph in the file.
+
+A document can be clean at every paragraph and still be obviously LLM-drafted.
+The four patterns below are invisible to paragraph-level scoring because each
+paragraph contributes only one instance:
+
+- **Diffuse promotional register**: 4+ promotional terms per 1000 words (see Category 4), or a call-to-action closer. Individually each word is defensible; in aggregate the document reads as a pitch.
+- **Pitch-deck arc**: the document's *skeleton* is a sales narrative — problem framed with an alarming statistic, then "the opportunity," then benefits/wins, then validation, then a call to action. A technical document's natural arc is mechanism, measurements, limitations. Absence of any limitation, tradeoff, or failure mode anywhere in a document that makes performance claims is part of this signal.
+- **Templated section hinges**: sibling sections opening with the same syntactic frame — "The first block is X" / "The second block tackles a different but related problem" / "The third block takes a different angle." Three or more identically-shaped openers is a drafting fingerprint, even when each sentence is fine alone.
+- **Cross-paragraph punctuation and formatting density**: em-dash rate computed over the whole document rather than per paragraph (Category 3's >2/500-word threshold applied document-wide), every headline number bolded, or the same appositive interruption rhythm (`X — aside — Y`) recurring throughout.
+
+**Reporting.** Report document-level findings with the measured rate and the
+comparison threshold (e.g. "31 em dashes / 1364 words = 11.4 per 500, vs >4
+strong"). Do not convert them into paragraph flags, and do not let them raise
+any paragraph's category count.
 
 # Quick reference table
 
