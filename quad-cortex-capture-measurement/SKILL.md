@@ -129,7 +129,11 @@ comparable across sessions):
   grey on a second axis and per-band deltas annotated (title states what is
   compared and that it is the same performance); bottom panel 10 ms RMS
   envelopes of DI, plugin, QC with LUFS/peak in the legend. Saved as
-  `null-test-YYYY-MM-DD-HHMM.png` in the project folder.
+  `null-test-YYYY-MM-DD-HHMM.png` in the project folder, where HHMM is the
+  take time parsed from the Ableton filename's `[YYYY-MM-DD HHMMSS]` stamp
+  (pass the original filenames, not renamed copies, or it falls back to the
+  clock). Note the Ableton stamp is the moment the take was armed, which
+  can precede the actual playing by a few minutes.
 
 ## What the numbers mean (high-gain captures)
 
