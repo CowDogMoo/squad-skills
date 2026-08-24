@@ -7,7 +7,8 @@ reports: same-performance check (full-band cross-correlation), LUFS/peak,
 1/6-oct spectra normalised at 500 Hz-2 kHz with banded QC-plugin deltas,
 per-band coherence, and null depth after signed gain match and after a
 best-fit 512-tap linear EQ. Saves the two-panel plot as
-null-test-YYYY-MM-DD-HHMM.png.
+null-test-YYYY-MM-DD-HHMM.png, stamped with the take time parsed from the
+Ableton filename (`[YYYY-MM-DD HHMMSS]`), falling back to the clock.
 
 Deps: numpy scipy soundfile pyloudnorm matplotlib
   uv run --with numpy --with scipy --with soundfile --with pyloudnorm \
@@ -20,6 +21,7 @@ result-compatible so numbers stay comparable across sessions.
 
 import argparse
 import datetime
+import re
 import sys
 from pathlib import Path
 
@@ -65,6 +67,17 @@ def sixth_oct_smooth(P, f, frac=6):
         sel = (f >= lo) & (f <= hi)
         out[i] = P[sel].mean()
     return out
+
+
+def take_stamp(paths):
+    """Timestamp for the output name, taken from the Ableton recording filename
+    (`... NNNN [YYYY-MM-DD HHMMSS].wav`) so the PNG carries the take time, not
+    the analysis time. Falls back to the current clock if no file has one."""
+    for p in paths:
+        m = re.search(r"\[(\d{4}-\d{2}-\d{2}) (\d{2})(\d{2})\d{2}\]", Path(p).name)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}{m.group(3)}"
+    return datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
 
 
 def main():
@@ -195,7 +208,7 @@ def main():
     ax[1].legend(loc="lower right")
     plt.tight_layout()
 
-    out = Path(args.out_dir) / datetime.datetime.now().strftime("null-test-%Y-%m-%d-%H%M.png")
+    out = Path(args.out_dir) / f"null-test-{take_stamp([args.qc, args.plugin, args.di])}.png"
     plt.savefig(out, dpi=110)
     print(f"plot: {out}")
 
