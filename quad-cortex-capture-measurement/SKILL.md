@@ -1,0 +1,188 @@
+---
+name: quad-cortex-capture-measurement
+description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using Jayson's one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
+---
+
+# Quad Cortex capture measurement
+
+Decide — with numbers, from one recorded performance — how close a Neural
+Capture or the preset hosting it is to the plugin it was captured from.
+`quad-cortex-plugin-capture` sends captures here to be verified;
+`quad-cortex-preset-editing` sends presets here to reach rung 3. Everything
+below was learned doing it on Jayson's rig (Quad Cortex, RME Fireface UCX II,
+Ableton Live 12, Cortex Control); the gotchas are real ones that were hit.
+
+## The claim ladder (canonical)
+
+Every capture or preset job ends on one of these rungs, and the report must
+say which. Both sibling skills defer to this definition.
+
+1. **Configured** — the capture is saved / loaded in a preset. No claim about
+   sound. Allowed words: "loaded", "saved".
+2. **Structurally faithful** — the signal path contains nothing the plugin
+   reference did not, and nothing from the reference is missing. Reasoning
+   alone gets you here. Allowed words: "clean", "faithful to the capture",
+   "nothing extra in the path".
+3. **Measured** — the one-pass comparison below has been run and analyzed.
+   Only here may you say "closer", "matches", "within N dB", "nulls to
+   −X dB". Drive/attack/feel beyond what the null shows are judged by ear
+   (Cortex Control A/B screen, and by Jayson); say so once, briefly, not as
+   a caveat.
+
+Never use rung-3 language for rung-1/2 work. This rule exists because it was
+broken on 2026-08-23 ("optimized for the amp sound" after structural cleanup
+only) and the user had to ask "how did you test this" to surface it.
+
+## The method — one cable, QC over USB, one pass (since 2026-08-24)
+
+The guitar has one jack. A single pass records DI, plugin, and QC at once,
+sample-locked, from the same performance:
+
+- **Guitar → QC Input 1.** That is the only audio cable involved.
+- The QC's USB stream carries the input pre-grid ("Dry Input 1") and the
+  processed output ("Wet Signal L/R") on separate channels. Ableton uses the
+  QC as its **input** device; the Fireface stays the **output** device so
+  monitoring does not change.
+- Ableton tracks: "Thall Amp Raw Dawg" ← Ext. In 1 (QC Dry Input 1), plugin
+  on that track, Monitor Auto, armed; "REC plugin post FX" ← Thall track
+  Post FX; "QC amp and cab" ← Ext. In 3/4 (QC Wet Signal L/R). All three
+  armed, hit record, play 20–30 s once.
+
+Do NOT propose two passes, a third cable, a reamp, or "plug the other cable
+in" — there is no other cable. Do NOT ask to check TotalMix meters; the RME
+inputs are not in the path.
+
+QC USB channel map (as macOS lists them for the "Quad Cortex" device, 8 in /
+8 out): in 1–2 **Dry Input 1/2** (pre-grid guitar), in 3–4 **Wet Signal L/R**,
+in 5–8 From Grid 5–8; out 1–2 XLR Output 1/2, out 3–4 TRS Output 3/4,
+out 5–8 To Grid 5–8.
+
+### Setup facts learned doing it
+
+- **Wet Signal follows the preset's output routing.** With the last row
+  ending on "Out 3" the Wet channels were silent in Ableton. Set the lane
+  output tile to **Multi Out** and make sure **USB Output 3/4** is enabled in
+  the Multiple Outputs list (Cortex Control: click the Out tile → OUTPUT
+  list → Multiple Outputs). Save the preset. Then the QC track meters. This
+  is the only silent-channel cause seen.
+- Live only enumerates CoreAudio devices at launch: an Aggregate Device
+  created while Live is open does not appear in its Audio Input Device list.
+  Separate input (Quad Cortex) / output (Fireface) devices work fine and
+  need no restart; both recorded signals come off the same device so their
+  alignment is exact regardless. An Aggregate Device — created in macOS
+  **Audio MIDI Setup** (Fireface + QC, Fireface as clock, 48 kHz, drift
+  correction on the QC) — exists and is selectable after a Live restart if
+  the RME inputs are ever needed too.
+- Live Input Config: enable Mono 1&2 and Stereo 3/4 (Mono 3&4 too, harmless).
+- The plugin's dry feed is the QC's input stage; DI peaked −5.9 dBFS with
+  the QC In 1 at 0 dB / Instrument. Fine for the thall amp.
+- The QC's Wet Signal is **polarity-inverted** relative to the plugin (cross-
+  correlation peak −0.54). Harmless for spectra; the null uses a signed gain.
+- Ableton records a track's input pre-FX, so a Utility on the QC track for
+  level match is not in the recorded file; set it after measuring.
+
+## Recording the takes
+
+1. Plugin in its capture-time reference state — read it from the project's
+   `CAPTURE-TEST-STATE.md`, which `quad-cortex-plugin-capture` writes (cab
+   ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, gate off, pitch
+   off, mono). Don't guess it.
+2. Preset input block on In 1. Reverb/delay in the preset bypassed for the
+   take. Lane output routed to USB as above; preset saved.
+3. Play 20–30 s: chugs, single notes, one ringing chord. DI peaks −6 to
+   −12 dBFS at QC In 1 = 0 dB.
+4. One take per preset variant (each variant = one more 30 s take).
+
+Takes land in `<project>/Samples/Recorded/<track name> NNNN [timestamp].wav`
+— mono 24-bit 48k (a stereo Post-FX take from a mono plugin is dual-mono).
+Zero-byte files are aborted takes; ignore them. A 3 s take at −90 dBFS is an
+arm-and-stop, not data. The plugin recording must match the reference state:
+a take with the cab OFF (energy to 15 kHz only −14 dB down) cannot be
+compared to anything with a cab or IR.
+
+## Analysis — scripts/analyze.py
+
+Run the bundled script on the three files (deps: numpy, scipy, soundfile,
+pyloudnorm, matplotlib — `uv run --with ...` works):
+
+```
+python3 scripts/analyze.py DI.wav PLUGIN.wav QC.wav \
+  --out-dir <project folder> --label "15:07 take, Thall Amp+Cab vs plugin"
+```
+
+What it does (keep any reimplementation identical, so results stay
+comparable across sessions):
+
+- **Same-performance check** by full-band cross-correlation of QC vs plugin:
+  a clear peak (|r| ≥ 0.4) within a few ms says same take; a negative peak
+  is the expected polarity inversion. Do NOT use envelope correlation for
+  this — a saturated high-gain plugin with its gate off has an almost flat
+  envelope (idle noise −24 dBFS RMS vs −22 playing), so envelope correlation
+  reads ~0.3 even on the same take.
+- Align by that lag, then: integrated LUFS + peak per signal (the difference
+  is the capture block's Volume makeup, or the Utility on the QC track);
+  1/6-oct-smoothed Welch spectra normalised to the 500 Hz–2 kHz mean, with
+  banded QC−plugin deltas (60–120, 120–250, 250–500, 500–1k, 1–2k, 2–4k,
+  4–5k, 5–8k, 8–12k); per-band coherence; null depth after signed gain match
+  and after a best-fit 512-tap linear EQ.
+- Plot, the style Jayson likes: top panel spectra overlay with coherence in
+  grey on a second axis and per-band deltas annotated (title states what is
+  compared and that it is the same performance); bottom panel 10 ms RMS
+  envelopes of DI, plugin, QC with LUFS/peak in the legend. Saved as
+  `null-test-YYYY-MM-DD-HHMM.png` in the project folder.
+
+## What the numbers mean (high-gain captures)
+
+- Bands within **±0.5 dB from 250 Hz up** = a matched capture.
+- Coherence ~0.9 at 120–500 Hz falling to ~0.3 by 3 kHz is **normal** —
+  different nonlinearities put fizz harmonics at different phases. Null
+  depth of only −1.5 to −2.5 dB is therefore expected and is NOT a failed
+  capture; the residual is drive character, judged by ear.
+- A capture that is actually wrong shows up as **multi-dB band deltas or
+  coherence < 0.6 in the 120–500 Hz body** (usually input level at capture
+  time).
+
+**The EQ-vs-coherence lesson.** An 80–100 Hz deficit (−4 to −5 dB in fine
+bands) never moved more than ~1 dB no matter what a bell EQ did (+3 Q1.5,
++4 Q3), because coherence in 60–120 Hz was only ~0.5 while 120–500 Hz was
+0.9. Where coherence is low, the QC's energy in that band is largely not a
+linear function of the plugin's, so boosting the band scales the matching
+and non-matching parts alike and the normalised delta stays put. Rule:
+**only chase a band delta with EQ where coherence is > ~0.8**; a low-
+coherence deficit is a capture-time item (recapture — on the thall amp try
+Chug at 0 first), and say so instead of adding more EQ. Conversely a
+high-pass below the plugin's own low cut (65 Hz there) is always worth
+having: the capture reproduces the plugin's Lo Cut less steeply than the
+plugin did, the QC carried +22 dB at 30–45 Hz before the HPF, and the HPF
+alone improved the gain-match null by ~2 dB and lifted coherence in every
+band.
+
+Known-good calibration baseline (what a finished, matched preset measured):
+`references/reference-results-2026-08-24.md`.
+
+## Legacy: two cables, two passes (before 2026-08-24)
+
+Earlier comparisons used guitar → RME In 3 for a plugin pass and guitar →
+QC → RME In 4 for a QC pass, separate performances. Those charts are
+different-performance long-term spectra only; they are still valid for
+cab/EQ balance but say nothing about drive. Pair takes by timestamp, trim
+to active region, average dual-mono to mono. Old two-cable takes have one
+silent channel per take by design; do not diagnose them. Only use this
+method if the QC USB path is unavailable.
+
+## Optional: reamp (only if Jayson asks — the USB method makes it unnecessary)
+
+Record a DI once (guitar → RME In 3, no plugin). Reamp that DI at matched
+level into the plugin (DI clip → plugin track, record Post FX) and into the
+QC (DI clip → spare ext out → QC In 2, preset input block → In 2,
+Instrument/1 MΩ/0 dB). Calibrate the send so the QC In 2 meter peaks match
+the DI file's peaks. Switch the preset input back to In 1 afterwards. Don't
+propose this unprompted.
+
+## File facts
+
+- Ableton records a track's **input**, pre-FX. A clip on the plugin track is
+  the DI; the plugin's sound only exists on a Post-FX REC track.
+- The capture models the plugin's noise floor: plugin with gate at −100 dB
+  idled at −30 dBFS RMS and so did the QC takes. A gate after the capture in
+  the preset handles this; the input gate cannot remove modeled hiss.
