@@ -21,7 +21,7 @@ the gotchas are real ones that were hit.
 
 ## Cabling
 
-- **QC CAPTURE OUT → RME front In 3.** CAPTURE OUT is a dedicated 1/4" jack
+- **QC CAPTURE OUT → RME front In 4.** CAPTURE OUT is a dedicated 1/4" jack
   directly BELOW the headphone jack (between OUT 2/R and OUT 3/L). It is NOT
   XLR Out 1. It carries the capture test signal, and in normal grid mode it
   also taps the dry In 1 signal (useful for recording DIs).
@@ -34,7 +34,7 @@ the gotchas are real ones that were hit.
 
 ## TotalMix
 
-On the input receiving CAPTURE OUT (In 3):
+On the input receiving CAPTURE OUT (In 4):
 
 - **Inst. OFF** (line mode), ref level **+13 dBu** (front 3/4 offer only +13/+19),
   **AutoSet OFF**, no EQ/dynamics, FX send −∞.
@@ -51,7 +51,7 @@ On the output feeding QC In 2 (Out 3 or 5):
 - Hardware output fader at 0 dB (check it — snapshots leave it at −∞),
   ref +13 dBu, Loopback OFF, FX Return −∞.
 
-On the input receiving the QC's normal output (In 4, for A/B recording):
+On the input receiving the QC's normal output (In 3, for A/B recording):
 
 - Inst OFF, +13 dBu, gain 0, AutoSet OFF. The QC's main out is far hotter than
   its Capture Out.
@@ -66,7 +66,7 @@ snapshot change, and re-verify before each capture session.
 - Audio prefs: Fireface driver, **48 kHz** (QC is 48k), buffer **128** (latency
   is fine — the QC measures and compensates loop latency; dropouts are what
   ruin captures).
-- Capture track: Audio From **Ext. In 3** (mono), **Monitor: In**, Audio To the
+- Capture track: Audio From **Ext. In 4** (mono), **Monitor: In**, Audio To the
   ext out feeding QC In 2 (routing direct to Ext. Out bypasses the master, so
   nothing else can leak in). Plugin is the only device. Nothing on Main.
 - Monitor sometimes flips back to Auto/Off when clicking around track headers —
@@ -99,10 +99,10 @@ parameter indices in parens, via ableton-mcp):
 
 ## Levels — the part that decides everything
 
-- **Input side (baked into the capture):** the interface gain on In 3 sets how
+- **Input side (baked into the capture):** the interface gain on In 4 sets how
   hard the plugin is driven, exactly like guitar-into-amp gain staging. Target
   hard-played peaks around **−15 to −12 dBFS** into the plugin (what a real DI
-  does). During the level check, the QC In 1 meter and the Ableton/RME In 3
+  does). During the level check, the QC In 1 meter and the Ableton/RME In 4
   meter should read within ~1 dB of each other with these settings.
 - **Return side (arbitrary, NOT part of the tone):** aim QC **In 2 peaks
   ≈ −12 dB** (Neural DSP's target) using QC In 2 Level / plugin output /
@@ -147,7 +147,7 @@ with plugin Output +6 dB; tone is identical.
 Before leaving a capture session, write the capture-time plugin state into
 the project's `CAPTURE-TEST-STATE.md`: capture name, Amp vs Amp+Cab, cab
 on/off, Lo/Hi Cut, tone-match profile, In/Out gain, gate/pitch/mono state,
-In 3 gain used. `quad-cortex-preset-editing` reads this as "the reference"
+In 4 gain used. `quad-cortex-preset-editing` reads this as "the reference"
 when it puts the capture into a preset, and `quad-cortex-capture-measurement`
 reads it to put the plugin back into capture-time state for the comparison
 take; without it both are guessing.
