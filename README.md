@@ -60,33 +60,59 @@ to this repo by pointing it at the directory or referencing the file:
 # (the squad runner loads the SKILL.md body verbatim).
 
 # From any host that supports a user-skills directory — drop the
-# folder in place.
-cp -r comment-scrub-playbook /path/to/host/skills/
+# folder in place. Copy the skill directory itself; the category
+# folder above it is repo organization only.
+cp -r writing-quality/comment-scrub-playbook /path/to/host/skills/
 ```
 
 ## Available Skills
 
-| Skill                                                                        | Description                                                                                                                                                                            |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [comment-scrub-playbook](./comment-scrub-playbook)                           | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command.           |
-| [detect-llm-tells](./detect-llm-tells)                                       | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).                                          |
-| [doc-comments-discovery-and-fix-loop](./doc-comments-discovery-and-fix-loop) | Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify compilation, report. |
-| [enqueue-coverage-targets](./enqueue-coverage-targets) | Orchestrator-workers pattern for raising test coverage in Go, Node.js/TypeScript, Python, or Rust: `scripts/enqueue.sh` measures once and queues every unit below target, you drain the queue writing tests, then re-measure. Per-language rules in `references/`. |
-| [extract-recipe-grocery-list](./extract-recipe-grocery-list)                 | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations.                       |
-| [guitar-pro](./guitar-pro)                                                   | Read, write, and analyze Guitar Pro tablature (`.gp5`, native `.gp`, MusicXML) via a bundled PyGuitarPro/alphaTab helper; handles the silent-corruption defects in both libraries.                     |
-| [quad-cortex-capture-measurement](./quad-cortex-capture-measurement)         | Measure a Quad Cortex capture or preset against its plugin reference: one-pass QC-over-USB recording, bundled `analyze.py` (LUFS offset, banded deltas, coherence, null depth), interpretation thresholds, and the canonical claim ladder. |
-| [quad-cortex-plugin-capture](./quad-cortex-plugin-capture)                   | Run a Neural Capture of an amp-sim plugin into the Quad Cortex on Jayson's rig (RME UCX II, Ableton, Cortex Control): cabling, TotalMix routing, capture-safe plugin state, level calibration, V2 capture, A/B verification. |
-| [quad-cortex-preset-editing](./quad-cortex-preset-editing)                   | Put a Neural Capture into a Quad Cortex preset via Cortex Control screen control: inventory every block, canonical order, bypass what the reference lacks, makeup on Volume, and report the claim rung reached (configured / structurally faithful / measured). |
-| [score-coverage-and-report-gaps](./score-coverage-and-report-gaps)           | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta.                            |
-| [test-writer-honesty](./test-writer-honesty)                                 | Shared discipline rules for any test-writing agent: never clobber existing tests, never fall back to `Write` when `Edit` fails, tie the final report to `git diff --stat`.             |
+Skills are grouped into category folders. The category is repo
+organization only — skill names, invocation, and behavior don't change
+with the folder a skill lives in. Each category folder is registered in
+`.claude-plugin/plugin.json`'s `skills` list; the plugin loader scans
+each listed path exactly one level deep.
+
+### testing/
+
+| Skill                                                                      | Description                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [enqueue-coverage-targets](./testing/enqueue-coverage-targets)             | Orchestrator-workers pattern for raising test coverage in Go, Node.js/TypeScript, Python, or Rust: `scripts/enqueue.sh` measures once and queues every unit below target, you drain the queue writing tests, then re-measure. Per-language rules in `references/`. |
+| [score-coverage-and-report-gaps](./testing/score-coverage-and-report-gaps) | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta.                                                                                                        |
+| [test-writer-honesty](./testing/test-writer-honesty)                       | Shared discipline rules for any test-writing agent: never clobber existing tests, never fall back to `Write` when `Edit` fails, tie the final report to `git diff --stat`.                                                                                         |
+
+### writing-quality/
+
+| Skill                                                                                        | Description                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [comment-scrub-playbook](./writing-quality/comment-scrub-playbook)                           | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command.          |
+| [detect-llm-tells](./writing-quality/detect-llm-tells)                                       | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).                                         |
+| [doc-comments-discovery-and-fix-loop](./writing-quality/doc-comments-discovery-and-fix-loop) | Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify compilation, report. |
+
+### music/
+
+| Skill                                                                      | Description                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [guitar-pro](./music/guitar-pro)                                           | Read, write, and analyze Guitar Pro tablature (`.gp5`, native `.gp`, MusicXML) via a bundled PyGuitarPro/alphaTab helper; handles the silent-corruption defects in both libraries.                                                                              |
+| [quad-cortex-capture-measurement](./music/quad-cortex-capture-measurement) | Measure a Quad Cortex capture or preset against its plugin reference: one-pass QC-over-USB recording, bundled `analyze.py` (LUFS offset, banded deltas, coherence, null depth), interpretation thresholds, and the canonical claim ladder.                       |
+| [quad-cortex-plugin-capture](./music/quad-cortex-plugin-capture)           | Run a Neural Capture of an amp-sim plugin into the Quad Cortex on Jayson's rig (RME UCX II, Ableton, Cortex Control): cabling, TotalMix routing, capture-safe plugin state, level calibration, V2 capture, A/B verification.                                    |
+| [quad-cortex-preset-editing](./music/quad-cortex-preset-editing)           | Put a Neural Capture into a Quad Cortex preset via Cortex Control screen control: inventory every block, canonical order, bypass what the reference lacks, makeup on Volume, and report the claim rung reached (configured / structurally faithful / measured). |
+
+### cooking/
+
+| Skill                                                                | Description                                                                                                                                                     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [extract-recipe-grocery-list](./cooking/extract-recipe-grocery-list) | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations. |
+| [weekday-dinner-recipes](./cooking/weekday-dinner-recipes)           | Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from reputable food sites, with ratings extracted from each live page, every link verified, and previously returned recipes skipped. |
 
 ## Skill Structure
 
 Layout follows Anthropic's
-[Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf):
+[Complete Guide to Building Skills for Claude](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf),
+with each skill nested one level down in a category folder:
 
 ```text
-skill-name/
+category-name/skill-name/
 ├── SKILL.md       # required — main skill file
 ├── scripts/       # optional — executable code (Python, Bash, etc.)
 ├── references/    # optional — supporting docs loaded on demand
@@ -104,8 +130,8 @@ share a script, they are usually one skill with per-variant
 skills reaching into a shared directory. Put a `references/<topic>.md` next to
 `SKILL.md` and link to it from the body when you have a lookup table or
 catalog that doesn't need to be in context every run — see
-[`detect-llm-tells/references/`](./detect-llm-tells/references) for an
-example.
+[`detect-llm-tells/references/`](./writing-quality/detect-llm-tells/references)
+for an example.
 
 **No `README.md` inside a skill folder.** The repo-level README is for
 human visitors; all skill-facing documentation belongs in `SKILL.md` or
@@ -187,11 +213,14 @@ across them. The pattern that works:
 ## Creating a Skill
 
 ```bash
-# 1. Create the directory
-mkdir my-skill
+# 1. Create the directory inside the category folder that fits
+#    (cooking/, music/, testing/, writing-quality/). A new category
+#    also needs an entry in .claude-plugin/plugin.json's "skills"
+#    list, or the plugin loader will never see it.
+mkdir testing/my-skill
 
 # 2. Write SKILL.md
-cat > my-skill/SKILL.md <<'EOF'
+cat > testing/my-skill/SKILL.md <<'EOF'
 ---
 name: my-skill
 description: One sentence describing exactly when to use this.
@@ -206,8 +235,8 @@ description: One sentence describing exactly when to use this.
 EOF
 
 # 3. Add evals — 2–3 realistic prompts with checkable expectations
-mkdir -p my-skill/evals
-cat > my-skill/evals/evals.json <<'EOF'
+mkdir -p testing/my-skill/evals
+cat > testing/my-skill/evals/evals.json <<'EOF'
 {
   "skill_name": "my-skill",
   "evals": [
@@ -280,7 +309,9 @@ pre-commit run --all-files
 
 CI runs the same checks:
 
-- `SKILL.md` exists in every non-hidden top-level directory.
+- Every top-level directory is a category folder registered in
+  `.claude-plugin/plugin.json`'s `skills` list, and every directory
+  inside a category has a `SKILL.md`.
 - Frontmatter has `name` and `description`, both non-empty.
 - `name` matches the directory name.
 - `evals/evals.json` exists, names the skill, has ≥2 evals with

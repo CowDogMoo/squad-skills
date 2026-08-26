@@ -9,5 +9,5 @@
   },
   "repository": "https://github.com/CowDogMoo/squad-skills",
   "license": "MIT",
-  "skills": ["./"]
+  "skills": ["./cooking", "./music", "./testing", "./writing-quality"]
 }

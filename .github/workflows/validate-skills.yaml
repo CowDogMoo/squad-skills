@@ -32,14 +32,74 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Skills live two levels deep (category/skill). The category folders
+  # are declared once, in .claude-plugin/plugin.json's "skills" list —
+  # the plugin loader scans each listed path exactly one level deep, so
+  # a folder missing from that list is invisible to the plugin. This
+  # job reads the list, verifies the repo root contains exactly those
+  # folders, and feeds them to the validation matrix below so CI can
+  # never drift from what the plugin actually loads.
+  categories:
+    name: Category Layout
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.discover.outputs.list }}
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read categories from plugin.json and check repo layout
+        id: discover
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          with open(".claude-plugin/plugin.json", encoding="utf-8") as fh:
+              plugin = json.load(fh)
+          cats = sorted(c.removeprefix("./") for c in plugin["skills"])
+
+          failed = False
+          for cat in cats:
+              if not Path(cat).is_dir():
+                  print(f"::error::plugin.json lists a missing skills directory: {cat}")
+                  failed = True
+              elif (Path(cat) / "SKILL.md").exists():
+                  print(f"::error file={cat}/SKILL.md::category folder must hold skill directories, not be a skill itself")
+                  failed = True
+
+          root_dirs = sorted(
+              p.name for p in Path(".").iterdir()
+              if p.is_dir() and not p.name.startswith((".", "_"))
+          )
+          for d in root_dirs:
+              if d not in cats:
+                  print(f"::error file={d}::top-level directory is not registered as a category in .claude-plugin/plugin.json 'skills'")
+                  failed = True
+
+          if failed:
+              sys.exit(1)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"list={json.dumps(cats)}\n")
+          print(f"✓ categories: {', '.join(cats)}")
+          EOF
+
   # The validation logic lives in reusable-validate-skills.yaml so other
   # repos (e.g. squad-agents) can call the same checks without a drifting
-  # copy. Skills here live at the repo root, hence skills-dir: ".".
+  # copy. It validates one directory whose immediate children are skills,
+  # so fan out over the category folders discovered above.
   skills:
     name: Skills
+    needs: [categories]
+    strategy:
+      fail-fast: false
+      matrix:
+        category: ${{ fromJSON(needs.categories.outputs.list) }}
     uses: ./.github/workflows/reusable-validate-skills.yaml
     with:
-      skills-dir: "."
+      skills-dir: ${{ matrix.category }}
 
   # Kept as a plain job in this workflow (not inside the reusable one) so
   # its check-run name stays exactly "Validation Summary" — the required
@@ -48,13 +108,14 @@ jobs:
   summary:
     name: Validation Summary
     runs-on: ubuntu-latest
-    needs: [skills]
+    needs: [categories, skills]
     if: always()
     steps:
       - name: Check results
         run: |
-          if [ "${{ needs.skills.result }}" != "success" ]; then
-            echo "::error::Skill validation failed (result: ${{ needs.skills.result }})"
+          if [ "${{ needs.categories.result }}" != "success" ] || \
+             [ "${{ needs.skills.result }}" != "success" ]; then
+            echo "::error::Skill validation failed (categories: ${{ needs.categories.result }}, skills: ${{ needs.skills.result }})"
             exit 1
           fi
           echo "✓ All skill validations passed"
