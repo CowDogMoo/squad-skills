@@ -1,0 +1,36 @@
+{
+  "skill_name": "score-coverage-and-report-gaps",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Measure coverage in evals/files/cov-go, tell me where the zero-coverage functions are, write tests for the top gaps, and give me a before/after. Go, target 80%, 15 iterations.",
+      "expected_output": "Baseline measured, zero-coverage functions and untested packages enumerated, prioritized, tests written, re-measured, before/after delta reported.",
+      "files": [
+        "evals/files/cov-go/go.mod",
+        "evals/files/cov-go/calc/calc.go",
+        "evals/files/cov-go/calc/calc_test.go"
+      ],
+      "expectations": [
+        "A baseline percentage is reported before any test is written",
+        "Zero-coverage functions are listed by name",
+        "Existing TestAdd in calc_test.go survives in the diff",
+        "The report contains a before and an after percentage, with after either re-measured or 'not measured'",
+        "No empty test file is created"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "coverage in evals/files/cov-py is already above my 60% target. anything left to do?",
+      "expected_output": "Even with the target met, the gap-analysis step still runs and reports untested functions/modules rather than declaring done.",
+      "files": [
+        "evals/files/cov-py/app/__init__.py",
+        "evals/files/cov-py/app/pricing.py",
+        "evals/files/cov-py/tests/test_pricing.py"
+      ],
+      "expectations": [
+        "The response still enumerates specific untested functions or branches",
+        "It does not stop at 'target met' without a gap list"
+      ]
+    }
+  ]
+}

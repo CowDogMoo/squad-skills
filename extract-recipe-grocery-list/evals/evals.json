@@ -1,0 +1,29 @@
+{
+  "skill_name": "extract-recipe-grocery-list",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Build me a grocery list for this week: pasta primavera https://www.allrecipes.com/recipe/16385/pasta-primavera/ , chicken stir-fry https://www.allrecipes.com/recipe/223382/chicken-stir-fry/ , and vegetable curry https://www.budgetbytes.com/vegetable-curry/",
+      "expected_output": "A deduplicated aisle-grouped list annotated with the full dish names, water/salt/pepper dropped, duplicates consolidated, plus a short summary of fetched/failed/dropped/consolidated counts.",
+      "files": [],
+      "expectations": [
+        "scripts/extract_ingredients.py (or an equivalent JSON-LD parse) is used to pull recipeIngredient arrays",
+        "No output line contains plain water, salt, or black pepper",
+        "No two lines in the same aisle share the same normalized item name",
+        "Every line ends with a parenthesised dish annotation using the full dish name from the prompt",
+        "The summary lists how many recipes fetched successfully and any that failed with a reason"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Two recipes, one of them is dead: tacos https://www.example.com/this-page-does-not-exist-404 and lentil soup https://www.budgetbytes.com/lentil-soup/. Shopping list please, plain text.",
+      "expected_output": "Plain-text list from the working recipe; the failed URL is reported in the summary and contributes nothing; no fabricated taco ingredients.",
+      "files": [],
+      "expectations": [
+        "The output is plain text with aisle headers on their own lines and no bullets",
+        "No ingredient is attributed to 'tacos'",
+        "The summary names the failed URL and gives a reason"
+      ]
+    }
+  ]
+}

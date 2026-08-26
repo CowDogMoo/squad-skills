@@ -1,0 +1,40 @@
+{
+  "skill_name": "guitar-pro",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write me a 4-bar palm-muted drop C chugging riff at 160bpm on a 6-string, mostly 8ths with a couple of 16th gallops, and save it as chug.gp5",
+      "expected_output": "A valid .gp5 written with scripts/gp_tab.py, tuning drop C, tempo 160, 4 measures with sounding (non-rest) notes; ASCII render shown for verification.",
+      "files": [],
+      "expectations": [
+        "A file chug.gp5 exists and `python scripts/gp_tab.py info chug.gp5` reports 4 measures, tempo 160, and drop C tuning",
+        "The measures contain sounding notes (not rests) with palm-mute markings",
+        "The response shows an ASCII rendering or info output as verification before delivering"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "i have an 8 string riff idea in F# standard, can you tab it out in guitar pro format? just a simple 2 bar idea on the low 2 strings",
+      "expected_output": "Because .gp5 caps at seven strings, the skill routes to native .gp via gp7_export.mjs (or MusicXML if Node is unavailable) and says why.",
+      "files": [],
+      "expectations": [
+        "The response explains that .gp5 cannot represent 8 strings",
+        "The delivered file is .gp (native GP7) or .musicxml, not .gp5",
+        "The tuning is an 8-string F# standard"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "what tuning is evals/files/tab/sample.gp5 in and can you transpose it down a whole step and export midi?",
+      "expected_output": "Reads the file with gp_tab.py info, reports tuning, writes a transposed copy and a .mid file.",
+      "files": [
+        "evals/files/tab/sample.gp5"
+      ],
+      "expectations": [
+        "The reported tuning matches the file's actual string tuning",
+        "A transposed .gp5 and a .mid file are produced",
+        "The transposed file's notes are a whole step lower than the original"
+      ]
+    }
+  ]
+}

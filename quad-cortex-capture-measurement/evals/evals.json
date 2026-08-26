@@ -1,0 +1,32 @@
+{
+  "skill_name": "quad-cortex-capture-measurement",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just captured the Archetype Gojira lead preset into the QC. Here are the three takes from one pass: evals/files/qc/DI.wav, evals/files/qc/PLUGIN.wav, evals/files/qc/QC.wav. How close is it?",
+      "expected_output": "Runs scripts/analyze.py on the three files, reports LUFS offset, banded deltas, coherence, null depth, interprets against thresholds, and states which claim-ladder rung the capture reached. (The fixture wavs are synthetic — noise DI, band-limited saturated 'plugin', and a low-passed 'QC' — so the numbers are stable across runs; the eval checks the workflow and honesty of interpretation, not real-rig thresholds.)",
+      "files": [
+        "evals/files/qc/DI.wav",
+        "evals/files/qc/PLUGIN.wav",
+        "evals/files/qc/QC.wav"
+      ],
+      "expectations": [
+        "scripts/analyze.py is executed on the three wavs",
+        "The response reports LUFS offset, per-band deltas, coherence, and null depth as numbers",
+        "The verdict names a claim-ladder rung (configured / structurally faithful / measured) and justifies it from the numbers",
+        "No number is stated that the script did not produce"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "my capture sounds duller than the plugin. should i just redo it or is it actually fine?",
+      "expected_output": "Asks for (or explains how to record) the one-pass DI/plugin/QC takes rather than guessing; explains which banded delta would confirm 'duller'.",
+      "files": [],
+      "expectations": [
+        "The response does not declare a verdict without measurement data",
+        "It points to the one-cable QC-over-USB recording method as the way to get the takes",
+        "It names the high-band spectral delta as the metric that would confirm a dull capture"
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@ overall target is met. The caller (a language-specific test agent)
 supplies the coverage tool, idiom patterns, file naming, and target
 percentage.
 
-# Inputs the caller supplies
+## Inputs the caller supplies
 
 - **Language** — Go, Python, Rust, Node/TypeScript, etc.
 - **Source-file glob and filter** — already established when the
@@ -55,7 +55,7 @@ percentage.
   specific (interfaces for Go, `autospec=True` for Python,
   trait-based for Rust, `jest.mock`/`vi.mock` for Node).
 
-# Iteration budget
+## Iteration budget
 
 Scales with codebase size; caller tunes the numbers. Typical:
 
@@ -70,14 +70,14 @@ unprocessed reads. **First test written by iteration 6.** Do not
 read the whole codebase first — reasoning models exhaust output
 tokens if they think too long before acting.
 
-# Phase 0 — Use Pre-collected Data
+## Phase 0 — Use Pre-collected Data
 
 If the orchestrator injected a `Pre-discovered source files` list,
 use it (covered by the pre-discovered-files include on the agent
 side). Do NOT run a redundant pass/fail test command — go straight
 to the coverage measurement in Phase 1.
 
-# Phase 1 — Measure baseline
+## Phase 1 — Measure baseline
 
 **Phase 1 is EXACTLY ONE iteration.** Fuse the caller's coverage command and
 the gap-analysis incantation into a single Bash invocation that pipes each
@@ -101,7 +101,7 @@ All three artifacts emerge from the SAME Bash call. After Phase 1, treat
 `go test -cover` / `pytest --cov` / `cargo llvm-cov` etc. as forbidden tool
 calls until Phase 4.
 
-# Phase 2 — Prioritize
+## Phase 2 — Prioritize
 
 Sort the work like this:
 
@@ -119,7 +119,7 @@ Sort the work like this:
    Document untestable wiring instead of contorting tests to hit
    it.
 
-# Phase 3 — Write Tests
+## Phase 3 — Write Tests
 
 For each priority file/package, in order:
 
@@ -137,7 +137,7 @@ For each priority file/package, in order:
 5. Below the per-file target? Write more tests. Hit the entry-
    point exception? Document the untestable functions and move on.
 
-# Phase 4 — Verify
+## Phase 4 — Verify
 
 1. Run the full coverage command one more time.
 2. Re-check the per-file/per-package breakdown. Any non-exempt
@@ -145,7 +145,7 @@ For each priority file/package, in order:
 3. Run the separate verify command if the caller declared one
    (`go build ./...`, `cargo build --tests`, `npx tsc --noEmit`).
 
-# Phase 5 — Report
+## Phase 5 — Report
 
 Emit the structured report. **The coverage delta (before → after)
 is mandatory** — omitting it is a failure. So is the gap-analysis
@@ -170,7 +170,7 @@ Report shape the caller assembles:
 - **Validation** — coverage command PASS/FAIL; build command
   PASS/FAIL.
 
-# Cross-cutting discipline rules
+## Cross-cutting discipline rules
 
 These hold regardless of language.
 
@@ -181,7 +181,7 @@ These hold regardless of language.
   test code only.
 - **No test-only interfaces / traits / protocols** added to
   source files for testability. Work with what exists.
-- **Empty test files are FORBIDDEN.** Every test file must have
+- **No empty test files.** Every test file must have
   at least one real test function / `it` block / `func Test*`.
 - **Strict 1:1 test file naming.** `foo.go` → `foo_test.go`;
   `foo.py` → `test_foo.py`; `foo.ts` → `foo.test.ts`. No
@@ -218,7 +218,7 @@ These hold regardless of language.
   final time, emit the report IMMEDIATELY in the same response.
   No extra tool calls.
 
-# Boundary — what stays in the caller
+## Boundary — what stays in the caller
 
 This skill is the loop and the discipline. The caller owns:
 
@@ -242,7 +242,7 @@ This skill is the loop and the discipline. The caller owns:
 - The OUTPUT FORMAT shape (the skill specifies sections; the
   caller specifies the exact table columns and headers).
 
-# Anti-goals
+## Anti-goals
 
 - Do NOT mock `os.Exit` / `process.exit` /
   `std::process::exit` to inflate entry-point coverage.
@@ -258,9 +258,9 @@ This skill is the loop and the discipline. The caller owns:
   config parsing) and test that. Only specific I/O-bound
   functions go in Skipped Functions.
 
-# Examples
+## Examples
 
-## Example 1 — Go service at 58%, target 75%
+### Example 1 — Go service at 58%, target 75%
 
 Caller: `agents/go-test-coverage`. Coverage command:
 `go test ./... -coverprofile=coverage.out -count=1`. Target: 75%.
@@ -288,7 +288,7 @@ Phase 5 report includes Delta (58.2% → 76.4%), Discovered Gaps,
 Tested Packages table, Skipped Functions (4 I/O wrappers around
 `os.Exit` and DB pool init), and Validation row.
 
-## Example 2 — Total above target but gaps still required
+### Example 2 — Total above target but gaps still required
 
 Phase 1: total coverage 81% (above 75% target). Tempted to skip
 gap analysis.
@@ -299,7 +299,7 @@ have 0% — the average hides the bimodal split. Report them in
 Discovered Gaps so the orchestrator can decide whether to do a
 targeted pass on the untested modules.
 
-## Example 3 — Python package with entry-point carve-out
+### Example 3 — Python package with entry-point carve-out
 
 Caller: `agents/python-test-coverage`. Source includes `cli/main.py`
 which wires `argparse` to handlers and calls `sys.exit`.
@@ -316,9 +316,9 @@ covered partially through `runpy`-style invocation but stays under
 Phase 5 Skipped Functions notes `main` with reason
 "entry-point/CLI carve-out; sys.exit unmockable".
 
-# Troubleshooting
+## Troubleshooting
 
-## Error: Gap-analysis section missing from report
+### Error: Gap-analysis section missing from report
 
 **Symptom:** Report has coverage delta but no "Discovered Gaps"
 section.
@@ -330,7 +330,7 @@ Re-run the caller's zero-coverage enumeration command and append a
 Discovered Gaps section before emitting the report. A run without it
 is a failure even if the percentage is great.
 
-## Error: Tempted to mock `os.Exit` / `process.exit` / `std::process::exit`
+### Error: Tempted to mock `os.Exit` / `process.exit` / `std::process::exit`
 
 **Symptom:** Entry-point file (`cmd/`, `main.rs`, `src/index.*`,
 `bin/`) below target; the only way to hit more lines is to mock
@@ -341,7 +341,7 @@ process exit.
 Mocking process exit produces tests that pass without verifying
 real behavior.
 
-## Error: Wrote a test-only interface/trait into source code
+### Error: Wrote a test-only interface/trait into source code
 
 **Symptom:** Source file gained a new interface/trait/protocol whose
 only consumer is the test file.
@@ -353,7 +353,7 @@ the source today, or skip the function and document why. Adding
 testability scaffolding is out of scope — the skill's job is to
 write tests against existing code.
 
-## Error: Empty test file in the diff
+### Error: Empty test file in the diff
 
 **Symptom:** A `*_test.go` / `test_*.py` / `*.test.ts` file exists
 with imports but no actual `Test*` / `it` / `test` block.
@@ -361,12 +361,12 @@ with imports but no actual `Test*` / `it` / `test` block.
 **Cause:** Iteration ran out mid-write or model batched
 incorrectly.
 
-**Solution:** Empty test files are FORBIDDEN. Either complete the
+**Solution:** Either complete the
 file with at least one real test, or delete it. The verify command
 won't catch this on its own (zero tests is "passing"); the human
 reader will reject the diff.
 
-## Error: Iteration cap hit before final verify
+### Error: Iteration cap hit before final verify
 
 **Symptom:** Out of iterations with tests still being written.
 
@@ -375,7 +375,7 @@ final coverage command. Emit the report with whatever the current
 delta is and a Skipped Functions section listing what didn't get
 done due to budget. A partial accurate report beats no report.
 
-## Error: Skipped a whole file because "it touches the database"
+### Error: Skipped a whole file because "it touches the database"
 
 **Symptom:** File added to Skipped Functions with reason
 "requires DB" or "I/O-bound".

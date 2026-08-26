@@ -22,9 +22,9 @@ structural patterns, em-dash thresholds, model-specific openers, etc.).
 The decision rules in this file are authoritative; the catalog is the
 lookup table you check each unit against.
 
-# How to use this skill
+## How to use this skill
 
-## Unit of analysis
+### Unit of analysis
 
 The "unit" depends on the caller's domain:
 
@@ -42,7 +42,7 @@ Skip these regardless of caller domain:
 - License and copyright headers
 - Auto-generated content (`// Code generated ... DO NOT EDIT.` and equivalents)
 
-## Cluster scoring (the only reliable rule)
+### Cluster scoring (the only reliable rule)
 
 Score each unit against the 8 categories from `references/categories.md`.
 Count **distinct categories** that fire — not the total number of
@@ -52,12 +52,12 @@ individual tells.
 |---|---|---|
 | 4 or more | HIGH | FLAG |
 | Exactly 3 | MEDIUM | FLAG |
-| 1 or 2 | LOW | DO NOT flag — single-category hits are too noisy |
+| 1 or 2 | LOW | Don't flag — single-category hits are too noisy |
 | 0 | — | clean |
 
 A single occurrence of "delve," one "Moreover," or one em-dash is never enough on its own. Convergence is the signal; isolated tells are not.
 
-## Tell categories that count, even at one hit
+### Tell categories that count, even at one hit
 
 A few categories are strong enough that one clear example counts toward the cluster:
 
@@ -68,7 +68,7 @@ A few categories are strong enough that one clear example counts toward the clus
 
 For Tier 2/3 vocabulary, transitional phrases, and em-dash use, require **2+ instances** within the same unit before that category fires. Single occurrences are baseline noise.
 
-## Document-level scoring (second pass, prose callers only)
+### Document-level scoring (second pass, prose callers only)
 
 Cluster scoring is per-unit, so it is structurally blind to any tell that
 contributes only one instance per paragraph. A document can score clean at every
@@ -88,7 +88,7 @@ A document with zero flagged paragraphs and one document-level finding is a
 normal, correct outcome — say so plainly rather than reaching for a paragraph to
 flag.
 
-## Genre governs the baseline
+### Genre governs the baseline
 
 Score against the conventions of what the text actually is:
 
@@ -99,7 +99,7 @@ Score against the conventions of what the text actually is:
 
 If the caller states the genre, use it. If not, infer from the file and say which baseline you applied.
 
-## What this skill does NOT cover
+### What this skill does NOT cover
 
 The caller's `system.md` is authoritative for:
 
@@ -111,9 +111,9 @@ The caller's `system.md` is authoritative for:
 
 If guidance in this skill conflicts with the caller's hard rules, the caller's hard rules win.
 
-# Examples
+## Examples
 
-## Example 1 — Prose paragraph FLAGged
+### Example 1 — Prose paragraph FLAGged
 
 Unit:
 
@@ -132,7 +132,7 @@ Scoring:
 
 5 categories fire → **FLAG, HIGH confidence.**
 
-## Example 2 — Code comment NOT FLAGged
+### Example 2 — Code comment NOT FLAGged
 
 Unit:
 
@@ -150,7 +150,7 @@ Scoring:
 
 0 categories fire → **clean, NO-FLAG.**
 
-## Example 3 — Code comment FLAGged (numbered step labels)
+### Example 3 — Code comment FLAGged (numbered step labels)
 
 Unit:
 
@@ -171,9 +171,9 @@ Scoring:
 one-hit list, and it's reinforced by Category 6 → **FLAG, MEDIUM
 confidence.** The caller (a scrub agent) deletes the block.
 
-# Troubleshooting
+## Troubleshooting
 
-## Error: Single-category hit triggered a FLAG
+### Error: Single-category hit triggered a FLAG
 
 **Cause:** Caller is using single-tell scoring instead of cluster scoring.
 
@@ -185,7 +185,7 @@ opener phrases) still count as *one* category — they don't bypass the
 cluster threshold; they just lower the threshold for *that* category
 firing.
 
-## Error: Real human prose getting FLAGged in academic or non-native contexts
+### Error: Real human prose getting FLAGged in academic or non-native contexts
 
 **Cause:** Academic English and English-as-second-language writing
 naturally use many of the transitions and vocabulary the categories
@@ -196,7 +196,7 @@ flag aggressively. Academic paper, business prose, ESL author: raise
 the threshold to 4+ categories, and consult Category 8 caveats in
 `references/categories.md`.
 
-## Error: Document obviously reads like LLM output, but every paragraph scores clean
+### Error: Document obviously reads like LLM output, but every paragraph scores clean
 
 **Cause:** The tell is diffuse. Promotional register, a pitch-deck arc, and
 document-wide em-dash density each contribute about one instance per paragraph,
@@ -209,7 +209,7 @@ stretch weak per-paragraph signals to force a flag — that trades a real miss f
 a false positive on good prose. Report honestly: "0 paragraphs flagged, 2
 document-level findings" is a complete and correct result.
 
-## Error: Couldn't decide between FLAG and NO-FLAG
+### Error: Couldn't decide between FLAG and NO-FLAG
 
 **Cause:** The unit is on the boundary (e.g., 2-3 categories firing
 weakly).
@@ -218,7 +218,7 @@ weakly).
 MEDIUM-confidence FLAG and let the caller (which has the edit/keep
 authority) decide. If only 2 fire, mark NO-FLAG. Never flag on 1.
 
-## Error: References file not loaded
+### Error: References file not loaded
 
 **Cause:** `references/categories.md` is not visible to the caller.
 

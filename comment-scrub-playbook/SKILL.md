@@ -15,7 +15,7 @@ You are deciding, for each comment block in source code, whether to
 (usually a language-specific scrub agent) supplies the file glob,
 the language-specific directive list, and the build-verify command.
 
-# Inputs the caller supplies
+## Inputs the caller supplies
 
 - **Language** — Go, Rust, Python, Node, etc. Drives a few per-
   language exceptions noted below.
@@ -29,7 +29,7 @@ the language-specific directive list, and the build-verify command.
   level.) Tautological exported docs **stay** in languages with
   tooling enforcement; a separate doc-comments agent rewrites them.
 
-# Unit of analysis
+## Unit of analysis
 
 A **comment block** = one contiguous run of single-line comment
 markers (`//`, `#`) or one fenced block (`/* ... */`,
@@ -39,7 +39,7 @@ scoring used in Category 2 below, see `detect-llm-tells` — load it
 on the first iteration that needs to score a block and keep the body
 in context.
 
-# Always-exempt content
+## Always-exempt content
 
 Never target these regardless of category:
 
@@ -57,14 +57,14 @@ Never target these regardless of category:
   `@returns`, `@throws` in JSDoc). The prose **under** them can
   still be a target.
 
-# The five categories
+## The five categories
 
 A comment block is a delete-candidate if **any** of these fire.
 Category 2 requires the 3+ cluster threshold from
 `detect-llm-tells`; categories 1, 3, 4, 5 need one clear
 violation each.
 
-## Category 1 — States the obvious
+### Category 1 — States the obvious
 
 The comment restates what the very next line of code already says.
 Inline narration is the canonical case: `// Verb the noun` directly
@@ -90,7 +90,7 @@ non-obvious lifetime/ownership constraints.
 restatement with a useful cross-reference or "why," **trim** to
 keep the non-obvious part.
 
-## Category 2 — LLM-generated
+### Category 2 — LLM-generated
 
 Run the block through `detect-llm-tells` (cluster scoring; flag at
 3+ converging categories). FLAG = delete-candidate. Common cluster:
@@ -100,7 +100,7 @@ model openers ("This function…," "This struct…") + transitions
 restatement. Single-category hits are too noisy — do **not** delete
 on one tell alone.
 
-## Category 3 — Adds nothing useful
+### Category 3 — Adds nothing useful
 
 Filler that says less than the identifier already does: "helper
 function for processing," "handles the logic," "performs the
@@ -108,7 +108,7 @@ necessary processing," "A struct that holds data." Apply the
 verb-phrase test from Category 1; if the comment's only content is
 a paraphrase of the name, it deletes.
 
-## Category 4 — Non-idiomatic
+### Category 4 — Non-idiomatic
 
 The comment violates the language's doc-comment convention in a way
 that means the tooling silently drops it or the convention is
@@ -133,7 +133,7 @@ patterns:
 between a doc comment and its declaration, **fix the gap** — do
 not delete the comment.
 
-## Category 5 — Visual noise
+### Category 5 — Visual noise
 
 Section dividers (`// --- Config ---`, `// =========`,
 `// ******`), numbered step labels (`// Step 1:`, `// Phase 2:`),
@@ -143,7 +143,7 @@ label variants in source comments are deletions.
 Do **not** touch format strings showing step numbers to users
 (those live in string literals, not comments).
 
-# Decision matrix
+## Decision matrix
 
 | Block content | Action |
 |---|---|
@@ -155,7 +155,7 @@ Do **not** touch format strings showing step numbers to users
 | Convention marker, exempt directive, license header, generated file, example/doctest body | **Keep** |
 | Any doubt that isn't narration | **Keep** |
 
-# Hard guardrails
+## Hard guardrails
 
 - **Comments only.** Never modify code, signatures, imports, `use`
   declarations, attributes, macros, string literals, or
@@ -175,7 +175,7 @@ Do **not** touch format strings showing step numbers to users
   "but it aids scanning" — it doesn't.
 - **When in doubt, keep it.** But narration is never in doubt.
 
-# Outputs
+## Outputs
 
 This skill produces, for each comment block the caller hands it:
 
@@ -190,9 +190,9 @@ The caller assembles these into Edits and runs the language-specific
 build-verify command (`go build ./...`, `cargo check`,
 `python -m compileall`, `tsc --noEmit`, etc.) before reporting.
 
-# Examples
+## Examples
 
-## Example 1 — Pure narration (Category 1) → DELETE
+### Example 1 — Pure narration (Category 1) → DELETE
 
 Input (Go):
 
@@ -205,7 +205,7 @@ Decision: `DELETE`. Category 1 fires (verb-phrase test: comment
 verb+object = `Increment counter`, code = `counter++`). The block is
 deleted entirely. Whitespace collapses to at most one blank line.
 
-## Example 2 — Mixed obvious + useful "why" → TRIM
+### Example 2 — Mixed obvious + useful "why" → TRIM
 
 Input (Python):
 
@@ -228,7 +228,7 @@ for item in items:
     write(item)
 ```
 
-## Example 3 — Exported Go doc, tautological → KEEP
+### Example 3 — Exported Go doc, tautological → KEEP
 
 Input (Go):
 
@@ -242,7 +242,7 @@ identifiers. Even tautological docs stay; the `doc-comments-discovery-
 and-fix-loop` skill rewrites them later. The scrub agent does not
 delete here.
 
-## Example 4 — LLM cluster (Category 2) → DELETE
+### Example 4 — LLM cluster (Category 2) → DELETE
 
 Input (Node):
 
@@ -265,7 +265,7 @@ Decision: `DELETE`. Run through `detect-llm-tells`:
 3 categories → FLAG MEDIUM → delete. The function name + types already
 say everything this comment says.
 
-## Example 5 — Numbered step labels (Category 5) → DELETE
+### Example 5 — Numbered step labels (Category 5) → DELETE
 
 Input (Rust):
 
@@ -284,9 +284,9 @@ code is already three statements — the numbered prose is redundant.
 Format strings showing step numbers to end users are exempt; these are
 comments, not strings.
 
-# Troubleshooting
+## Troubleshooting
 
-## Error: "Tooling enforcement" rule conflicts with Category 1
+### Error: "Tooling enforcement" rule conflicts with Category 1
 
 **Symptom:** An exported Go function has a doc comment that's pure
 narration (`// NewFoo creates a new Foo`). Category 1 says delete;
@@ -298,7 +298,7 @@ later pass. The decision matrix line "Exported-identifier doc comment,
 language has tooling enforcement, even if tautological" handles this
 explicitly.
 
-## Error: Category 2 firing on terse, idiomatic human comments
+### Error: Category 2 firing on terse, idiomatic human comments
 
 **Symptom:** Short Go-style comment like `// fast path: skip when cache
 hot` getting Category 2 flagged by `detect-llm-tells`.
@@ -308,7 +308,7 @@ A single Tier 1 word is not enough on a short block. If the cluster
 threshold isn't met, do NOT flag Category 2. Re-read the cluster
 scoring section of `detect-llm-tells`.
 
-## Error: Whitespace looks wrong after a deletion
+### Error: Whitespace looks wrong after a deletion
 
 **Symptom:** Two consecutive blank lines where the deleted block used
 to be.
@@ -317,7 +317,7 @@ to be.
 block, leave at most one blank line. Collapse multiple blanks. Never
 leave a dangling empty `//` / `///` / `#` line either.
 
-## Error: Build broke after scrub pass
+### Error: Build broke after scrub pass
 
 **Symptom:** `go build ./...` fails (or equivalent) after the agent
 applied the scrub.
@@ -329,7 +329,7 @@ Revert the offending file with the caller's revert mechanism, then
 re-run the scrub but with stricter per-edit verification. If the
 caller forbids `git checkout` (Rust), use Edit-to-undo.
 
-## Error: Code example inside a doc-comment got mangled
+### Error: Code example inside a doc-comment got mangled
 
 **Symptom:** A ```` `/// ``` ```` fenced example or `>>>` doctest lost
 indentation or had words removed.

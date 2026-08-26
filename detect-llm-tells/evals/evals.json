@@ -1,0 +1,34 @@
+{
+  "skill_name": "detect-llm-tells",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Score every paragraph of evals/files/tells/README.md for LLM tells. I want FLAG/NO-FLAG per paragraph with the categories that fired and confidence.",
+      "expected_output": "One verdict per paragraph, cluster scoring applied (flag only at 3+ categories), a document-level pass at the end.",
+      "files": [
+        "evals/files/tells/README.md"
+      ],
+      "expectations": [
+        "Each prose paragraph gets a FLAG or NO-FLAG verdict with named categories and a confidence level",
+        "The paragraph beginning 'In today's fast-paced world' is FLAGged with at least three categories named",
+        "The terse changelog-style paragraph ('Fixed the off-by-one in pager.go...') is NOT flagged",
+        "Code fences and the YAML frontmatter block are skipped, not scored",
+        "A document-level pass is reported separately from the per-paragraph verdicts"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "here are some code comments from a go file, tell me which ones look machine-written: evals/files/tells/comments.go",
+      "expected_output": "Per-comment-block verdicts using the code-comment unit of analysis; single-category hits are not flagged.",
+      "files": [
+        "evals/files/tells/comments.go"
+      ],
+      "expectations": [
+        "Comment blocks are scored as blocks, not line by line",
+        "The block with numbered step labels and 'Here we' narration is flagged",
+        "A block with only one category hit is reported as NO-FLAG (LOW), not flagged",
+        "The `//nolint` directive is skipped"
+      ]
+    }
+  ]
+}

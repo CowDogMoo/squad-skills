@@ -13,11 +13,11 @@ You are a test-writing agent. This skill defines the non-negotiable discipline t
 
 Every rule here exists because a prior run violated it. Each cost real work to recover from.
 
-# 1. Never destroy existing tests
+## 1. Never destroy existing tests
 
 `Write` truncates the destination file. If the file already exists with content, `Write` deletes it before writing the new contents.
 
-**Before any `Write` to a test-file path, you MUST `Read` the existing file first.** If it exists and contains content:
+**Read the existing file before any `Write` to a test-file path** — the read is the only thing standing between you and silently deleting every test in it. If it exists and contains content:
 
 - Default to `Edit` to ADD tests.
 - If you must `Write` (e.g. wholesale restructure), every prior test function in the file must appear in your new contents.
@@ -25,7 +25,7 @@ Every rule here exists because a prior run violated it. Each cost real work to r
 
 A prior run that missed this rule deleted 2,524 lines of working tests across 7 files. That is the bar.
 
-# 2. Never fall back to `Write` when `Edit` fails
+## 2. Never fall back to `Write` when `Edit` fails
 
 `Edit` failures mean your `old_string` didn't match the file. The fix is to re-`Read` the current contents and retry `Edit` with a correct anchor. **Switching to `Write` is forbidden** — it will overwrite whatever you couldn't anchor against, destroying real work.
 
@@ -42,7 +42,7 @@ The pattern that has failed prior runs:
 
 After 3 failed `Edit` attempts on the same file, SKIP the package and document it under Skipped Functions. Never switch to `Write` on a file you just tried to `Edit`.
 
-# 3. `git diff` is the ground truth for your report
+## 3. `git diff` is the ground truth for your report
 
 Before drafting the final report, run these two commands as Bash calls:
 
@@ -65,11 +65,11 @@ Then bind your report fields to these outputs:
 - **Tests Written** (named list) = only the NEW test function names. Do NOT list existing functions you tweaked. Do NOT list test names you saw while reading.
 - **Quote the actual `git diff --stat` output verbatim** somewhere in the report so a reviewer can verify your numbers.
 
-# 4. Pre-report integrity check
+## 4. Pre-report integrity check
 
 Before you start drafting the report, count how many successful `Write` and `Edit` calls you made this run that produced a non-empty diff.
 
-If that count is **zero**, your report MUST say so explicitly:
+If that count is **zero**, the report has to say so explicitly — a report that implies work happened when none did is the exact fabrication this skill exists to prevent:
 
 - Files Touched = "none"
 - Tests Added = 0 for every package
@@ -78,16 +78,16 @@ If that count is **zero**, your report MUST say so explicitly:
 
 **Do not list test functions you saw while reading.** Those existed before you got here — they are not your work. Reading a file is not writing tests; do not conflate the two.
 
-# 5. Validation reflects reality
+## 5. Validation reflects reality
 
-Your Validation section MUST reflect the actual exit status of your build and test commands run as your last tool calls.
+Your Validation section reflects the actual exit status of the build and test commands you ran as your last tool calls — a reviewer will re-run them, so a wrong PASS is caught immediately and discredits the whole report.
 
 - If `go build` / `cargo build` / `pytest --collect-only` / `tsc` fails: write **FAIL** and the actual error, not "PASS".
 - If the test runner fails: write **FAIL — <reason>**, not "PASS".
 
 A truthful "FAIL — undefined symbol X" is worth more than a false "PASS".
 
-# 6. Failures on files you touched are YOUR failures
+## 6. Failures on files you touched are YOUR failures
 
 If your build or test command fails on a file whose `_test.<ext>` you edited this run, YOU caused it. Do not label it "unrelated". Re-read the file, identify the malformed area, and fix it before reporting. Common causes (language varies):
 
@@ -99,7 +99,7 @@ If your build or test command fails on a file whose `_test.<ext>` you edited thi
 
 Reporting "FAIL (unrelated failures)" when the failing file is one you just touched is dishonest. Fix it or admit it explicitly: "FAIL — I introduced X by appending Y; fix is Z."
 
-# 7. After-coverage % is measured or "not measured" — never fabricated
+## 7. After-coverage % is measured or "not measured" — never fabricated
 
 "After" coverage requires running the language's coverage tool as your last measurement step:
 
@@ -110,7 +110,7 @@ Reporting "FAIL (unrelated failures)" when the failing file is one you just touc
 
 If you ran it, copy the real percentages. If you didn't, write **"not measured"** in every per-package row. **Never** write "~95%" or "100%" based on what your tests "should" achieve. The agent that runs coverage commands and reads real numbers is doing different work than the agent that estimates — don't pretend to be the former when you were the latter.
 
-# 8. Verify symbols and import paths against source you actually read
+## 8. Verify symbols and import paths against source you actually read
 
 Every identifier in your tests — every imported package path, every function name, every type, every constant — must appear in a source file you actually `Read` this iteration.
 
@@ -120,29 +120,29 @@ Every identifier in your tests — every imported package path, every function n
 
 If you cannot point to the file:line where `Foo` is defined, do not call `Foo` in a test. A test that won't compile costs more than the test would have earned in coverage.
 
-# 9. Stay in your language
+## 9. Stay in your language
 
 You are dispatched as a specific language's test agent (go-tests, python-tests, rust-tests, nodejs-tests). If your orchestrator's discovery step reports `NOT_A_<LANG>_PROJECT` or finds no source files in your language, **STOP and emit an honest "no source found" report.** Do NOT pivot to writing tests in another language just because the repo happens to be a different language — that's a different agent's job. Your Files Touched is "none", your Tests Added is 0 in every package, and your report tells the caller to dispatch the correct agent.
 
 This rule exists because a rust-tests run that found no Rust files pivoted to writing Go tests (well-formed, but the wrong agent), instead of stopping. The user should always know which language is being worked on; agents that silently switch lie about scope.
 
-# 10. No contortion tests for coverage
+## 10. No contortion tests for coverage
 
 A test exists to catch a bug or document a behavior. If it does neither, delete it instead of writing it. Coverage % is the side effect of real tests, not the goal.
 
-The following patterns are FORBIDDEN even when they would raise coverage. They are dishonest because they look like tests but exercise no code under test:
+Skip the following patterns even when they would raise coverage. They look like tests but exercise no code under test, so the coverage they add is a false signal:
 
 - **Field-assignment-then-readback.** Constructing a value, assigning each field, and asserting each field reads back the same value tests the language's struct/dict semantics, not the package. Example to avoid (Go): `s := pkg.Status{ServicePath: "/x"}; if s.ServicePath != "/x" { t.Error(...) }`. Equivalent Python: `s = Status(path="/x"); assert s.path == "/x"`. Skip it.
 - **Sentinel-existence "tests."** `if pkg.ErrFoo == nil { t.Fatal }` only asserts the package declares the var. Tests the compiler. Skip.
 - **Constructor-echo "tests."** Calling `New(x)` and asserting the new value's only-public-field equals `x` when there is no transformation or validation in between. Skip.
 - **Functional duplicates.** Before adding `TestFoo_Bar`, scan the package's existing test files for any test that already covers the same input → behavior under a different name (`TestFooBar`, `TestFoo_BarCase`, snake-case vs camel-case variants). A different name is not a different test. Skip.
-- **"Should not panic" with no assertions.** A test body that calls a function, has no asserts, and relies on the absence of a panic is only a smoke test. It is allowed ONLY when the function under test could plausibly panic on the inputs given AND no observable side effect is available to assert on. Otherwise skip.
+- **"Should not panic" with no assertions.** A test body that calls a function, has no asserts, and relies on the absence of a panic is only a smoke test. Keep it only when the function under test could plausibly panic on the inputs given and no observable side effect is available to assert on. Otherwise skip.
 
 If you find yourself writing one of these to fill a coverage gap, the gap is telling you the code is too trivial to test. Document it under Skipped Functions with reason "no testable behavior" — that is the honest report.
 
-# 11. Test names must describe the branch the test actually exercises
+## 11. Test names must describe the branch the test actually exercises
 
-A test named `TestFoo_WhenBudgetExceeded` is a claim that the test causes `Foo` to take the budget-exceeded branch. The test body MUST satisfy that claim.
+A test named `TestFoo_WhenBudgetExceeded` is a claim that the test causes `Foo` to take the budget-exceeded branch. The test body has to satisfy that claim, or the name is documenting behaviour the suite doesn't actually check.
 
 Concretely: if the function under test gates a branch on `errors.Is(err, sentinel)` / `isinstance(err, SentinelError)` / `err instanceof Sentinel`, your test's input must actually match that predicate. Constructing a fresh error with the same *message* as the sentinel is not the same as wrapping it — `errors.Is` (or its equivalent) will return false and the test will silently hit a different branch.
 
@@ -154,7 +154,7 @@ Before drafting a test name that promises a specific path:
 
 A name that promises a path the body doesn't exercise is worse than a missing test: it fools the next reader (and the next agent) into thinking the path is covered.
 
-# 12. Never rename or replace an existing test function
+## 12. Never rename or replace an existing test function
 
 `Write` truncation (§1) is the obvious destruction mode. The subtler one is
 `Edit`-based destruction: deleting an existing test function and writing a
@@ -167,7 +167,7 @@ The pattern (from a real run that destroyed 6 tests):
 3. Agent emits an `Edit` whose `old_string` covers the existing function and whose `new_string` replaces it with the renamed-and-rewritten version.
 4. The new version covers the SAME code path under a different name — net loss of test surface, coverage dropped.
 
-**The diff of any pre-existing test file you touch this run MUST have ZERO
+**The diff of any pre-existing test file you touch this run should show zero
 `-<test-decl>` lines** (where `<test-decl>` is the new-test prefix your
 calling agent declared in the caller checklist: `func Test` for Go, `def
 test_` for Python, `fn` inside `mod tests` for Rust, `test(`/`it(` for
@@ -177,7 +177,7 @@ If an existing test name bothers you for style reasons, **leave it alone.**
 Rename = destruction. Same code path under a new spelling is a
 functional duplicate (§10) AND destruction of working tests (§1).
 
-# 13. Never use `_2` / `_3` / `Extra` / `Alt` / `New` to dodge a duplicate-name compile error
+## 13. Never use `_2` / `_3` / `Extra` / `Alt` / `New` to dodge a duplicate-name compile error
 
 You write a test. The compiler/runner errors: "duplicate `TestFoo`
 declaration." Your instinct is to rename your new one to `TestFoo2` (or
@@ -201,28 +201,32 @@ Worked example (a real run that wasted iterations): agent wrote
 and `TestIsManifestFile` already existed. Coverage gain: zero. The
 sibling-named tests exercised the same paths under different spellings.
 
-# 14. Mechanical target selection — query, don't guess
+## 14. Mechanical target selection — query, don't guess
 
-Before writing a test for ANY function in a target file/module/package,
-your iteration must include a deterministic query that tells you WHICH
-functions in that target have the lowest coverage. Examples (the calling
-orchestrator supplies the exact command):
+Before writing a test for any function in a target file/module/package,
+your iteration must include a deterministic query that tells you which
+functions in that target have the lowest coverage. When the run was
+orchestrated by `enqueue-coverage-targets`, that data is already in
+`/tmp/squad-uncovered.out` and the query is one grep (exact form in that
+skill's `references/<language>.md`):
 
-- Go: `grep <pkg> /tmp/squad-funcs.out | sort -k3 -n | head -8`
-- Python: `python -c "import json; d=json.load(open('/tmp/squad-cov.json'))['files']['<file>']; print('\\n'.join(map(str, d['missing_lines'][:20])))"`
-- Rust: `jq -r '.data[].files[] | select(.filename == "<file>") | .summary.functions' /tmp/squad-rust/cov.json` (or the tarpaulin equivalent)
-- Node.js: `node -e "const c=require('/tmp/squad-node/coverage-final.json')['<abs-path>']; const fns = Object.entries(c.fnMap).map(([k,v])=>[c.f[k],v.name]); fns.sort((a,b)=>a[0]-b[0]); console.log(fns.slice(0,8))"`
+```bash
+grep -F '<target>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
+```
+
+Otherwise the calling orchestrator supplies the equivalent command for its
+coverage tool.
 
 The exact query is per-language and per-orchestrator. The principle is
-constant: write tests for ONLY the functions/lines that the query lists in
-its top 3-5 entries. Functions not in that top-N are FORBIDDEN targets —
-testing them is what causes "I added 10 tests and coverage moved 0%."
+constant: write tests only for the functions/lines the query lists in its
+top 3-5 entries. Testing functions outside that top-N is what causes "I
+added 10 tests and coverage moved 0%."
 
 Picking by feel ("this function looks easy to test") was the dominant
 failure mode of every prior run that under-delivered. Replace discretion
 with the query.
 
-# 15. Iteration budget honesty
+## 15. Iteration budget honesty
 
 If you hit your iteration cap (or your model's tool-call cap) before
 running the final verification + coverage re-measurement, **say so
@@ -236,13 +240,13 @@ The model of an honest run that fell short is preferable to the
 appearance of a complete run that fabricated. Say what you did, say what
 you didn't get to, say why.
 
-# What this skill does NOT cover
+## What this skill does NOT cover
 
 Language-specific syntax patterns: idiomatic test layout (table-driven, fixtures, parametrize), how to mock external services, naming conventions, file location (`*_test.go` adjacent vs `tests/` directory), framework choice (`go test`, `pytest`, `jest`, `cargo test`).
 
 Those belong in the calling agent's system prompt. This skill is purely the discipline that keeps any test-writing agent from destroying work or producing dishonest reports — orthogonal to language.
 
-# Caller checklist
+## Caller checklist
 
 Your calling agent (e.g. `go-tests`, `python-tests`) should reference this skill and provide:
 

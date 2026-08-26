@@ -1,0 +1,34 @@
+{
+  "skill_name": "comment-scrub-playbook",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Go through evals/files/scrub/handler.go and scrub the useless comments. Language is Go, the exempt directives are //go:* and //nolint, and `go build ./...` is the verify command. Show me what you deleted, trimmed, and kept, with the category for each.",
+      "expected_output": "A per-comment decision table (delete/trim/keep + category 1-5) and the cleaned file; directive and exported-doc comments untouched.",
+      "files": [
+        "evals/files/scrub/handler.go"
+      ],
+      "expectations": [
+        "Every comment block in handler.go gets exactly one of delete / trim / keep with a category number 1-5",
+        "The `//go:generate` and `//nolint` lines are kept and listed as exempt, not scored",
+        "The doc comment on the exported `Serve` function is kept (Go tooling enforces exported docs) even though it is tautological",
+        "The `// increment i` and `// ---------- helpers ----------` comments are deleted (categories 1 and 5)",
+        "No code lines are modified, only comment lines"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "my python service in evals/files/scrub/ has a ton of leftover chatgpt-style comments. can you decide which ones to rip out? python, exempt `# noqa` and `# type:`, verify with `python -m py_compile`",
+      "expected_output": "Decisions per comment block; the `# noqa` / `# type:` lines are exempt; multi-line docstrings on public functions are trimmed rather than deleted.",
+      "files": [
+        "evals/files/scrub/service.py"
+      ],
+      "expectations": [
+        "`# noqa` and `# type:` comments are reported as exempt and left in place",
+        "The 'Step 1:/Step 2:/Step 3:' numbered narration comments are flagged as category 2 (LLM-generated) and deleted",
+        "Public function docstrings are trimmed or kept, never deleted outright",
+        "Output distinguishes trim from delete and shows the trimmed text for each trim"
+      ]
+    }
+  ]
+}
