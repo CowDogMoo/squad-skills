@@ -1,0 +1,211 @@
+---
+name: Reusable Skill Validation
+
+# Reusable workflow shared by every repo that hosts Claude skills
+# (squad-skills validates repo-root skill dirs; squad-agents calls it
+# with skills-dir: skills). Callers pass the directory whose immediate
+# children are the skill directories.
+on:
+  workflow_call:
+    inputs:
+      skills-dir:
+        description: >-
+          Directory whose immediate subdirectories are skills (each
+          containing SKILL.md). Defaults to the repository root.
+        type: string
+        required: false
+        default: "."
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13.7"
+
+jobs:
+  structure:
+    name: Skill Directory Structure
+    runs-on: ubuntu-latest
+    env:
+      SKILLS_DIR: ${{ inputs.skills-dir }}
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Every skill directory has SKILL.md
+        run: |
+          failed=0
+          # Skill directories that are NOT hidden and NOT reserved meta dirs.
+          while IFS= read -r dir; do
+            base=$(basename "$dir")
+            case "$base" in
+              _*|\.*) continue ;;
+            esac
+            if [ ! -f "${dir}/SKILL.md" ]; then
+              echo "::error file=${dir}::Skill directory missing SKILL.md"
+              failed=1
+            else
+              echo "  ✓ ${base}/SKILL.md"
+            fi
+          done < <(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d)
+
+          if [ "$failed" -eq 1 ]; then
+            echo "::error::One or more skill directories are missing SKILL.md"
+            exit 1
+          fi
+          echo "✓ All skill directories have SKILL.md"
+
+  metadata:
+    name: Skill Frontmatter
+    runs-on: ubuntu-latest
+    env:
+      SKILLS_DIR: ${{ inputs.skills-dir }}
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          python << 'EOF'
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          failed = False
+
+          skills_root = Path(os.environ.get("SKILLS_DIR") or ".")
+          skill_files = sorted(skills_root.rglob("SKILL.md"))
+          # Skip anything under hidden/reserved meta directories.
+          skill_files = [
+              p for p in skill_files
+              if not any(part.startswith(".") or part.startswith("_")
+                         for part in p.relative_to(skills_root).parts[:-1])
+          ]
+
+          if not skill_files:
+              print("::error::No SKILL.md files found")
+              sys.exit(1)
+
+          for skill_md in skill_files:
+              skill_name = skill_md.parent.name
+              print(f"\n{'='*60}")
+              print(f"Checking {skill_name}")
+              print('='*60)
+
+              text = skill_md.read_text(encoding="utf-8")
+              m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+              if not m:
+                  print(f"  ✗ {skill_md} missing YAML frontmatter")
+                  failed = True
+                  continue
+
+              try:
+                  data = yaml.safe_load(m.group(1)) or {}
+              except yaml.YAMLError as exc:
+                  print(f"  ✗ {skill_md} frontmatter parse error: {exc}")
+                  failed = True
+                  continue
+
+              name = data.get("name", "")
+              description = data.get("description", "")
+
+              if not name:
+                  print(f"  ✗ missing or empty 'name'")
+                  failed = True
+              elif name != skill_name:
+                  print(f"  ✗ name '{name}' does not match directory '{skill_name}'")
+                  failed = True
+              else:
+                  print(f"  ✓ name: {name}")
+
+              if not description:
+                  print(f"  ✗ missing or empty 'description'")
+                  failed = True
+              elif "\n" in description.strip():
+                  print(f"  ✗ 'description' must be a single line")
+                  failed = True
+              else:
+                  print(f"  ✓ description: {description[:80]}{'...' if len(description) > 80 else ''}")
+
+          if failed:
+              print("\n::error::One or more SKILL.md files failed validation")
+              sys.exit(1)
+          print("\n✓ All SKILL.md files have valid frontmatter")
+          EOF
+
+  evals:
+    name: Skill Evals
+    runs-on: ubuntu-latest
+    env:
+      SKILLS_DIR: ${{ inputs.skills-dir }}
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate evals/evals.json for every skill
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          failed = False
+          skills_root = Path(os.environ.get("SKILLS_DIR") or ".")
+          skill_dirs = sorted(
+              p.parent for p in skills_root.glob("*/SKILL.md")
+              if not p.parent.name.startswith((".", "_"))
+          )
+          for skill in skill_dirs:
+              evals_path = skill / "evals" / "evals.json"
+              print(f"\n{'='*60}\n{skill.name}\n{'='*60}")
+              if not evals_path.exists():
+                  print("  ✗ missing evals/evals.json")
+                  failed = True
+                  continue
+              try:
+                  data = json.loads(evals_path.read_text(encoding="utf-8"))
+              except json.JSONDecodeError as exc:
+                  print(f"  ✗ evals.json parse error: {exc}")
+                  failed = True
+                  continue
+              if data.get("skill_name") != skill.name:
+                  print(f"  ✗ skill_name {data.get('skill_name')!r} != {skill.name!r}")
+                  failed = True
+              evals = data.get("evals") or []
+              if len(evals) < 2:
+                  print(f"  ✗ need at least 2 evals, found {len(evals)}")
+                  failed = True
+              ids = [e.get("id") for e in evals]
+              if len(ids) != len(set(ids)):
+                  print(f"  ✗ duplicate eval ids: {ids}")
+                  failed = True
+              for e in evals:
+                  label = f"eval {e.get('id')}"
+                  if not e.get("prompt", "").strip():
+                      print(f"  ✗ {label}: empty prompt"); failed = True
+                  if not e.get("expected_output", "").strip():
+                      print(f"  ✗ {label}: empty expected_output"); failed = True
+                  if len(e.get("expectations") or []) < 2:
+                      print(f"  ✗ {label}: fewer than 2 expectations"); failed = True
+                  for f in e.get("files") or []:
+                      if not (skill / f).exists():
+                          print(f"  ✗ {label}: fixture not found: {f}"); failed = True
+              if not failed:
+                  print(f"  ✓ {len(evals)} evals, fixtures present")
+          if failed:
+              print("\n::error::One or more evals.json files failed validation")
+              sys.exit(1)
+          print("\n✓ All evals.json files are valid")
+          EOF
