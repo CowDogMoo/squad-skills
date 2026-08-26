@@ -2,6 +2,11 @@
 name: Validate Skills
 on:
   merge_group:
+  # No `paths` filter on pull_request: the Validation Summary job is a
+  # required status check on main, and a filtered-out workflow never
+  # reports, which would leave non-skill PRs unmergeable. The jobs scan
+  # the whole repo rather than the diff, so running on every PR is
+  # correct and costs ~30s.
   pull_request:
     branches:
       - main
@@ -9,10 +14,6 @@ on:
       - opened
       - synchronize
       - reopened
-    paths:
-      - '**/SKILL.md'
-      - '**/evals/evals.json'
-      - '.github/workflows/validate-skills.yaml'
   push:
     branches:
       - main
