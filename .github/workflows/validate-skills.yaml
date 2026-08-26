@@ -11,15 +11,15 @@ on:
       - reopened
     paths:
       - '**/SKILL.md'
+      - '**/evals/evals.json'
       - '.github/workflows/validate-skills.yaml'
-      - '.hooks/validate-skill-compliance.sh'
   push:
     branches:
       - main
     paths:
       - '**/SKILL.md'
+      - '**/evals/evals.json'
       - '.github/workflows/validate-skills.yaml'
-      - '.hooks/validate-skill-compliance.sh'
   workflow_dispatch:
 
 permissions:
@@ -147,21 +147,85 @@ jobs:
           print("\n✓ All SKILL.md files have valid frontmatter")
           EOF
 
+  evals:
+    name: Skill Evals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate evals/evals.json for every skill
+        run: |
+          python << 'EOF'
+          import json
+          import sys
+          from pathlib import Path
+
+          failed = False
+          skill_dirs = sorted(
+              p.parent for p in Path(".").glob("*/SKILL.md")
+              if not p.parent.name.startswith((".", "_"))
+          )
+          for skill in skill_dirs:
+              evals_path = skill / "evals" / "evals.json"
+              print(f"\n{'='*60}\n{skill.name}\n{'='*60}")
+              if not evals_path.exists():
+                  print("  ✗ missing evals/evals.json")
+                  failed = True
+                  continue
+              try:
+                  data = json.loads(evals_path.read_text(encoding="utf-8"))
+              except json.JSONDecodeError as exc:
+                  print(f"  ✗ evals.json parse error: {exc}")
+                  failed = True
+                  continue
+              if data.get("skill_name") != skill.name:
+                  print(f"  ✗ skill_name {data.get('skill_name')!r} != {skill.name!r}")
+                  failed = True
+              evals = data.get("evals") or []
+              if len(evals) < 2:
+                  print(f"  ✗ need at least 2 evals, found {len(evals)}")
+                  failed = True
+              ids = [e.get("id") for e in evals]
+              if len(ids) != len(set(ids)):
+                  print(f"  ✗ duplicate eval ids: {ids}")
+                  failed = True
+              for e in evals:
+                  label = f"eval {e.get('id')}"
+                  if not e.get("prompt", "").strip():
+                      print(f"  ✗ {label}: empty prompt"); failed = True
+                  if not e.get("expected_output", "").strip():
+                      print(f"  ✗ {label}: empty expected_output"); failed = True
+                  if len(e.get("expectations") or []) < 2:
+                      print(f"  ✗ {label}: fewer than 2 expectations"); failed = True
+                  for f in e.get("files") or []:
+                      if not (skill / f).exists():
+                          print(f"  ✗ {label}: fixture not found: {f}"); failed = True
+              if not failed:
+                  print(f"  ✓ {len(evals)} evals, fixtures present")
+          if failed:
+              print("\n::error::One or more evals.json files failed validation")
+              sys.exit(1)
+          print("\n✓ All evals.json files are valid")
+          EOF
+
   summary:
     name: Validation Summary
     runs-on: ubuntu-latest
-    needs: [structure, metadata]
+    needs: [structure, metadata, evals]
     if: always()
     steps:
       - name: Check results
         run: |
           if [ "${{ needs.structure.result }}" != "success" ] || \
-             [ "${{ needs.metadata.result }}" != "success" ]; then
+             [ "${{ needs.metadata.result }}" != "success" ] || \
+             [ "${{ needs.evals.result }}" != "success" ]; then
             echo "::error::Skill validation failed"
             echo ""
             echo "Job Results:"
             echo "  structure: ${{ needs.structure.result }}"
             echo "  metadata:  ${{ needs.metadata.result }}"
+            echo "  evals:     ${{ needs.evals.result }}"
             exit 1
           fi
           echo "✓ All skill validations passed"

@@ -9,7 +9,7 @@ You are pulling 8–10 rated, link-verified weekday dinner recipes for the user.
 
 The user re-runs this frequently. They've already seen prior batches. Reading the history file and excluding past picks is part of doing the job.
 
-## Host-environment translation (READ FIRST)
+## Host-environment translation
 
 Two things vary by host: link verification and page fetch. Resolve to whichever your host supports:
 

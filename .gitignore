@@ -15,6 +15,13 @@ Thumbs.db
 *.bak
 *.log
 
+# Skill eval run outputs (see "Testing a Skill" in README.md)
+*-workspace/
+
+# Artifacts left behind by eval fixture runs
+__pycache__/
+.coverage
+
 # Claude Code local config — never commit
 .claude/
 

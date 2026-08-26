@@ -15,7 +15,7 @@ proportionality rule, and the read-then-edit discipline. The caller
 (a language-specific doc-comments agent) supplies the language's
 style conventions and verify command.
 
-# Inputs the caller supplies
+## Inputs the caller supplies
 
 - **Language** — Go, Python, Rust, Node/TypeScript, etc.
 - **Source-file glob and filter** — e.g. `**/*.go` minus
@@ -38,7 +38,7 @@ style conventions and verify command.
   `Pre-discovered source files`, treat it as authoritative and
   skip Glob.
 
-# Iteration budget
+## Iteration budget
 
 Scales with codebase size; caller tunes the numbers:
 
@@ -56,7 +56,7 @@ read the next batch. Never accumulate more than 5 unprocessed reads
 without editing. **First Edit by iteration 4.** Do not read the
 entire codebase first.
 
-# Phase 1 — Discover (1 iteration)
+## Phase 1 — Discover (1 iteration)
 
 1. If the prompt includes `Pre-discovered source files`, use that
    list. Skip Glob.
@@ -64,7 +64,7 @@ entire codebase first.
 3. Reference documents already included in the system prompt — do
    NOT Read them as files.
 
-# Phase 2 — Analyze
+## Phase 2 — Analyze
 
 Read source files in parallel batches of 3-5. For each file,
 catalog every public declaration with at least one of:
@@ -104,12 +104,12 @@ codebases, document what was deferred. Coverage is satisfied for
 trivial / self-documenting names by listing them in the skipped
 table, not by documenting them — a restating comment is not coverage.
 
-# Phase 3 — Fix and Verify
+## Phase 3 — Fix and Verify
 
 1. Apply fixes via Edit, highest priority first. Group fixes by
    file to minimize Edit calls.
 2. **One fix per edit** — keep diffs focused and reviewable.
-3. After each batch, Read ONLY the edited lines to verify
+3. After each batch, Read only the edited lines to verify
    placement. (Rust agents typically read after every Edit because
    `git checkout` is forbidden — caller-specific.)
 4. After ALL fixes, run the caller's verify command.
@@ -117,7 +117,7 @@ table, not by documenting them — a restating comment is not coverage.
    offending file and move the finding to the skipped table. Do
    NOT proceed past a failing build.
 
-# Phase 4 — Report
+## Phase 4 — Report
 
 Run verify AND output the report in the SAME response. Populate the
 skipped table from Phase 2 notes — do not re-explore.
@@ -131,7 +131,7 @@ shape; the skill only requires that:
   build-failed).
 - The verify-command result (PASS/FAIL) is included.
 
-# Cross-cutting discipline rules
+## Cross-cutting discipline rules
 
 These hold regardless of language.
 
@@ -168,7 +168,7 @@ These hold regardless of language.
 - **STOP after verify.** Once the verify command passes, emit the
   report IMMEDIATELY in the same response. No extra tool calls.
 
-# Boundary — what stays in the caller
+## Boundary — what stays in the caller
 
 The skill is the loop. The caller owns:
 
@@ -189,7 +189,7 @@ The skill is the loop. The caller owns:
 - The exact `HOW TO FIX — CORRECT PATTERNS` examples.
 - The `OUTPUT FORMAT` shape.
 
-# Anti-goals
+## Anti-goals
 
 - Do NOT rewrite already-adequate doc comments for style.
 - Do NOT add return-type hints in Python (`-> None` is always
@@ -200,9 +200,9 @@ The skill is the loop. The caller owns:
   directories — they're filtered in Phase 1 and should never
   appear in Phase 2.
 
-# Examples
+## Examples
 
-## Example 1 — Small Go codebase, missing exported docs
+### Example 1 — Small Go codebase, missing exported docs
 
 Caller: `agents/go-doc-comments`. Iteration cap: 12. Verify:
 `go build ./...`.
@@ -232,7 +232,7 @@ Phase 4: `go build ./...` → PASS. Report includes touched files,
 skipped table (3 trivial getters: `Len`, `Name`, `String`), and
 the verify result.
 
-## Example 2 — Rust crate with `pub unsafe fn` missing `# Safety`
+### Example 2 — Rust crate with `pub unsafe fn` missing `# Safety`
 
 Caller: `agents/rust-doc-comments`. Revert mechanism: Edit-to-undo
 (NOT `git checkout`). Verify: `cargo build`.
@@ -252,7 +252,7 @@ Phase 3:
 Phase 4: `cargo build` → PASS. Report flags the safety fix at the
 top.
 
-## Example 3 — Verify fails after a fix
+### Example 3 — Verify fails after a fix
 
 Verify command (`cargo build`) errors after a doc-comment edit on
 `src/parser.rs`.
@@ -268,9 +268,9 @@ Action:
 
 Phase 4 report shows the skipped row plus PASS on the final verify.
 
-# Troubleshooting
+## Troubleshooting
 
-## Error: Doc-comment edit broke the build
+### Error: Doc-comment edit broke the build
 
 **Symptom:** Verify command fails after a batch of Edits.
 
@@ -281,7 +281,7 @@ the file's findings to the skipped table with reason
 "build-failed". Continue with the remaining files. Do NOT proceed
 past a still-failing build into Phase 4.
 
-## Error: Edit changed code logic, not just comments
+### Error: Edit changed code logic, not just comments
 
 **Symptom:** Diff shows a function body or signature changed.
 
@@ -294,7 +294,7 @@ context (include 1-2 lines above the comment in `old_string` to
 disambiguate). If the same fix keeps catching code, skip the
 finding and note it in the skipped table.
 
-## Error: Re-reading the whole codebase after each fix
+### Error: Re-reading the whole codebase after each fix
 
 **Symptom:** The loop is reading files it already cataloged in
 Phase 2.
@@ -306,7 +306,7 @@ Phase 3 reads only the edited region of edited files, never the
 whole file again. Phase 4 runs verify and uses the Phase-2 notes
 for the skipped table — no re-exploration.
 
-## Error: Iteration cap hit before Phase 4
+### Error: Iteration cap hit before Phase 4
 
 **Symptom:** Out of iterations with fixes still queued.
 
@@ -315,7 +315,7 @@ Run verify on what's already changed. Emit a partial report listing
 what was done, what was skipped due to budget, and the verify
 result. A partial report beats no report.
 
-## Error: Trivial getters keep getting doc comments added
+### Error: Trivial getters keep getting doc comments added
 
 **Symptom:** `Len`, `Name`, `String`, `len`, `is_empty` all gaining
 mechanical one-line docs.

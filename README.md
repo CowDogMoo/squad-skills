@@ -13,9 +13,11 @@
 
 The skills sibling to
 [squad-agents](https://github.com/cowdogmoo/squad-agents). A skill is a
-single-file procedure (`SKILL.md`) — a name, a one-line description,
-and a body of instructions. The host reads the description to decide
-when to invoke the skill, then follows the body.
+directory with a `SKILL.md` — a name, a one-line description, and a
+body of instructions — plus optional `scripts/`, `references/`, and
+`evals/`. The host reads the description to decide when to invoke the
+skill, then follows the body, loading scripts and references only when
+the body points at them.
 
 Skills here are:
 
@@ -27,6 +29,9 @@ Skills here are:
   hosts) instead of hard-coding one host's tool surface.
 - **Bounded.** Every skill states its objective and guardrails up
   front — what counts as done, and what counts as "stop and ask".
+- **Tested.** Every skill ships `evals/evals.json`: realistic prompts
+  with checkable expectations, run with and without the skill loaded
+  (see [Testing a Skill](#testing-a-skill)).
 
 ## Quick Start
 
@@ -66,10 +71,7 @@ cp -r comment-scrub-playbook /path/to/host/skills/
 | [comment-scrub-playbook](./comment-scrub-playbook)                           | Classify source-code comments into five delete-candidate categories and decide delete vs. trim vs. keep. Caller supplies language, directive list, and build-verify command.           |
 | [detect-llm-tells](./detect-llm-tells)                                       | Score prose paragraphs or code comments against 8 LLM-generated-text tell categories with cluster scoring (flag at 3+ converging categories).                                          |
 | [doc-comments-discovery-and-fix-loop](./doc-comments-discovery-and-fix-loop) | Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify compilation, report. |
-| [enqueue-coverage-targets-go](./enqueue-coverage-targets-go)                 | Orchestrator-workers pattern for Go test coverage: compute the queue of packages below target with one Bash command, then drain it by writing `_test.go` files.                        |
-| [enqueue-coverage-targets-nodejs](./enqueue-coverage-targets-nodejs)         | Orchestrator-workers pattern for Node.js/TypeScript test coverage: queue source files below target via `vitest`/`jest --coverage`, then drain it by writing `*.test.ts` files.         |
-| [enqueue-coverage-targets-python](./enqueue-coverage-targets-python)         | Orchestrator-workers pattern for Python test coverage: queue modules below target via `pytest --cov`, then drain it by writing `test_*.py` files.                                      |
-| [enqueue-coverage-targets-rust](./enqueue-coverage-targets-rust)             | Orchestrator-workers pattern for Rust test coverage: queue source files below target via `cargo llvm-cov`, then drain it by writing inline `#[cfg(test)]` blocks.                      |
+| [enqueue-coverage-targets](./enqueue-coverage-targets) | Orchestrator-workers pattern for raising test coverage in Go, Node.js/TypeScript, Python, or Rust: `scripts/enqueue.sh` measures once and queues every unit below target, you drain the queue writing tests, then re-measure. Per-language rules in `references/`. |
 | [extract-recipe-grocery-list](./extract-recipe-grocery-list)                 | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations.                       |
 | [guitar-pro](./guitar-pro)                                                   | Read, write, and analyze Guitar Pro tablature (`.gp5`, native `.gp`, MusicXML) via a bundled PyGuitarPro/alphaTab helper; handles the silent-corruption defects in both libraries.                     |
 | [quad-cortex-capture-measurement](./quad-cortex-capture-measurement)         | Measure a Quad Cortex capture or preset against its plugin reference: one-pass QC-over-USB recording, bundled `analyze.py` (LUFS offset, banded deltas, coherence, null depth), interpretation thresholds, and the canonical claim ladder. |
@@ -88,10 +90,18 @@ skill-name/
 ├── SKILL.md       # required — main skill file
 ├── scripts/       # optional — executable code (Python, Bash, etc.)
 ├── references/    # optional — supporting docs loaded on demand
-└── assets/        # optional — templates, fixtures, fonts, icons
+├── assets/        # optional — templates, fixtures, fonts, icons
+└── evals/
+    ├── evals.json # required — test prompts + expectations
+    └── files/     # optional — input fixtures the prompts refer to
 ```
 
-Only `SKILL.md` is required. Put a `references/<topic>.md` next to
+Only `SKILL.md` and `evals/evals.json` are required. A skill is
+self-contained: everything it runs lives under its own directory, so it
+can be copied to another host as one folder. When two skills would
+share a script, they are usually one skill with per-variant
+`references/` and `scripts/` (see `enqueue-coverage-targets`), not two
+skills reaching into a shared directory. Put a `references/<topic>.md` next to
 `SKILL.md` and link to it from the body when you have a lookup table or
 catalog that doesn't need to be in context every run — see
 [`detect-llm-tells/references/`](./detect-llm-tells/references) for an
@@ -149,6 +159,17 @@ when they're a strong signal.
   "stop and ask".
 - **Treat the body as a runbook**, not a manual. Numbered, executable
   steps — not narrative.
+- **One H1, then `##` sections.** Keep `SKILL.md` under ~500 lines;
+  when a section grows past what every run needs, move it to
+  `references/<topic>.md` and leave a pointer saying when to read it.
+- **Explain the why instead of shouting.** An all-caps MUST tells the
+  model what to do on the one case you imagined; a sentence of
+  rationale lets it handle the case you didn't. Reserve hard rules for
+  things that have actually destroyed work, and say what happened.
+- **Bundle repeated work as a script.** If every run would write the
+  same shell or Python, put it in `scripts/` once and have the body
+  call it. Scripts should run on any host with the language runtime
+  and report failures instead of guessing.
 
 ## Host Portability
 
@@ -184,7 +205,24 @@ description: One sentence describing exactly when to use this.
 
 EOF
 
-# 3. Validate before committing
+# 3. Add evals — 2–3 realistic prompts with checkable expectations
+mkdir -p my-skill/evals
+cat > my-skill/evals/evals.json <<'EOF'
+{
+  "skill_name": "my-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "What a real user would type, with concrete details.",
+      "expected_output": "One sentence describing a correct result.",
+      "files": [],
+      "expectations": ["An objectively checkable statement", "Another one"]
+    }
+  ]
+}
+EOF
+
+# 4. Validate before committing
 pre-commit run --all-files
 ```
 
@@ -195,9 +233,43 @@ A skill is ready when:
   correctly from a list of 30 unrelated skills.
 - The body is followable cold — no relying on conversation history.
 - Guardrails are explicit ("never X", "stop if Y").
-- `SKILL.md` stays under ~5,000 words; bulky lookup tables live in
+- `SKILL.md` stays under ~500 lines; bulky lookup tables live in
   `references/`.
 - No `README.md` lives inside the skill folder.
+- `evals/evals.json` exists with at least two evals, and the skill
+  beats the no-skill baseline on them.
+
+## Testing a Skill
+
+Testing follows Anthropic's skill-creator loop: run each eval prompt
+with the skill loaded and without it, compare, read the actual outputs
+(not just pass/fail), then revise the skill and rerun.
+
+```text
+evals/evals.json          # prompts + expectations (checked in)
+../my-skill-workspace/    # run outputs, grading, benchmark (gitignored)
+    iteration-1/
+        <eval-name>/with_skill/outputs/
+        <eval-name>/without_skill/outputs/
+```
+
+Run it from Claude Code or Cowork with the `skill-creator` skill:
+"run the evals for `my-skill`". It spawns the with/without runs,
+grades each expectation, aggregates a benchmark, and opens a viewer.
+Two habits keep the loop honest:
+
+- **Look at the outputs before editing the skill.** Aggregate pass
+  rates hide the interesting failures.
+- **Generalize from the feedback.** The evals are a handful of
+  examples; the skill will run on thousands. Fix the pattern, not the
+  example.
+
+Expectations should assert outcomes, not wording or tool choice, so a
+valid answer phrased differently still passes. Fixtures the prompts
+refer to live in `evals/files/` and are relative to the skill root.
+Skills that depend on live hardware or the network (Quad Cortex,
+recipe fetching) keep their evals but expect the runner to have that
+access; the CI check only validates the file's structure.
 
 ## Contributing
 
@@ -211,6 +283,9 @@ CI runs the same checks:
 - `SKILL.md` exists in every non-hidden top-level directory.
 - Frontmatter has `name` and `description`, both non-empty.
 - `name` matches the directory name.
+- `evals/evals.json` exists, names the skill, has ≥2 evals with
+  prompts and ≥2 expectations each, and every referenced fixture
+  exists.
 - Markdown lints clean (`markdownlint`), YAML lints clean
   (`yamllint`), and frontmatter parses.
 

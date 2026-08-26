@@ -1,0 +1,28 @@
+{
+  "skill_name": "quad-cortex-preset-editing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Put my new 'Gojira Lead amp' capture into a fresh preset in Cortex Control, add the matching cab capture after it, and make sure nothing else is in the chain. The plugin reference had a noise gate and a delay.",
+      "expected_output": "Uses screen control per the UI map: establishes the reference, inventories every block, orders gate → amp capture → cab capture → delay, bypasses anything the reference lacks, saves, and reports the claim rung reached.",
+      "files": [],
+      "expectations": [
+        "The reference chain (gate, amp, cab, delay) is stated before any grid edits",
+        "Every block on the grid is inventoried and each is bucketed keep / bypass / add",
+        "Final block order matches the canonical order in the skill",
+        "The preset is saved and the report names the rung reached (configured or structurally faithful), not 'measured'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "this preset feels laggy and thin, can you clean it up?",
+      "expected_output": "Inventories blocks, identifies extra/duplicated blocks (latency) and a missing cab or makeup gain on the wrong knob (thin), applies changes, reports honestly.",
+      "files": [],
+      "expectations": [
+        "The response inventories the existing blocks before changing anything",
+        "Makeup gain is set on the Volume knob the skill specifies rather than on the capture's input gain",
+        "The report distinguishes what was changed from what was left alone"
+      ]
+    }
+  ]
+}

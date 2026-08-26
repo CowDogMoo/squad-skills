@@ -1,0 +1,35 @@
+{
+  "skill_name": "doc-comments-discovery-and-fix-loop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run a doc-comment pass on the Go package in evals/files/docs/. Go style (comment starts with the identifier name), public = capitalized identifier, verify with `go build ./...`, revert with git checkout, cap 12 iterations.",
+      "expected_output": "Discovery list of exported declarations missing/deficient docs, prioritized; proportional fixes applied via Edit; build verified; report with counts.",
+      "files": [
+        "evals/files/docs/store.go",
+        "evals/files/docs/go.mod"
+      ],
+      "expectations": [
+        "Every exported identifier in store.go without a doc comment is listed in the discovery phase",
+        "Fixes are applied with Edit after reading the file; the file is not rewritten wholesale",
+        "Added Go doc comments start with the identifier name",
+        "The unexported helper `clamp` is not given a doc comment (out of scope)",
+        "The final report states the number discovered, fixed, and skipped, and the verify command result"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "docs pass on evals/files/docs/ but the codebase has hundreds of files and i only have 5 iterations. what do you fix first?",
+      "expected_output": "Prioritization by impact (package-level docs and most-referenced exported types first), an explicit statement of what is deferred, and only proportional fixes within the budget.",
+      "files": [
+        "evals/files/docs/store.go",
+        "evals/files/docs/go.mod"
+      ],
+      "expectations": [
+        "The response explains the prioritization order it applied",
+        "Work stops within the stated iteration budget and the report names what was not reached",
+        "No speculative or padded doc comments are added to already-adequate declarations"
+      ]
+    }
+  ]
+}

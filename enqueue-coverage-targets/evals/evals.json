@@ -1,0 +1,51 @@
+{
+  "skill_name": "enqueue-coverage-targets",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Raise test coverage in evals/files/cov-go to 80%. Load enqueue-coverage-targets first.",
+      "expected_output": "Runs scripts/enqueue.sh once (Go auto-detected), drains /tmp/squad-targets.txt writing _test.go files, re-measures at the end, honest report.",
+      "files": [
+        "evals/files/cov-go/go.mod",
+        "evals/files/cov-go/calc/calc.go",
+        "evals/files/cov-go/calc/calc_test.go"
+      ],
+      "expectations": [
+        "The first tool call after loading the skill runs scripts/enqueue.sh (not an ad-hoc go test invocation)",
+        "The existing calc_test.go is read before being edited, and its existing TestAdd is preserved in the diff",
+        "New tests are added with Edit to calc_test.go rather than Write",
+        "No coverage command is run between the enqueue step and the final verify step",
+        "The report's After column is a re-measured number or the literal 'not measured'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "get coverage up on evals/files/cov-py, target 90. its pytest.",
+      "expected_output": "Language detected as Python; queue built via pytest --cov; tests added under tests/ using the mirror rule; pytest re-run at the end.",
+      "files": [
+        "evals/files/cov-py/app/__init__.py",
+        "evals/files/cov-py/app/pricing.py",
+        "evals/files/cov-py/tests/test_pricing.py"
+      ],
+      "expectations": [
+        "scripts/enqueue.sh is run with SQUAD_COVERAGE_TARGET=90 (or python passed explicitly)",
+        "references/python.md is consulted for naming and idiom",
+        "New tests target the uncovered lines listed in /tmp/squad-uncovered.out for pricing.py",
+        "Existing test_pricing.py tests are not removed or renamed"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use enqueue-coverage-targets on evals/files/not-a-project and raise coverage to 75%.",
+      "expected_output": "The script reports UNKNOWN_PROJECT; the agent stops and reports honestly instead of guessing a language or installing tools.",
+      "files": [
+        "evals/files/not-a-project/notes.txt"
+      ],
+      "expectations": [
+        "The agent reports that no supported project was found and writes no test files",
+        "The agent does not install any package or pivot to a different language",
+        "Files Touched is 'none' and After is 'not measured'"
+      ]
+    }
+  ]
+}

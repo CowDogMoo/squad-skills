@@ -1,0 +1,28 @@
+{
+  "skill_name": "quad-cortex-plugin-capture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Walk me through capturing the Odeholm thall amp preset into the Quad Cortex using my UCX II and Ableton. I want the amp only, no cab.",
+      "expected_output": "Step-by-step for Jayson's rig: cabling, TotalMix routing, Ableton track setup, capture-safe plugin state with cab disabled, level calibration, Neural Capture V2 run, A/B verification.",
+      "files": [],
+      "expectations": [
+        "The plugin's cab/IR section is explicitly disabled before capture",
+        "TotalMix routing and Ableton track setup are described with the specific inputs/outputs the skill defines",
+        "Level calibration is done before starting the capture",
+        "The response ends with an A/B verification step and a pointer to quad-cortex-capture-measurement for numbers"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "why is my new capture so much quieter than the ones i downloaded from the cortex cloud?",
+      "expected_output": "Explains the level-calibration cause from the skill's 'quieter' section and gives the fix; does not blame the plugin or suggest re-capturing blindly.",
+      "files": [],
+      "expectations": [
+        "The explanation attributes the level difference to input/output level calibration during capture",
+        "A concrete fix (what to adjust and where) is given",
+        "The response does not suggest editing the physical amp workflow from the manual"
+      ]
+    }
+  ]
+}

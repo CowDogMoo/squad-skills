@@ -1,0 +1,29 @@
+{
+  "skill_name": "weekday-dinner-recipes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "what should I cook this week? 8 dinners, nothing I've had before",
+      "expected_output": "8 season-appropriate recipes from the curated source list, each with exact rating and review count from the live page, links verified 200, history file read first and appended after.",
+      "files": [],
+      "expectations": [
+        "Exactly 8 recipes are returned, grouped by category header",
+        "Every recipe line has a numeric rating, a review count, the site name, and a link",
+        "The history file was read before selection and every returned URL is appended to it afterwards",
+        "No returned URL appears in the history file from before this run",
+        "The season used matches the current month unless the user specified one"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "give me some winter comfort food dinner ideas for weeknights, 5 is plenty",
+      "expected_output": "5 winter-cued recipes (stews, braises, roasts) with verified ratings and links; explicit season honored over the calendar.",
+      "files": [],
+      "expectations": [
+        "Exactly 5 recipes are returned",
+        "Recipes match winter cues from references/seasonal-cues.md",
+        "Each link was verified to return 200 or was dropped, and the response says nothing about recipes it could not verify"
+      ]
+    }
+  ]
+}
