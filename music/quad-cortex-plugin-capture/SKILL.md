@@ -76,6 +76,16 @@ snapshot change, and re-verify before each capture session.
 - The ableton-mcp server can set plugin parameters, rename tracks, delete
   devices, set volumes — use it for anything it covers; use screen control
   only for I/O routing, monitor buttons, arming, transport.
+- **Hand-off to measurement:** capturing leaves Live's input device on the
+  Fireface and the plugin track on Ext. In 4. Every invalid measurement take
+  (08-24 ×2, 08-29) came from that state being left behind. When the capture
+  is done, either switch the input device back to **Quad Cortex** and the
+  plugin track to **Ext. In 1**, or write a line in `CAPTURE-TEST-STATE.md`
+  saying it was left on the Fireface, so `quad-cortex-capture-measurement`'s
+  pre-flight catches it.
+- Live's Settings window and routing popups don't respond to screen-control
+  clicks (see the measurement skill's "Driving Live when the UI won't
+  cooperate" for the .als-patch + File → Open Recent workaround).
 
 ## Capture-safe plugin state
 
