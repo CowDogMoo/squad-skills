@@ -285,6 +285,23 @@ Rung reached: 2. No listening or measurement was done. The first report said
   re-request rather than retrying clicks.
 - Chrome (or any un-granted app) in front blocks every click; ask the user
   to bring Cortex Control forward rather than retrying.
+- **Click-offset bug (seen 2026-08-29).** Hover (`computer_mouse_move`) landed
+  where aimed, but every click / mouse-down landed a fixed ~270 px ABOVE the
+  aim point on both monitors, and double-clicks were unusable (they
+  deselected the block). Symptoms: clicking a row-3 block opens the preset
+  browser or switches scenes; clicks in the top ~270 px do nothing. Diagnose
+  with a probe click on something harmless whose y is unique (a scene
+  button, a left-panel category), never on a block's `x`. Workaround that
+  worked end to end: aim `y_real + 270`; have the user click GIG VIEW
+  (bottom bar, out of reach) so the selected row sits at y~177 and the panel
+  title/power at y~322, value text at y~432-543; edit values with a single
+  click on the value text (it enters edit mode), then `cmd+a`, type,
+  `return`. Reachable real y is limited to the frame height minus the offset.
+  After calibration probes, re-check scene A and the scene/stomp toggle
+  (top-right of the header) before saving.
+- Panel state glyphs: bright panel + plain power glyph = active; dimmed
+  panel + strikethrough/bypass glyph = bypassed. The block's filled look is
+  selection, not state.
 - Drag-moving an EQ block keeps its old bands; RESET it before dialling the
   new curve (a parked Parametric-3 came with HP 99 Hz and a -12 dB hi shelf).
 - The capture models the plugin's noise floor too: a plugin with its gate
