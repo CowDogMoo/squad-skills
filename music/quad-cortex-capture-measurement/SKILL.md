@@ -81,6 +81,73 @@ out 5–8 To Grid 5–8.
 - Ableton records a track's input pre-FX, so a Utility on the QC track for
   level match is not in the recorded file; set it after measuring.
 
+## Pre-flight before every take (learned 2026-08-29)
+
+Every invalid take so far had the same signature and the same root causes,
+so check these with tools before Jayson plays — not by asking him.
+
+1. **Sanity-check the newest take, if one exists**, before trusting the
+   setup: stage the three newest WAVs and compare them sample-for-sample.
+   DI == REC (plugin post FX) means the plugin was bypassed; DI == one channel
+   of the QC file means the "DI" track is fed from the same physical input as
+   the QC track (Live input device still on the Fireface, DI track on the
+   RME channel carrying the QC's analog out). The 10:13 take on 08-29 had
+   both at once (all three files bit-identical) and the set looked fine at
+   a glance.
+2. **Plugin state via `ableton-mcp` `get_device_parameters(show_all=true)`**
+   on the Thall track. Compare every line against `CAPTURE-TEST-STATE.md`.
+   The parameter that bites is **"Device On"** — the thall amp has been found
+   bypassed (Device On: Off) twice in one session, including once after a
+   set reload, so re-check it after *any* reload or preset load, not just at
+   the start. `enable_device` fixes it; `set_device_parameter` with
+   normalized 0.0 sets Tighten Gate to −100 dB and Pitch Power off.
+3. **Live's audio input device must be "Quad Cortex".** After a capture
+   session (`quad-cortex-plugin-capture` switches it to the Fireface) it
+   stays on the Fireface. Read it without the UI: `~/Library/Preferences/
+   Ableton/Live <version>/Log.txt` — the `CoreAudio: Device init:` lines at
+   the last launch list what Live enumerated; a device hot-plugged after
+   launch (the QC at 09:35 vs launch at 09:28) shows as a later `Device init`
+   and is usable, but an Aggregate Device that was not present at launch is
+   not. Note the Aggregate Device on this Mac reported **20 In / 20 Out** —
+   that is the Fireface alone; it does not include the QC's USB channels, so
+   "aggregate for the DI" is not a shortcut, it is an Audio MIDI Setup job
+   plus a Live restart.
+4. **Track routing** — read it from the set, not the screen: the .als is
+   gzipped XML; each `<AudioTrack>` has `<AudioInputRouting><Target
+   Value="AudioIn/External/M0"/>` (M = mono, S = stereo, 0-based:
+   `M0` = Ext. In 1, `S1` = Ext. In 3/4, `AudioIn/Track.N/PostFxOut` =
+   Post FX of track N) with `<LowerDisplayString>` mirroring it ("1",
+   "3/4"). Arm is the first `<Recorder><IsArmed>` inside the track's
+   `<MainSequence>`; solo is `<SoloSink>` (true = soloed). Wanted state:
+   Thall `M0` armed, REC `Track.<thall>/PostFxOut` armed, QC `S1` armed,
+   nothing soloed.
+
+If the user describes the cabling as "QC → RME In 4", that is the QC's
+analog out — the same processed signal the USB Wet channels carry, plus a
+DAC/ADC round trip — and it leaves no dry guitar anywhere on the RME for the
+plugin. Say so once, then use the USB method above; don't build a
+Fireface-input variant around it.
+
+### Driving Live when the UI won't cooperate (screen control)
+
+- Live's **Settings window and the routing/chooser popups do not respond
+  to screen-control clicks** (Settings closes on the first click; chooser
+  popups never appear in screenshots; arrow keys do nothing in them). Don't
+  burn more than one attempt. The macOS **menu bar works**, including
+  keyboard navigation inside it.
+- To change routing/arm/solo anyway: `cmd+s` (verify File → Save Live Set
+  is greyed out), copy the .als into `Backup/` with a descriptive name,
+  patch the XML with a short python read-modify-write on the device
+  (`gzip.open` → `str.replace` scoped to the one `<AudioTrack Id="N">`
+  block → `gzip.open(..., "wb")`), then reload: click **File**, `Down`×3 to
+  "Open Recent Set", `Right`, `Return` on the first entry (the current set).
+  Live reloads from disk without a prompt; the input meters light up
+  immediately if routing is right. Then re-run step 2 — device state can
+  come back different after the reload.
+- `ableton-mcp` cannot read or set input routing, monitoring, or the audio
+  device; it can read/set device parameters, arm, solo, mute, and volume.
+  Use it for verification (steps 1–2), the .als for routing (step 4).
+
 ## Recording the takes
 
 1. Plugin in its capture-time reference state — read it from the project's
