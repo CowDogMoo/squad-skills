@@ -217,6 +217,18 @@ side of that job — what this skill must set up before the take:
 - Plugin in its capture-time reference state, read from
   `CAPTURE-TEST-STATE.md` (see step 0) — cab ON if the capture is Amp+Cab.
 
+## Worked example: 1D Thall Experimental with Mirar Leo V4, 2026-08-29 (rung 3)
+
+Block state read from panels (scene A): Wham (byp) -> Neural Capture
+"Thall Mirar Leo Amp and Cab V4" -> IR Loader Single (M) Impact Studios_IR 1
+(byp) -> Parametric-3 (HPF 55 Q0.71, +1.5 @ 350, hi shelf -0.5 @ 2k) ->
+Reverb Room 15% (byp) -> Multi Out. Raw V4 measured (Volume 0, EQ byp):
+offset -4.4 dB; 1-12 kHz within 0.3 dB; 120-250 -0.4; 250-500 -3.2 (coh
+0.77, EQ-able: +2..3 dB @ 350 Q1); 60-120 -5.0 (coh 0.31, not EQ-able,
+present in V1/V2/V4 alike); null -3.2 / -3.7. V3 (no notes) had been loaded
+in this preset and measured -5.8 at Volume +6 with +10-15 dB sub and
+2 kHz+ roll-off — rejected.
+
 ## Worked example: 1D Thall Experimental, 2026-08-24 (rung 3, final)
 
 Chain: In 1 -> Adaptive Gate -> Pitch Shifter (bypassed) -> row 3: Wham
