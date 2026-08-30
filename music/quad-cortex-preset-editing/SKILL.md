@@ -299,6 +299,52 @@ Rung reached: 2. No listening or measurement was done. The first report said
   `return`. Reachable real y is limited to the frame height minus the offset.
   After calibration probes, re-check scene A and the scene/stomp toggle
   (top-right of the header) before saving.
+- **Click-offset bug, second session (2026-08-29 evening, ~260 px).** More
+  facts: `computer_cursor_position` right after a click reports `y-260`, so
+  that is the one-call diagnosis. It is app-side — the two displays are
+  top-aligned in System Settings, so there is nothing for the user to
+  rearrange; report it via thumbs-down feedback. `left_mouse_down`/`up` at
+  an exactly-moved cursor do NOT register either, so move+down+up is not a
+  workaround. Windows on the non-primary display received no clicks at all
+  in this session — ask for the app on the primary (menu-bar) monitor.
+  Window-level drags DO work through the offset, which gives a better fix
+  than Gig View for the unreachable bottom band: **shrink the Cortex
+  Control window** — drag its top-left corner down ~260 px (start at corner
+  y+260, end at corner y+520), then drag the title bar back to the top
+  (start at bar y+260, end at 286). The window then ends at ~y 555 and the
+  wizard's FILL METADATA / START / SAVE and the bottom bar become reachable;
+  verify by toggling GIG VIEW at its y+260 and back.
+- **TotalMix under the click bug:** buttons (Inst, AutoSet, submix mute)
+  take clicks at the offset; the gain knob ignored every drag form
+  (`left_click_drag`, stepped down/move/up, scroll, typed value; a
+  double-click resets it to 0). For a capture that needs analog input gain
+  you cannot set, put the same dB into the plugin's Input Gain via
+  ableton-mcp for the capture and reset it afterwards — equivalent
+  pre-nonlinearity (2026-08-29 V4: RME In 4 gain 0.0, plugin In +2.4 ->
+  +15.4, back to +2.4 before the measurement take).
+- **Read the capture block's full name every time.** V1/V2/V3/V4 look
+  identical on the grid; on 2026-08-29 two takes were analysed against the
+  wrong assumption (V3 loaded where V1 was expected) before the panel was
+  read. And the 10:41 note "preset not in saved state" was wrong for the
+  same reason — the blocks were exactly as saved; the capture had changed.
+- **Value fields under the click bug (2026-08-29, later):** a single
+  `computer_left_click` on the value text at its y+260 puts the field into
+  edit mode (value highlighted); `computer_double_click` at the same aim
+  did NOT — it landed as a plain click at the uncorrected y and selected an
+  empty grid slot instead. Use single click, then `cmd+a`, type, `return`.
+  Another un-granted app (Signal) being frontmost — even on the other
+  monitor — blocks every click; `computer_open_application` on Cortex
+  Control brings it back to front without asking the user.
+- **Ableton take from screen control:** F9 (Arrangement Record) with the
+  transport stopped records from the arrangement start, not the insert
+  marker; Live also reuses the file names of a previous 0-byte aborted arm
+  for the real take, so pair by content/mtime, not just the `[timestamp]`.
+  The local Cowork VM ran out of disk installing scipy — stage the three
+  WAVs to the cloud workspace and run analyze.py there instead.
+- The user is usually working in the same app at the same time (loading
+  TotalMix workspaces, moving windows between monitors, saving the preset).
+  Re-screenshot before every action; a stale screenshot is how a click
+  lands in the preset browser.
 - Panel state glyphs: bright panel + plain power glyph = active; dimmed
   panel + strikethrough/bypass glyph = bypassed. The block's filled look is
   selection, not state.
