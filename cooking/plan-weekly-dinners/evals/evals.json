@@ -1,0 +1,46 @@
+{
+  "skill_name": "plan-weekly-dinners",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "plan my dinners for the week",
+      "expected_output": "Five weeknight dinner candidates covering the household's usual balance (2 to 3 vegetarian/vegan, at least one chicken and one flex meal), each shown as a complete dinner or paired with explicit easy sides, with its source, URL, total time, and cuisine classification.",
+      "files": [],
+      "expectations": [
+        "Exactly 5 candidate meals are returned",
+        "2 to 3 of the 5 candidates are explicitly classified vegetarian or vegan",
+        "At least one candidate is explicitly classified chicken and at least one is explicitly classified flex",
+        "Every candidate is either already a complete dinner (protein, vegetable, and a starch or equivalent) or is paired with explicit easy sides that complete it",
+        "Every candidate lists its source, source URL, total elapsed time, and cuisine/flavor classification"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "we're slammed this week, keep it fast — and I've been craving pasta and tacos",
+      "expected_output": "Five candidates that still span the household's usual balance, with at least one very quick (~25 minute) option for the busiest night, no more than one tomato-heavy dish despite the pasta/taco craving, no more than one indulgent dish, and any 45-to-60-minute recipe clearly flagged as longer.",
+      "files": [],
+      "expectations": [
+        "Exactly 5 candidate meals are returned",
+        "At least one candidate has a total elapsed time of about 25 minutes or less and is called out as the quick option for an exhausted night",
+        "No more than one candidate counts as tomato-heavy (meaningful tomato sauce, crushed tomato, or tomato paste base), even though pasta and tacos were requested",
+        "No more than one candidate is marked as heavy or indulgent (for example rich pasta, heavy cheese, or other comfort food)",
+        "Any candidate with a total elapsed time between 45 and 60 minutes is explicitly flagged as a longer recipe so it can be knowingly approved",
+        "Every candidate's ingredient list includes quantities for each item, omitting only salt, pepper, and basic cooking oil"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "plan the week — my kid can't have sesame, and I'd love some Asian-inspired flavors in the mix",
+      "expected_output": "Five candidates including Asian-inspired options, with any sesame content named down to the specific component and its removability, recipes where sesame is integrated throughout and can't be cleanly separated excluded, and the rest of the weekly balance (5 dinners, 2 to 3 vegetarian/vegan, full ingredient quantities) still holding.",
+      "files": [],
+      "expectations": [
+        "Exactly 5 candidate meals are returned",
+        "For every candidate that contains sesame in any form, the response names the exact component carrying it (such as a sauce, dressing, topping, or garnish) and states whether that component is fully removable",
+        "No candidate has sesame integrated throughout the dish in a way that cannot be cleanly separated; a recipe like that is excluded rather than included with a caveat",
+        "2 to 3 of the 5 candidates are explicitly classified vegetarian or vegan",
+        "Every candidate's ingredient list includes quantities for each item, omitting only salt, pepper, and basic cooking oil",
+        "Every candidate lists its source, source URL, total elapsed time, and cuisine/flavor classification"
+      ]
+    }
+  ]
+}
