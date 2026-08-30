@@ -110,9 +110,21 @@ parameter indices in parens, via ableton-mcp):
 - **Pitch/time section powered off** (Pitch Power, param 13) — even at 0 st it
   adds latency and processing.
 - **Mono** (param 30 → 0).
-- Static things are fine to leave: tone-match EQ, Low Dirt at 0, Chug (mostly
-  static low-end shaping — if the captured low end is flubby, recapture with
-  Chug at 0), Lo/Hi Cut filters.
+- Static things are fine to leave: tone-match EQ, Low Dirt at 0, Lo/Hi Cut
+  filters.
+- **Dynamic controls are a different matter, and the answer is still to leave
+  them alone.** A Neural Capture models a static nonlinear system, so a
+  time-varying control — the thall amp's Tighten Chug, and anything else that
+  ducks, tightens or gates by level — cannot be reproduced. It leaves a
+  permanent band deficit with low coherence wherever it operates. **Capture it
+  anyway, in the state the preset is actually played in.** Zeroing the control
+  produces a better-measuring capture of a different amp sound. Tested directly
+  on the thall amp (2026-08-30): capturing with Chug at 0 turned a −4.0 dB /
+  0.43-coherence hole at 60–120 Hz into −0.7 dB / 0.58 and produced the
+  best-measuring capture the project has made — and it was rejected on hearing
+  it, in one line, because it no longer sounded like the amp. Record the
+  expected deficit in CAPTURE-TEST-STATE.md so downstream work does not read it
+  as a defect, and do not chase it with EQ. See `thall-amp-neural-capture`.
 - **Cab: OFF for an "Amp" capture** (use IRs on the QC), **ON for "Amp + Cab"**
   (the only way to keep a non-exportable internal cab). Do both; save both.
 - **Verify against the plugin UI, not just parameter readouts.** Ableton's
@@ -120,6 +132,11 @@ parameter indices in parens, via ableton-mcp):
   (+12 dB shown for what the UI showed as +2.4). Open the plugin window and
   confirm Input/Output gain and that the tone-match profile is actually
   loaded ("No Tone Profile" means it is not, even if the preset name shows).
+- **Read parameters back after writing them.** The ableton-mcp write response
+  can echo a stale display string: setting the thall amp's Tighten Chug to
+  normalized 0.5 returned the text "Set Tighten Chug to 0%", while a fresh read
+  of all 30 parameters correctly showed 50%. Re-read after any parameter write
+  and treat the read-back as the record.
 
 ## Levels — the part that decides everything
 
@@ -208,3 +225,7 @@ take; without it both are guessing.
   attempts.
 - Editing the preset that hosts the capture (block order, bypasses, makeup
   gain) is a separate job: `quad-cortex-preset-editing`.
+- Amp-specific knowledge for the Odeholm thall amp — the capture-as-played
+  rule, why Chug cannot be modelled, the V1–V5 history, the standing V4 preset
+  and its known-good measured envelope — lives in `thall-amp-neural-capture`.
+  Read it before capturing or judging that plugin.

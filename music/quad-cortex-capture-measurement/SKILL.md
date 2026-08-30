@@ -203,7 +203,13 @@ without a note being played:
 2. Preset input block on In 1. Reverb/delay in the preset bypassed for the
    take. Lane output routed to USB as above; preset saved.
 3. Play 20–30 s: chugs, single notes, one ringing chord. DI peaks −6 to
-   −12 dBFS at QC In 1 = 0 dB.
+   −12 dBFS at QC In 1 = 0 dB. Check the QC track's peak too, not just the DI.
+   A preset set so hard chugs push the meter barely into red lands QC peaks near
+   −2 dBFS — right for playing, almost no margin for a measurement take. A take
+   that reaches 0.00 dBFS clips, and clipping adds nonlinearity the plugin does
+   not have: it depresses coherence and shallows the null, biasing the result
+   against the capture. Aim for QC peaks near −3 dBFS on measurement takes and
+   reject any take with samples at full scale.
 4. One take per preset variant (each variant = one more 30 s take).
 
 Takes land in `<project>/Samples/Recorded/<track name> NNNN [timestamp].wav`
@@ -265,17 +271,65 @@ bands) never moved more than ~1 dB no matter what a bell EQ did (+3 Q1.5,
 0.9. Where coherence is low, the QC's energy in that band is largely not a
 linear function of the plugin's, so boosting the band scales the matching
 and non-matching parts alike and the normalised delta stays put. Rule:
-**only chase a band delta with EQ where coherence is > ~0.8**; a low-
-coherence deficit is a capture-time item (recapture — on the thall amp try
-Chug at 0 first), and say so instead of adding more EQ. Conversely a
-high-pass below the plugin's own low cut (65 Hz there) is always worth
-having: the capture reproduces the plugin's Lo Cut less steeply than the
+**only chase a band delta with EQ where coherence is > ~0.8**. Below that,
+say so instead of adding more EQ, then work out which of three things it is:
+(1) **a capture-time item** — input level or plugin state was wrong, recapture;
+(2) **a model limit** — the QC's nonlinearity simply differs there, expected
+above ~2 kHz on high-gain material and judged by ear; (3) **an unmodellable
+dynamic process** — the reference has a time-varying control operating in that
+band, and since a Neural Capture is a static model the deficit is permanent and
+correct.
+
+Diagnosis 3 was added 2026-08-30 and it closed this project's oldest
+open item: the thall amp's 60–120 Hz deficit is its **Tighten Chug** control.
+Capturing with Chug at 0 collapsed the deficit to −0.7 dB at coherence 0.58 and
+gave the best-measuring capture of the project — which was then **rejected by
+ear**, because Chug-0 is a different amp sound, not a cleaner one. A control
+take settled the confound: the Chug-50 capture scored 0.27 coherence against the
+Chug-0 reference versus the Chug-0 capture's 0.58, so Chug 0 is a *harder*
+target and the gap is entirely the capture-versus-Chug mismatch. **Never
+recommend zeroing a dynamic control to improve a measurement.** When the numbers
+and the ears disagree about which capture is better, the ears win and the
+measurement's job is to explain why. Amp-specific detail:
+`thall-amp-neural-capture`.
+
+Conversely, a high-pass below the plugin's own low cut (65 Hz there) is
+always worth having: the capture reproduces the plugin's Lo Cut less steeply than the
 plugin did, the QC carried +22 dB at 30–45 Hz before the HPF, and the HPF
 alone improved the gain-match null by ~2 dB and lifted coherence in every
 band.
 
 Known-good calibration baseline (what a finished, matched preset measured):
 `references/reference-results-2026-08-24.md`.
+
+## What this method cannot decide
+
+Cross-take comparison of **absolute plugin spectra** is not trustworthy better
+than about 2–3 dB. Measured 2026-08-30 against a control set of four plugin
+recordings all made at the same setting: normalised band levels below 500 Hz
+drift up to 2.13 dB between same-reference takes; DI-relative transfer
+(plugin/DI per band, intended to divide out playing) is worse at 3.38 dB,
+because the amp is strongly level-dependent so playing intensity changes the
+effective transfer; and the time-variance of the low/mid energy ratio spans
+4.65–7.59 dB across same-reference takes. Three attempts to build a statistic
+that could prove *from the audio* which plugin setting a take used all failed
+on this.
+
+**This does not affect the QC−plugin deltas this skill reports.** Those compare
+two signals from the same performance, so common-mode playing variation cancels
+— the entire reason for the one-pass method. It only means:
+
+- Never compare the plugin track of one take against the plugin track of
+  another and draw conclusions from the difference.
+- Confirm plugin state by reading parameters back from the live plugin, never by
+  inferring it from a recording.
+- If audio proof of a plugin setting is ever genuinely needed, the decisive test
+  is to re-render **one** DI clip through the plugin at both settings and
+  compare those two renders. Same performance, one variable.
+
+Single-take band deltas also carry roughly ±0.8 dB of take-content variance
+around 250–500 Hz; treat a change smaller than that between takes of the same
+configuration as noise, not as a result.
 
 ## Legacy: two cables, two passes (before 2026-08-24)
 
