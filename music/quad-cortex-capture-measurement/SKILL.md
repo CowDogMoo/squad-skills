@@ -80,6 +80,24 @@ out 5–8 To Grid 5–8.
   correlation peak −0.54). Harmless for spectra; the null uses a signed gain.
 - Ableton records a track's input pre-FX, so a Utility on the QC track for
   level match is not in the recorded file; set it after measuring.
+- **Idle time skews the level offset.** The capture's modelled noise floor
+  sits ~13 dB below the plugin's, so a take with pauses reads a more
+  negative QC-plugin offset than the same preset played continuously
+  (2026-08-29: -8.5 idle-heavy vs -6.6 continuous). Check the DI envelope
+  in the plot; quote the offset only from continuous playing. A useful
+  variant: one take, change one control mid-way, and compare 1 s RMS
+  ratios before/after — it proves whether the control reaches the audio.
+  (Branch `docs/qc-idle-noise-diagnostic` reads the same evening as a
+  Cortex Control/device desync from idle spectra. The idle comparison was
+  made at the same Volume with the EQ bypassed in both takes — it cannot
+  separate "not applied" from "EQ was off"; the Volume-step test on the
+  21:44 take showed the control reaching the audio within a second, and
+  the EQ panel glyph confirmed the block was bypassed. Reconcile before
+  merging that branch.)
+- **A full level match puts QC peaks near the plugin's.** The thall amp
+  peaks around -0.6 dBFS; matching it means QC output peaks ~-2.5 dBFS, so
+  the "Volume +14 clipped" note of 08-24 was headroom, not a knob limit.
+  Split the makeup between the capture Volume and the lane output Volume.
 
 ## Pre-flight before every take (learned 2026-08-29)
 
