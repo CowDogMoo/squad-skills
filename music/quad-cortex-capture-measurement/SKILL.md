@@ -148,6 +148,34 @@ Fireface-input variant around it.
   device; it can read/set device parameters, arm, solo, mute, and volume.
   Use it for verification (steps 1–2), the .als for routing (step 4).
 
+## Idle-noise diagnostic — what is the device actually running? (no playing)
+
+The capture models the plugin's idle hiss, so a silent window's spectrum
+carries the whole post-capture chain: capture Volume, EQ block, lane
+output. When a measurement contradicts what Cortex Control displays,
+record ~30 s of idle (nobody touches the guitar) and compare hiss
+spectra. This pinned down the 2026-08-29 "saved but not applied" desync
+without a note being played:
+
+- Record via `ableton-mcp` alone: `set_song_time` past the last clip,
+  `start_playback`, then punch in with F9 via `osascript` System Events
+  key code 101 (F9 while PLAYING punches in at the playhead — no bar-1
+  overwrite; needs terminal accessibility). Poll the growing WAV's size,
+  then `stop_playback`. Live still reuses a previous aborted arm's
+  filenames and creates fresh 0-byte arms — pair by mtime and size.
+- Analyze the quietest >= 8 s window per take. Compare **QC minus plugin**
+  band levels per take (both hear the same input, so guitar-hum drift
+  cancels), then delta that across takes: an engaged HPF 55 shows as
+  ~−14/−8 dB at 20–30/30–45 Hz in the hiss; capture Volume moves the
+  QC−plugin broadband roughly dB-for-dB.
+- 2026-08-29 result: fresh idle matched the flagged 21:17 take's idle
+  within 1.1 dB in every band, HPF signature absent, no makeup — the
+  device was still on the old working state although Cortex Control had
+  shown the edits saved (toast, `*` cleared). **USB audio alive does not
+  mean Cortex Control is synced**: the app can save to its local copy
+  while the device runs something else. After reconnecting and re-saving,
+  confirm with a fresh idle spectrum before asking for a played take.
+
 ## Recording the takes
 
 1. Plugin in its capture-time reference state — read it from the project's
