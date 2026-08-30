@@ -347,7 +347,31 @@ Rung reached: 2. No listening or measurement was done. The first report said
   lands in the preset browser.
 - Panel state glyphs: bright panel + plain power glyph = active; dimmed
   panel + strikethrough/bypass glyph = bypassed. The block's filled look is
-  selection, not state.
+  selection, not state. **This was misread again on 2026-08-29 (Parametric-3
+  taken as active while its strikethrough glyph said bypassed), which cost
+  two takes and a false "device out of sync" theory.** Before saving, zoom
+  each panel's top-right glyph and compare it with a block whose state you
+  know (the bypassed Reverb); if the target block shows the same glyph as
+  the Reverb, it is bypassed. Also verify from the audio: an EQ that is
+  really in the path leaves its fingerprint (HPF slope, bell) in the QC
+  spectrum of the next take.
+- **Before doubting the device, do the Volume-step test.** Cortex Control
+  and the QC tracked each other perfectly: changing the capture Volume
+  mid-take moved the QC-plugin 1 s RMS ratio by the expected amount within
+  the same second. Record one take, change one thing, compare before/after
+  windows — cheaper and more decisive than screen-reading.
+- **Cursor on the other monitor = your clicks go nowhere.** When the user
+  is working on the non-primary display, `computer_mouse_move` to any
+  point on the primary display first; the next click then lands (with the
+  usual +260 offset). `computer_cursor_position` reporting
+  `logical_points` on another monitor is the tell.
+- **Level numbers need continuous playing.** The capture models the
+  plugin's idle noise ~13 dB lower than the plugin's, so any idle time in
+  a take pulls the QC LUFS down and the offset looks worse than it is (an
+  idle-heavy segment read -8.5 where a played one read -6.6 at the same
+  Volume). Spectra and coherence survive gaps; the offset does not. Ask
+  for 30 s with no pauses, and check the DI envelope before quoting a
+  level.
 - Drag-moving an EQ block keeps its old bands; RESET it before dialling the
   new curve (a parked Parametric-3 came with HP 99 Hz and a -12 dB hi shelf).
 - The capture models the plugin's noise floor too: a plugin with its gate

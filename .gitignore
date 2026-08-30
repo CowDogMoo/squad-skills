@@ -27,3 +27,6 @@ __pycache__/
 
 # Squad local session state — never commit
 .squad/
+
+# Generated checklists and plans
+.unlazy/
