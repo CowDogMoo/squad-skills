@@ -50,6 +50,20 @@ On the output feeding QC In 2 (Out 3 or 5):
   the #1 plugin-capture killer.
 - Hardware output fader at 0 dB (check it — snapshots leave it at −∞),
   ref +13 dBu, Loopback OFF, FX Return −∞.
+- **Check the OTHER software playback rows in that submix too.** The
+  "Neural Capture" workspace (2026-08-29) had playback **Analog 1/2 at
+  −9 dB** in the Analog 3/4 submix: Ableton's Main — carrying the QC track's
+  monitored dry capture signal and the REC track's plugin output — was
+  summing into the return alongside the real Ext. Out 3 feed. Same failure
+  as a hardware-input leak, different row. Mute or −∞ every playback row
+  except the one Ableton track output; unmute after the capture (it is the
+  user's monitoring). With the leak gone the wizard's In 2 meter dropped
+  from −8.4 to −13.0 at the same In 2 level.
+- If the RME input gain knob will not take screen control (see the click
+  bug in quad-cortex-preset-editing), put the same dB into the plugin's
+  Input Gain via ableton-mcp (`set_device_parameter` param 3; +2.4 dB =
+  0.54, +15.4 dB = 0.7567) for the capture and reset it before the
+  measurement take. Equivalent pre-nonlinearity; used for V4.
 
 On the input receiving the QC's normal output (In 3, for A/B recording):
 
