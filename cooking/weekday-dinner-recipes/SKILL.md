@@ -1,6 +1,6 @@
 ---
 name: weekday-dinner-recipes
-description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from a curated list of reputable food sites, with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, a meal plan, "more recipes," or anything resembling "what should I cook this week." Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
+description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from a curated list of reputable food sites, with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
 ---
 
 # Weekday Dinner Recipes
@@ -85,7 +85,7 @@ After extraction, sanity-check the URL is live: `curl -sIL -o /dev/null -w "%{ht
 
 Group by category (grill / sheet pan / pasta / salad / tacos) when there's enough variety. Keep descriptions to one line — the user is scanning.
 
-End with a soft offer: a meal plan, a grocery list, or scheduling the skill weekly.
+End with a soft offer: a weekly dinner plan (via the plan-weekly-dinners skill), a grocery list, or scheduling the skill weekly.
 
 ### 7. Append to history
 
