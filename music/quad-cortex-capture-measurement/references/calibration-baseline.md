@@ -1,8 +1,8 @@
-# Reference results — 2026-08-24, "Thall Monomythic Amp and Cab"
+# Calibration baseline — 2026-08-24, "Thall Monomythic Amp and Cab"
 
-Calibration baseline: what a finished, matched high-gain capture preset
-measured on Jayson's rig. Compare new runs against these numbers to judge
-"is this normal" — the coherence profile and null depths especially.
+What a finished, matched high-gain capture preset measured on Jayson's rig.
+Compare new runs against these numbers to judge "is this normal" — the
+coherence profile and null depths especially.
 
 Setup: "Thall Monomythic Amp and Cab" capture vs the Raw Dawg thall amp
 plugin (cab ON), same performance, one-pass QC-USB method, one take per
@@ -25,5 +25,9 @@ Polarity inverted on every take. Capture Volume +14 clipped ("crackly") —
 The take sequence is the EQ-vs-coherence lesson in data: the 80–100 Hz
 deficit never moved more than ~1 dB across three bell shapes because
 coherence there is ~0.5; the HPF (below the plugin's own 65 Hz low cut) is
-what improved the null and lifted coherence in every band. The residual
-80–100 Hz gap is a recapture item (try Chug at 0), not an EQ item.
+what improved the null and lifted coherence in every band.
+
+The residual 80–100 Hz deficit is neither an EQ item nor a recapture item.
+It is the Tighten Chug signature — a dynamic control a static Neural
+Capture cannot model — and it is permanent. Do not chase it.
+`thall-amp-neural-capture` holds the control take and the V4/V5 verdict.
