@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * gp7_export.mjs -- write a native Guitar Pro 7/8 (.gp) file via alphaTab.
  *

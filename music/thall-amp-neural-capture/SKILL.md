@@ -60,16 +60,14 @@ linear EQ can move a band. It is not a capture-input-level item — V2 tested a
 hotter capture input and made it worse. It is not a capture-quality item — V5
 proved the model is fine once Chug is out of the way. Stop chasing it.
 
-A high-pass below the plugin's own low cut is still always worth having: the QC
-carried +22 dB at 30–45 Hz before one was added, and the HPF alone improved the
-gain-match null by ~2 dB and lifted coherence in every band.
+A high-pass below the plugin's own 65 Hz low cut is still always worth having
+on this amp — see the general rule in `quad-cortex-capture-measurement`.
 
 ## Capture-time reference state (V4 — the standing capture)
 
-Read this back from the live plugin; never assume it. Via ableton-mcp the write
-response can return a **stale display string** — setting Tighten Chug to
-normalized 0.5 returned the text "Set Tighten Chug to 0%" while the read-back
-correctly showed 50%. Always re-read all parameters after writing.
+Read this back from the live plugin; never assume it. Chug is the parameter
+that has produced a stale `ableton-mcp` display string on write — see the
+read-back rule in `quad-cortex-plugin-capture`.
 
 - Tighten Chug **50%**, Tighten Frequency 1.6 kHz
 - Tighten Gate **−100 dB** (fully off)

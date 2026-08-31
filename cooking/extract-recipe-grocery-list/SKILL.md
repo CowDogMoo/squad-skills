@@ -1,6 +1,6 @@
 ---
 name: extract-recipe-grocery-list
-description: Given a list of online recipe URLs, fetch each, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with each item annotated by which dish needs it. Use when building a weekly shopping list from a meal plan.
+description: Given a list of online recipe URLs, fetch each, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with each item annotated by which dish needs it. Use when the user asks for a grocery list or shopping list from recipes, says "what do I need to buy for these", or hands over a set of recipe links once a meal plan is settled. Do NOT use to choose the meals — plan-weekly-dinners picks the week and weekday-dinner-recipes finds candidates; this skill starts once the URLs exist.
 ---
 
 # Extract Recipe Grocery List
@@ -61,19 +61,19 @@ on browser hosts — reads the visible "Ingredients" section instead.
 
 For each ingredient, capture both the quantity and the item (`1 lb chicken thighs`, `2 cloves garlic`, `1/4 cup soy sauce`). Preserve the original wording — don't normalize units.
 
-### 3. Filtering rules — apply in order
+### 2. Filtering rules — apply in order
 
-#### 3a. Keep multi-part strings intact
+#### 2a. Keep multi-part strings intact
 
 `"1 lb egg noodles, or 6 baked potatoes"` is ONE ingredient with an alternative, not two. Never split on commas inside an ingredient string. The word `"or"` inside an ingredient line is your tell that you're looking at an alternative — keep the line intact.
 
 ⚠️ Anti-example: an agent took `"1 lb egg noodles, or 6 baked potatoes"` and emitted `"1 lb. egg noodles,"` into Pantry and `"or 6 baked potatoes"` into Produce. Both lines are wrong. The correct output is ONE Pantry line: `1 lb egg noodles, or 6 baked potatoes (chicken stir-fry)`. A line starting with `"or "` in your output means the string was split — rejoin it.
 
-#### 3b. Skip serving-suggestion lines
+#### 2b. Skip serving-suggestion lines
 
 Some recipe sites pack non-ingredient guidance into the `recipeIngredient` array (`"Salad with Caesar, ranch, or bleu cheese dressing"`, `"Serve with crusty bread"`, `"Optional: lemon wedges"`). Drop any line that starts with `"Serve with"`, `"Salad with"`, `"Optional:"`, `"For serving"`, or reads as a suggestion rather than a measurable ingredient.
 
-#### 3c. Skip pantry staples
+#### 2c. Skip pantry staples
 
 This is a shopping list, not a recipe transcription. The user already owns:
 
@@ -87,7 +87,7 @@ Drop these lines entirely. Other staples (oil, flour, eggs, milk, butter) stay �
 
 ⚠️ Anti-example: agent emitted `3 cups water (chicken stir-fry)`, `2 teaspoons salt (chicken stir-fry)`, and `1/4 teaspoon ground black pepper (chicken stir-fry)` into Pantry. All three must be dropped. The test is: would a normal household NOT have this in the cabinet? If they would have it, skip. Water/salt/pepper are always skipped.
 
-#### 3d. Consolidate duplicates into one line per purchase
+#### 2d. Consolidate duplicates into one line per purchase
 
 The most important rule. Every line in the output is one thing the user buys — that is what makes the list usable in a store. If two recipes both call for "butter," that's ONE line with both quantities and both dishes annotated:
 
@@ -95,7 +95,7 @@ The most important rule. Every line in the output is one thing the user buys —
 
 Same rule across all of:
 
-- **Same recipe, same ingredient, multiple lines (sum):** `1 cup water + 2 cups water → 3 cups water` (then dropped by 3c since water is a staple)
+- **Same recipe, same ingredient, multiple lines (sum):** `1 cup water + 2 cups water → 3 cups water` (then dropped by 2c since water is a staple)
 - **Same recipe, ONE ingredient appears twice with different roles** (e.g. `bouillon paste` used in two steps of one recipe at `1 tsp` and `1 1/2 tbsp`): emit ONE line summing or listing both:
   `1 tsp + 1 1/2 tbsp bouillon paste (chicken stir-fry)`
 - **Same ingredient across DIFFERENT recipes** (`1/2 tsp garlic powder (pasta primavera)` + `1 tsp garlic powder (chicken stir-fry)`): ONE line with both quantities and both dishes annotated:
@@ -125,7 +125,7 @@ Match items by normalized name (lowercase, ignore minor descriptors like "thinly
 
 **Before finalizing each category, scan it for duplicates.** Two lines in the same category with the same item name means consolidation was missed — merge them.
 
-### 4. Group by aisle
+### 3. Group by aisle
 
 Combine all ingredients across the recipes, then bucket each into one of:
 
@@ -141,7 +141,7 @@ If a bucket is empty, omit it from the output (don't emit empty headers).
 
 ⚠️ Anti-example: agent put `1¼ cups brown jasmine rice or long-grain brown rice — optional (lentil stew)` into **Refrigerated**. Rice — brown, white, jasmine, basmati, wild, any variety — is a shelf-stable grain and belongs in **Pantry**. The word "optional" in the line and the recipe name (stew) do not change the aisle. Same rule for quinoa, oats, lentils, dried beans, flour, sugar, broth, canned tomatoes — when in doubt about a shelf-stable dry/canned good, it's Pantry, not Refrigerated.
 
-### 5. Return the list
+### 4. Return the list
 
 The default output shape is a structured list the caller can render however they want:
 
@@ -177,7 +177,7 @@ Always pair the list with a short summary:
 ## Constraints
 
 - Annotate every line with the dish in parens using the FULL dish name as it appears in the input (`(pasta primavera)`, `(chicken stir-fry)`) — never short tags like `(chicken)` or `(stew)`.
-- A line in the output starting with `"or "` is always a bug — it means rule 3a was violated.
-- Two lines in the same category with the same item name is always a bug — it means rule 3d was violated. Re-consolidate.
+- A line in the output starting with `"or "` is always a bug — it means rule 2a was violated.
+- Two lines in the same category with the same item name is always a bug — it means rule 2d was violated. Re-consolidate.
 - Don't fabricate ingredients. If a recipe fetch fails, the recipe contributes nothing — say so in the summary.
 - Don't normalize units silently. `1 cup` stays `1 cup`, not "8 fluid ounces."

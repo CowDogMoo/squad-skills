@@ -20,3 +20,19 @@ than trusting either set below.
   ~x 890.
 - Panel title y~376, power ~x 895, RESET ~x 864, value text y~449 (capture)
   / y~523 (EQ).
+
+## UI facts (v4.0.0)
+
+- Layout: preset header (back/forward arrows, name, disk icon, `⋮` menu,
+  scenes A–H) above the 4-row grid; block panel below the grid, its title at
+  the top with the power button top-right and RESET (EQ) left of that.
+- Selecting a block opens the matching category list on the left (for example
+  every reverb type), which is how you learn what the block really is.
+- The `x` at a block's top-right corner deletes it. Avoid it unless deleting.
+- Value fields accept typed numbers after a double-click; knobs ignore scroll.
+- Clicking the Out tile at the end of a row opens the OUTPUT list on the left
+  (Multiple Outputs / Output 1/2 / Output 3/4 / USB Output 3/4 and so on); the
+  panel below shows the lane output control — Volume, Pan, Mute, Solo, meter.
+- Panel state glyphs: bright panel plus a plain power glyph = active; dimmed
+  panel plus a strikethrough glyph = bypassed. A block's filled look on the
+  grid is selection, not state.
