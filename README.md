@@ -104,7 +104,6 @@ each listed path exactly one level deep.
 | Skill                                                                | Description                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [extract-recipe-grocery-list](./cooking/extract-recipe-grocery-list) | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations. |
-| [plan-weekly-dinners](./cooking/plan-weekly-dinners)                 | Propose five weeknight dinner candidates for review (2-3 vegetarian, one chicken, one flex), enforcing complete meals, a time budget, a tomato limit, and sesame flagging, with full ingredient quantities for inventory checks. |
 | [weekday-dinner-recipes](./cooking/weekday-dinner-recipes)           | Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from reputable food sites, with ratings extracted from each live page, every link verified, and previously returned recipes skipped. |
 
 ## Skill Structure
