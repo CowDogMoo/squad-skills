@@ -497,6 +497,53 @@ export function readOwnRatings(token) {
   return rows.map((r) => ({ recipeId: r.recipeId, rating: r.rating, isFavorite: !!r.isFavorite }));
 }
 
+/**
+ * Both household members' ratings, each read with that person's own token and
+ * kept strictly apart, joined to the recipe's source URL so the planner can
+ * match a vote to a candidate it has not imported yet.
+ *
+ * Mealie returns ratings only for the requesting user, so there is no household
+ * endpoint that would shortcut this — and the aggregate it does expose on the
+ * recipe is the blended score MEAL-HISTORY-SPEC forbids acting on.
+ *
+ * Never throws. A planner that cannot reach 1Password or Mealie should still
+ * propose a week; it just proposes one that knows nothing about votes, and says
+ * so through `errors`.
+ */
+export function readPerPersonVotes() {
+  const votes = {};
+  const urlByRecipeId = {};
+  const errors = [];
+  let slugById = null;
+
+  for (const person of PEOPLE) {
+    votes[person.key] = {};
+    try {
+      const token = tokenFor(person.key);
+      const self = whoAmI(token);
+      if (self.username !== person.mealieUsername) {
+        throw new Error(`token ${person.tokenField} authenticates as ${self.username}, not ${person.mealieUsername}`);
+      }
+      if (!slugById) {
+        slugById = new Map(listRecipes(token, { perPage: 500 }).map((r) => [r.id, r.slug]));
+      }
+      for (const row of readOwnRatings(token)) {
+        if (typeof row.rating !== "number") continue;
+        votes[person.key][row.recipeId] = row.rating;
+        // Hydrate only rated recipes: the vote set is small, the library is not.
+        if (!(row.recipeId in urlByRecipeId)) {
+          const slug = slugById.get(row.recipeId);
+          const full = slug ? getRecipe(token, slug) : null;
+          if (full && full.orgURL) urlByRecipeId[row.recipeId] = full.orgURL;
+        }
+      }
+    } catch (err) {
+      errors.push(`${person.key}: ${err.message}`);
+    }
+  }
+  return { votes, urlByRecipeId, errors };
+}
+
 export function setRating(token, userId, recipeIdOrSlug, { rating, isFavorite = false }) {
   return must(`/api/users/${userId}/ratings/${encodeURIComponent(recipeIdOrSlug)}`, {
     token,

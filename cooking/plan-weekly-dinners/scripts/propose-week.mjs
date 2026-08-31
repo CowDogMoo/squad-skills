@@ -25,7 +25,7 @@
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   BAND_TAG,
@@ -39,7 +39,9 @@ import {
   importByUrl,
   parseMinutes,
   patchRecipe,
+  PEOPLE,
   planningToken,
+  readPerPersonVotes,
   recipesOnCooldown,
   sesameComponents,
   setWeekDinners,
@@ -98,12 +100,32 @@ function weekDates(monday) {
 
 const VEGGIE_ROLES = new Set(["vegetarian", "vegan"]);
 
+
+/**
+ * Re-key both people's Mealie votes by canonical source URL, which is the only
+ * identity a candidate has before it is imported. Votes on recipes whose source
+ * URL is unknown are dropped rather than guessed at.
+ */
+export function voteIndexByUrl({ votes = {}, urlByRecipeId = {} } = {}) {
+  const out = {};
+  for (const [person, byId] of Object.entries(votes)) {
+    for (const [recipeId, rating] of Object.entries(byId)) {
+      const url = urlByRecipeId[recipeId];
+      if (!url) continue;
+      const key = canonicalUrl(url);
+      out[key] ||= {};
+      out[key][person] = rating;
+    }
+  }
+  return out;
+}
+
 /**
  * Score a candidate week against MEAL-SPEC's weekly summary. Higher is better.
  * The scoring is deliberately explicit rather than a black box, because the
  * review page has to be able to say *why* a week was proposed.
  */
-export function scoreWeek(week, { sourcePriors = {} } = {}) {
+export function scoreWeek(week, { sourcePriors = {}, votesByUrl = {} } = {}) {
   const reasons = [];
   let score = 0;
 
@@ -157,6 +179,30 @@ export function scoreWeek(week, { sourcePriors = {} } = {}) {
     score += 10 * (sourcePriors[c.source]?.prior || 0);
     score -= 0.5 * (c.rank || 0);
     if (c.penalty) score -= 15 * c.penalty;
+  }
+
+  // MEAL-HISTORY-SPEC treats the two votes on a recipe as two separate facts,
+  // never as one household number. So a dislike is charged on its own terms even
+  // when the other person loved the dish -- averaging a 5 and a 2 into "fine"
+  // erases exactly the disagreement the planner is supposed to act on -- and the
+  // household-favorite bonus is reserved for actual agreement.
+  for (const c of week) {
+    const cast = Object.entries(votesByUrl[canonicalUrl(c.url)] || {})
+      .filter(([, r]) => typeof r === "number");
+    if (!cast.length) continue;
+    const label = c.title || c.dish || c.url;
+    const liked = cast.filter(([, r]) => r >= 4);
+    const disliked = cast.filter(([, r]) => r <= 2);
+    for (const [person, r] of disliked) {
+      reasons.push(`${person} rated ${label} ${r}/5`);
+      score -= 45 * (3 - r);
+    }
+    if (disliked.length === 0 && liked.length === cast.length && cast.length === PEOPLE.length) {
+      reasons.push(`both rated ${label} highly`);
+      score += 55;
+    } else {
+      for (const [, r] of liked) score += 18 * (r - 3);
+    }
   }
   return { score, reasons, summary: { quick, tomato, sesame, band, veg, roles: roles.size, proteins: proteins.size, cuisines: cuisines.size, sources: sources.size, minutes } };
 }
@@ -267,7 +313,15 @@ function main() {
   }
 
   // 5. Pick the week.
-  const best = chooseWeek(eligible, { sourcePriors: store.sourcePriors || {} });
+  // Both people's votes, read per person. Selection is the only place they can
+  // change anything: a vote nobody reads is a vote that does not exist.
+  const voteRead = readPerPersonVotes();
+  const votesByUrl = voteIndexByUrl(voteRead);
+  for (const err of voteRead.errors) {
+    console.error(`warning: could not read votes for ${err} — proposing without them`);
+  }
+
+  const best = chooseWeek(eligible, { sourcePriors: store.sourcePriors || {}, votesByUrl });
   // Ramp up: the quickest dinner lands on Monday, the longest on Friday.
   const ordered = [...best.week].sort((a, b) => a.flags.minutes - b.flags.minutes || (a.rank || 0) - (b.rank || 0));
   const plan = ordered.map((c, i) => ({ ...c, date: dates[i], day: DAYS[i] }));
@@ -385,9 +439,14 @@ function main() {
   if (args.apply) process.stdout.write(`\nWrote ${result.dinners.length} dinners to Mealie and recorded them in ${args.store}\n`);
 }
 
-try {
-  main();
-} catch (err) {
-  process.stderr.write(`propose-week: ${err.message}\n`);
-  process.exit(1);
+// scoreWeek and chooseWeek are exported so the week policy can be tested
+// without a Mealie or 1Password round trip, so only run the CLI when this file
+// is the entry point rather than on every import.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    main();
+  } catch (err) {
+    process.stderr.write(`propose-week: ${err.message}\n`);
+    process.exit(1);
+  }
 }
