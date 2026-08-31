@@ -21,7 +21,7 @@
       "expectations": [
         "The numbers are identified as the expected signature for a Chug-50 capture of this amp, roughly -4 dB at coherence 0.4-0.5",
         "The verdict is that the capture is not defective and needs no recapture",
-        "Chasing the band with EQ is ruled out, on the grounds that coherence is too low for EQ to move the delta",
+        "Chasing the band with EQ is ruled out as cosmetic — a static boost would flatten the average of a dynamic control, and at this coherence it would not improve the null — rather than on the incorrect grounds that EQ cannot move the delta",
         "The rest of the bands sitting within a dB is read as confirmation the capture is good"
       ]
     },

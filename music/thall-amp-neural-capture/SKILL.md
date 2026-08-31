@@ -54,9 +54,11 @@ to the choice of reference.
 EXPECTED result for any Chug-50 capture of this amp. It is the price of Chug,
 and Chug is what makes it sound right. It is not a defect.**
 
-It is not an EQ item — bells at +3 Q1.5, +4 Q3 and every other shape moved it
-less than ~1 dB, because coherence there is far below the ~0.8 threshold where
-linear EQ can move a band. It is not a capture-input-level item — V2 tested a
+EQ can move the reported number, and moving it would be cosmetic. The shapes
+tried — +3 Q1.5, +4 Q3 — average only about +2.4 dB across 60–120 Hz, so they
+landed within about a dB of each other; and at coherence 0.4–0.5 flattening the
+band does not improve the null. A static boost would be averaging out a dynamic
+control. It is not a capture-input-level item — V2 tested a
 hotter capture input and made it worse. It is not a capture-quality item — V5
 proved the model is fine once Chug is out of the way. Stop chasing it.
 

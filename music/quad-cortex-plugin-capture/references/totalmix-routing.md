@@ -34,13 +34,35 @@ garbage. These settings exist to guarantee that.
 Inst OFF, +13 dBu, gain 0, AutoSet OFF. The QC's main out is far hotter than
 its Capture Out.
 
-## When the input gain knob will not take screen control
+## Driving TotalMix without clicking pixels
 
-Put the same dB into the plugin's Input Gain via `ableton-mcp`
-(`set_device_parameter`, param 3 on the thall amp; +2.4 dB = 0.54,
-+15.4 dB = 0.7567), then reset it before the measurement take. It is
-equivalent pre-nonlinearity gain. The click-offset conditions under which the
-knob refuses every drag form are described in `quad-cortex-preset-editing`.
+TotalMix has OSC and MIDI remote control, and OSC is already configured on
+this rig: `Options → Enable OSC Control`, slot 0 set to own port 7001, remote
+host 127.0.0.1, remote port 9001, 8 channels per bank. Checked 2026-08-31 it
+was configured but not switched on — the process held no UDP socket — and UDP
+9001 was occupied by another process, so the reply path needs that freed or
+the port changed first. Every fader, gain, Inst, AutoSet and mute is
+addressable this way. Nothing in this corpus ever used it, which is why the
+older notes are full of pixel-drag calibration.
+
+For a one-off exact value, double-click the control and use the Data Edit
+Window — see `quad-cortex-plugin-capture`, "Screen control during a capture".
+
+## If the input gain knob will not take screen control
+
+The knob normally **does** take screen control, including the scroll wheel
+(measured 2026-08-31). An earlier note presented refusal as the expected
+state; it is not. Check, in order:
+
+1. **A stray Data Edit Window holding focus.** A double-click anywhere opens
+   one, it appears away from the control, and it swallows everything aimed at
+   the knob until dismissed. This is the most common cause.
+2. **The click-offset session bug** in `quad-cortex-preset-editing`.
+
+If neither explains it, put the same dB into the plugin's Input Gain via
+`ableton-mcp` (`set_device_parameter`, param 3 on the thall amp;
++2.4 dB = 0.54, +15.4 dB = 0.7567), then reset it before the measurement take.
+It is equivalent pre-nonlinearity gain.
 
 ## Snapshot warning
 

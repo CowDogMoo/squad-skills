@@ -203,18 +203,58 @@ across sessions:
 - Known-good calibration baseline, from a finished matched preset:
   `references/calibration-baseline.md`.
 
-### The EQ-vs-coherence lesson
+### What EQ moves, and what coherence tells you
 
-An 80–100 Hz deficit of −4 to −5 dB never moved more than ~1 dB no matter
-what a bell EQ did (+3 Q1.5, +4 Q3), because coherence in 60–120 Hz was only
-~0.5 while 120–500 Hz was 0.9. Where coherence is low, the QC's energy in
-that band is largely not a linear function of the plugin's, so boosting the
-band scales the matching and non-matching parts alike and the normalised
-delta stays put.
+These are two different questions. This skill used to answer the first with
+the second, and they come apart.
 
-Rule: **only chase a band delta with EQ where coherence is > ~0.8.** Below
-that, say so instead of adding more EQ, then work out which of three things
-it is:
+**What EQ moves.** A linear EQ placed after the capture block shifts a
+reported band delta by
+
+```text
+Ḡ(band) − Ḡ(500 Hz–2 kHz)
+```
+
+where `Ḡ(S)` is the EQ's power-weighted mean gain across the frequencies in
+`S`. That is the whole mechanism. Each spectrum is normalised to its own
+500 Hz–2 kHz mean, so an EQ that misses that window moves the delta by its
+own band-mean gain, and one that reaches into the window moves it by the
+difference. **Coherence is not a term in this.** Coherence is invariant
+under linear filtering of either signal — and measures invariant, to
+0.00001 under a shelf. A post-capture EQ moves a band delta at coherence
+0.15 exactly as far as at coherence 1.00: measured difference ≤ 0.01 dB.
+
+So compute `Ḡ` before predicting a move, and never read an EQ's peak gain as
+its effect on a band. A bell narrower than the band it is scored in is the
+usual trap:
+
+| shape | Ḡ over 60–120 Hz |
+| ----- | ---------------- |
+| peak +3 dB @ 90 Hz Q1.5 | +2.4 dB |
+| peak +4 dB @ 90 Hz Q3   | +2.3 dB |
+| lo shelf +3 dB @ 75 Hz  | +1.1 dB |
+| HPF 65 Hz Q0.71         | −1.3 dB |
+
+A high shelf is not flat where it is cornered either. +2.5 dB at 4 kHz
+Q0.71 averages +1.5 dB over 4–5 kHz, +2.2 over 5–8 kHz and +2.5 over
+8–12 kHz, and lifts the 500 Hz–2 kHz window by 0.04 dB. Corner it lower and
+that window gain grows and subtracts from every delta move — at 2.5 kHz it
+is 0.23 dB.
+
+**What coherence tells you.** Whether flattening the delta also improves the
+match. Same magnitude correction, two signals differing only in coherence
+(controlled fixtures, not rig figures):
+
+| coherence | gain-match null |
+| --------- | --------------- |
+| 1.00 | −16.4 → −22.5 dB, improved 6.1 dB |
+| 0.15 | −3.2 → −2.9 dB, worsened 0.3 dB |
+
+Rule: **below ~0.8 coherence EQ still moves the band delta; it just does not
+improve the null.** You are matching the average magnitude of two
+uncorrelated signals. That is worth having for long-term tonal balance and
+it is not a better capture — so do it if the band matters, and report which
+of the two you achieved. Then work out which of three things the deficit is:
 
 1. **A capture-time item** — input level or plugin state was wrong.
    Recapture.
@@ -222,7 +262,11 @@ it is:
    above ~2 kHz on high-gain material, and judged by ear.
 3. **An unmodellable dynamic process** — the reference has a time-varying
    control operating in that band. A Neural Capture is a static model, so
-   the deficit is permanent and correct.
+   the deficit is permanent and correct. Cosmetic EQ is at its worst here:
+   it flattens the average of something that was never static.
+
+Derivation, the controlled measurements, and the worked re-analysis of the
+2026-08-24 bells: `references/eq-and-coherence.md`.
 
 **Never recommend zeroing a dynamic control to improve a measurement.** It
 changes the sound being captured rather than cleaning it up. When the
@@ -264,7 +308,7 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
 | All three takes identical | Plugin bypassed *and* DI track fed from the QC's analog out | Pre-flight steps 1–3 |
 | DI == plugin take | Plugin bypassed ("Device On": Off) | `enable_device`, then re-read all parameters |
 | Live won't show a new device | Live enumerates CoreAudio at launch | Hot-plugged devices are fine; an Aggregate Device needs a restart |
-| Routing popups ignore clicks | Live's Settings and chooser popups don't accept screen control | Patch the `.als` and reload (`references/rig-and-daw-setup.md`) |
+| Routing popups ignore clicks | Not an Ableton limit — Settings and the chooser popups do take screen control. Suspect this session's own screen-control state, or the click-offset bug | Re-check the session's grants and cursor; if it genuinely has no screen control, patch the `.als` and reload (`references/rig-and-daw-setup.md`) |
 | Measurement contradicts Cortex Control | The app can save locally while the device runs the old state | Idle-spectrum comparison (`references/idle-noise-diagnostic.md`) |
 | Level offset looks too negative | Idle time in the take | Re-read from continuous playing only |
 | Shallow null, low coherence everywhere | Take clipped | Reject the take, re-record at QC peaks ~−3 dBFS |
@@ -272,7 +316,8 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
 ## Reference files
 
 - `references/rig-and-daw-setup.md` — QC USB channel map, Ableton device and
-  routing facts, reading and patching the `.als`, screen-control limits,
+  routing facts, reading and patching the `.als`, what screen control does
+  and does not drive,
   recorded-file facts.
 - `references/idle-noise-diagnostic.md` — proving what the device is running
   without a note being played.
@@ -282,3 +327,5 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
   reamp method. Don't propose either unprompted.
 - `references/calibration-baseline.md` — known-good calibration baseline
   (2026-08-24 run).
+- `references/eq-and-coherence.md` — what a post-capture EQ does to a band
+  delta, what coherence does and does not govern, with the measurements.
