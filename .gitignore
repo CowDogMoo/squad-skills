@@ -30,3 +30,6 @@ __pycache__/
 
 # Generated checklists and plans
 .unlazy/
+
+# Transient handoff artifacts (skill restore staging)
+cowork-shit/

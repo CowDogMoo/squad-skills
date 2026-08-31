@@ -1,0 +1,41 @@
+{
+  "skill_name": "thall-amp-neural-capture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My thall amp capture is missing low end. Should I set Tighten Chug to 0 and recapture to fix it?",
+      "expected_output": "Says no. Explains that Chug is a dynamic, time-varying process a static Neural Capture cannot model, so zeroing it captures a different amp sound rather than a cleaner one, and cites the V5 result that measured best and was rejected by ear.",
+      "files": [],
+      "expectations": [
+        "The recommendation is not to zero Chug, and the amp is captured in the state it is actually played in",
+        "The reason given is that a Neural Capture models a static nonlinear system while Chug is dynamic",
+        "The V5 outcome is cited: best-measuring capture of the project, rejected on hearing it",
+        "The response does not propose EQ as a way to recover the missing band"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Ran the comparison on my thall capture and got -3.9 dB at 60-120 Hz with coherence 0.45. Everything else is within a dB. Is the capture broken?",
+      "expected_output": "Identifies this as the expected Chug signature for a Chug-50 capture, not a defect, and says the deficit is permanent and should be recorded rather than corrected.",
+      "files": [],
+      "expectations": [
+        "The numbers are identified as the expected signature for a Chug-50 capture of this amp, roughly -4 dB at coherence 0.4-0.5",
+        "The verdict is that the capture is not defective and needs no recapture",
+        "Chasing the band with EQ is ruled out, on the grounds that coherence is too low for EQ to move the delta",
+        "The rest of the bands sitting within a dB is read as confirmation the capture is good"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "which thall capture should i be using, V4 or V5?",
+      "expected_output": "V4 is the standing capture. Explains that V5 measured better but was rejected by ear because Chug-0 is a different amp sound, and points at the known-good V4 envelope for checking drift.",
+      "files": [],
+      "expectations": [
+        "V4 is named as the standing capture to use",
+        "V5 is described as the best-measuring capture but rejected by ear",
+        "The response states that when the numbers and the ears disagree, the ears win",
+        "The known-good V4 measured envelope is offered as the reference for detecting drift in a later take"
+      ]
+    }
+  ]
+}

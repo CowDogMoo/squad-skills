@@ -1,6 +1,6 @@
 ---
 name: score-coverage-and-report-gaps
-description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use from any language-specific test-coverage agent; the caller supplies the coverage tool, idiom patterns, and target percentage.
+description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use from any language-specific test-coverage agent that discovers its own gaps, or when asked to raise coverage and report what is still untested; the caller supplies the coverage tool, idiom patterns, and target percentage. Do NOT load alongside enqueue-coverage-targets — that skill replaces this discover-measure loop with a queue a script builds once, and running both makes the agent re-measure between batches.
 allowed-tools: Read, Glob, Edit, Write, Bash
 metadata:
   author: Jayson Grace
@@ -21,9 +21,9 @@ percentage.
 
 - **Language** — Go, Python, Rust, Node/TypeScript, etc.
 - **Source-file glob and filter** — already established when the
-  agent participates in the pre-discovered-files contract; covered
-  by `_includes/hard-rules/pre-discovered-files.md` from the
-  agent's side.
+  agent participates in the pre-discovered-files contract, which the
+  calling agent's own hard rules define. Treat an injected
+  `Pre-discovered source files` list as authoritative and skip Glob.
 - **Coverage command** — the single command that produces both a
   total percentage and a per-file/per-package breakdown:
   - Go: `go test ./... -coverprofile=coverage.out -count=1` plus
@@ -73,9 +73,8 @@ tokens if they think too long before acting.
 ## Phase 0 — Use Pre-collected Data
 
 If the orchestrator injected a `Pre-discovered source files` list,
-use it (covered by the pre-discovered-files include on the agent
-side). Do NOT run a redundant pass/fail test command — go straight
-to the coverage measurement in Phase 1.
+use it as authoritative. Do NOT run a redundant pass/fail test
+command — go straight to the coverage measurement in Phase 1.
 
 ## Phase 1 — Measure baseline
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Regression tests for gp_tab.py.
 
 Run with:  python test_gp_tab.py

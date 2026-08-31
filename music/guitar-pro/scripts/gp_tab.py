@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 gp_tab.py -- build, read, and render Guitar Pro files with PyGuitarPro.
 
