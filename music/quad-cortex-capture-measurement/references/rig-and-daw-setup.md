@@ -87,7 +87,7 @@ installed build 2026-08-30, when a track needed arming and no tool existed.
 `get_track_info` *reports* arm, solo and mute; the only writes on offer are
 device parameters, device enable/disable, track volume, panning, and name.
 Use it for state verification and device state, and the `.als` patch + reload
-above for routing, arm, and solo — or ask Jayson, which is two clicks and
+above for routing, arm, and solo — or ask the user, which is two clicks and
 does not risk the plugin coming back in a different state.
 
 ## thall amp normalized parameter mappings

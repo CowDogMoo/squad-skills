@@ -3,7 +3,7 @@ name: comment-scrub-playbook
 description: Classify source-code comments into five delete-candidate categories (states-the-obvious, LLM-generated, no-info, non-idiomatic, visual noise) and decide delete vs. trim vs. keep. Use when scrubbing useless or LLM-slop comments from a codebase, auditing comment quality, or deciding whether one specific comment earns its place; it loads detect-llm-tells for the Category 2 scoring. Do NOT use to write or repair missing doc comments — that is doc-comments-discovery-and-fix-loop.
 allowed-tools: Read, Glob
 metadata:
-  author: Jayson Grace
+  author: CowDogMoo
   version: 1.1.0
 ---
 

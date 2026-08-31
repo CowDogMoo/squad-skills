@@ -1,6 +1,6 @@
 # Calibration baseline — 2026-08-24, "Thall Monomythic Amp and Cab"
 
-What a finished, matched high-gain capture preset measured on Jayson's rig.
+What a finished, matched high-gain capture preset measured on the user's rig.
 Compare new runs against these numbers to judge "is this normal" — the
 coherence profile and null depths especially.
 

@@ -3,7 +3,7 @@ name: test-writer-honesty
 description: "Discipline rules for any test-writing agent: never clobber existing tests with Write, never fall back to Write when Edit fails, tie the final report to `git diff --stat` as ground truth, and report build/test failures truthfully. Load this from any language-specific test-coverage agent (go-tests, python-tests, rust-tests, nodejs-tests) — it provides the shared anti-patterns and reporting contract; the caller supplies language-specific syntax rules."
 allowed-tools: Bash, Read, Edit, Write
 metadata:
-  author: Jayson Grace
+  author: CowDogMoo
   version: 1.0.0
 ---
 
