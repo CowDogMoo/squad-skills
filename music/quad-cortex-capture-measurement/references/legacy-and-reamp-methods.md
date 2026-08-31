@@ -18,7 +18,7 @@ Only use this method if the QC USB path is unavailable.
 
 ## Optional: reamp
 
-Only if Jayson asks; the USB method makes it unnecessary.
+Only if the user asks; the USB method makes it unnecessary.
 
 1. Record a DI once: guitar → RME In 3, no plugin.
 2. Reamp that DI at matched level into the plugin — DI clip → plugin track,

@@ -6,7 +6,7 @@ description: Amp-specific knowledge for capturing the Odeholm thall amp plugin i
 # Thall amp — Neural Capture specifics
 
 Everything here was learned capturing the Odeholm thall amp plugin into a Quad
-Cortex on Jayson's rig across V1–V5 (2026-08-23 to 2026-08-30) and measuring
+Cortex on the user's rig across V1–V5 (2026-08-23 to 2026-08-30) and measuring
 every version with `quad-cortex-capture-measurement`.
 
 ## The rule that matters most
@@ -21,7 +21,7 @@ V4 traces to the plugin's **Tighten Chug** control being at 50%. Setting Chug to
 band from 60 Hz to 12 kHz sat within 1.1 dB. It was the best-measuring capture
 the project ever produced.
 
-Jayson's verdict on hearing it: *"v5 without chug 100% DOES NOT sound right at
+The user's verdict on hearing it: *"v5 without chug 100% DOES NOT sound right at
 all."* V5 was rejected. V4 remains the standing capture.
 
 Chug-0 is not a cleaner version of the same amp. It is a different amp sound.
@@ -126,7 +126,7 @@ loaded — not that the capture degraded.
 
 ## Levels
 
-Jayson's working heuristic for the preset's output level: **hard chugs should
+The user's working heuristic for the preset's output level: **hard chugs should
 push the meter barely into red.** That corresponds to QC peaks near −2 dBFS and
 lands the level offset within a few tenths of the plugin — the 16:54 take peaked
 at −2.13 dBFS with a +0.01 dB offset, which is the target.

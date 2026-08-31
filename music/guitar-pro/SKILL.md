@@ -112,7 +112,7 @@ from gp_tab import Tab
 
 tab = Tab(
     title="Warmup",
-    artist="Jayson",
+    artist="Example Artist",
     tempo=140,
     tuning="7-string",          # name from TUNINGS, or ["B1","E2","A2",...]
     track_name="Guitar",

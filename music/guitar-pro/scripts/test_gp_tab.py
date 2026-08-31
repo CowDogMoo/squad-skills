@@ -311,14 +311,14 @@ def main() -> int:
         check("refuses .gpx read with guidance", "Export" in str(exc) or "export" in str(exc))
 
     print("\n[info + to_riff]")
-    tab = Tab(title="Info", artist="Jayson", tempo=142, tuning="7-string")
+    tab = Tab(title="Info", artist="Example Artist", tempo=142, tuning="7-string")
     source = "16:7.0 16:7.0 16:7.3 8:7.0 | 4:6.0+7.0 4:r 2:5.7"
     tab.riff(source)
     p = os.path.join(tmp, "info.gp5")
     tab.save(p)
     data = Tab.load(p).info()
     check("title", data["title"] == "Info")
-    check("artist", data["artist"] == "Jayson")
+    check("artist", data["artist"] == "Example Artist")
     check("tempo", data["tempo"] == 142)
     check("measures", data["measures"] == 2, str(data["measures"]))
     check("tuning named", data["tracks"][0]["tuning_name"] == "7-string")
@@ -374,7 +374,7 @@ def main() -> int:
     check("7/8 preserved", info["time_signatures"] == ["7/8"], str(info["time_signatures"]))
 
     print("\n[native GP7 export -- skipped if Node/alphaTab absent]")
-    tab = Tab(title="GP7", artist="Jayson", tempo=150, tuning="8-string")
+    tab = Tab(title="GP7", artist="Example Artist", tempo=150, tuning="8-string")
     tab.riff("16:8.0m 16:8.0m 16:8.3 8:8.0 8:7.2 | 4:8.0+7.0 4:r 2:6.5~")
     gp7_path = os.path.join(tmp, "eight.gp")
     try:

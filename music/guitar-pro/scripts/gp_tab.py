@@ -13,7 +13,7 @@ Quick start:
 
     from gp_tab import Tab, TUNINGS
 
-    t = Tab(title="Test", artist="Jayson", tempo=140, tuning=TUNINGS["8-string"])
+    t = Tab(title="Test", artist="Example Artist", tempo=140, tuning=TUNINGS["8-string"])
     t.riff("8:8.0 8:8.0 8:8.3 8:8.0 | 4:7.5+8.5 4:r 2:8.0")
     t.save("riff.gp5")
     print(t.ascii())

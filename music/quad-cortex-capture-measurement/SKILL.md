@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-capture-measurement
-description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using Jayson's one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
+description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
 ---
 
 # Quad Cortex capture measurement
@@ -14,7 +14,7 @@ Rig: Quad Cortex, RME Fireface UCX II, Ableton Live 12, Cortex Control.
 
 ## Workflow
 
-1. Run the pre-flight checks with tools, before Jayson plays.
+1. Run the pre-flight checks with tools, before the user plays.
 2. Record one 20–30 s pass that captures DI, plugin, and QC together.
 3. Run `scripts/analyze.py` on the three files.
 4. Read the numbers against the thresholds below.
@@ -34,7 +34,7 @@ say which. Both sibling skills defer to this definition.
 3. **Measured** — the one-pass comparison below has been run and analyzed.
    Only here may you say "closer", "matches", "within N dB", "nulls to
    −X dB". Drive, attack, and feel beyond what the null shows are judged by
-   ear (Cortex Control A/B screen, and by Jayson); say so once, briefly, not
+   ear (Cortex Control A/B screen, and by the player); say so once, briefly, not
    as a caveat.
 
 **Never use rung-3 language for rung-1/2 work.** A structural cleanup is not
@@ -93,7 +93,7 @@ measuring.
 ## Pre-flight checks
 
 Every invalid take so far had the same signature and the same root causes.
-Check these with tools before Jayson plays, not by asking him.
+Check these with tools before the user plays, not by asking them.
 
 1. **Sanity-check the newest take, if one exists.** Stage the three newest
    WAVs and compare them sample-for-sample. DI == REC (plugin post FX) means

@@ -14,7 +14,7 @@ Deps: numpy scipy soundfile pyloudnorm matplotlib
   uv run --with numpy --with scipy --with soundfile --with pyloudnorm \
     --with matplotlib analyze.py DI.wav PLUGIN.wav QC.wav --out-dir <project>
 
-The algorithm is the one validated on Jayson's rig on 2026-08-24
+The algorithm is the one validated on the user's rig on 2026-08-24
 (null-test-analyze.py in the amp-sim-neural-capture project); keep changes
 result-compatible so numbers stay comparable across sessions.
 """
