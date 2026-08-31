@@ -165,7 +165,7 @@ across sessions:
 - Quote the level offset only from continuously played material — idle time
   biases it. See `references/idle-noise-diagnostic.md`.
 - Known-good calibration baseline, from a finished matched preset:
-  `references/reference-results-2026-08-24.md`.
+  `references/calibration-baseline.md`.
 
 ### The EQ-vs-coherence lesson
 
@@ -244,5 +244,5 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
   fails, with the numbers.
 - `references/legacy-and-reamp-methods.md` — the two-cable method and the
   reamp method. Don't propose either unprompted.
-- `references/reference-results-2026-08-24.md` — known-good calibration
-  baseline.
+- `references/calibration-baseline.md` — known-good calibration baseline
+  (2026-08-24 run).
