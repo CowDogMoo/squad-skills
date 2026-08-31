@@ -323,7 +323,7 @@ CI runs the same checks:
 
 ---
 
-**Maintained by [CowDogMoo](https://github.com/CowDogMoo)** |
+**Maintained by [Jayson Grace](https://github.com/CowDogMoo)** |
 [Issues](https://github.com/cowdogmoo/squad-skills/issues) |
 [squad-agents](https://github.com/cowdogmoo/squad-agents) |
 [squad](https://github.com/cowdogmoo/squad)

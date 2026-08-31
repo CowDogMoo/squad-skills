@@ -8,7 +8,7 @@ description: Score prose paragraphs or code comments against 8 LLM-generated-tex
 # for. This is a scoring/knowledge skill; the caller's run mode governs tool
 # access (readonly mode is still enforced by the readonly backstop).
 metadata:
-  author: CowDogMoo
+  author: Jayson Grace
   version: 1.3.0
 ---
 

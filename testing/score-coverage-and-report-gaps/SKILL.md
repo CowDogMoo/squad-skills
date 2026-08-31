@@ -3,7 +3,7 @@ name: score-coverage-and-report-gaps
 description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use from any language-specific test-coverage agent that discovers its own gaps, or when asked to raise coverage and report what is still untested; the caller supplies the coverage tool, idiom patterns, and target percentage. Do NOT load alongside enqueue-coverage-targets — that skill replaces this discover-measure loop with a queue a script builds once, and running both makes the agent re-measure between batches.
 allowed-tools: Read, Glob, Edit, Write, Bash
 metadata:
-  author: CowDogMoo
+  author: Jayson Grace
   version: 1.1.0
 ---
 
