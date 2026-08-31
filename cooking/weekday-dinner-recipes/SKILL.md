@@ -1,6 +1,6 @@
 ---
 name: weekday-dinner-recipes
-description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from a curated list of reputable food sites, with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
+description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from a curated list of reputable food sites, with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," a replacement for one night somebody rejected, or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
 ---
 
 # Weekday Dinner Recipes
@@ -28,6 +28,10 @@ The user invocation may include:
 - A season (`"spring"`, `"summer"`, `"fall"`, `"winter"`) — honor it.
 - A count (default 8–10).
 - Specific constraints ("vegetarian only", "no seafood", "under 30 min").
+- A **slot brief**: a list of what the result must be and a list of what it must
+  avoid, usually because it is replacing one dish in a plan that already exists.
+  A brief means the count is 1 and the constraints are not negotiable — see
+  "Filling a single slot" below.
 
 If no season is given, derive it from today's date (Northern Hemisphere): Mar–May spring, Jun–Aug summer, Sep–Nov fall, Dec–Feb winter. Use `date +%m` if you're unsure of the current month.
 
@@ -116,6 +120,34 @@ EOF
 ```
 
 This is what makes future runs return *different* recipes. The path lives outside the repo on purpose — it's per-machine runtime state, not skill source.
+
+## Filling a single slot
+
+Sometimes the ask is not a batch. Somebody rejected one dinner and the rest of
+the plan is already fixed, so what is wanted is one recipe that fits a hole of a
+particular shape — a brief like *needs to be vegetarian and under 30 minutes,
+must not be tomato-heavy, must not be from a source already used twice this
+week*.
+
+The process does not shrink. Generate and verify the usual number of candidates
+and then return one, because a single unverified pick is exactly the failure this
+skill exists to prevent, and because the first recipe that matches a brief on
+paper is often the one that fails the rating or link check.
+
+What does change:
+
+- **The brief outranks variety.** A batch is graded on spread; a slot is graded
+  on fit. Do not widen the constraints to produce a more interesting list.
+- **Say so when nothing fits.** A brief can be unsatisfiable — every candidate
+  under 30 minutes on the approved sources may be tomato-based. Returning a
+  near-miss without flagging it hands the caller a recipe that breaks the plan it
+  was meant to repair. Name the constraint you had to relax, or return nothing
+  and say why.
+- **Rank the runners-up.** Return the pick first and two alternates behind it, so
+  a caller whose first choice fails on import has somewhere to go that is not
+  another full run.
+- **History still applies.** A slot is not a licence to re-serve something the
+  caller has already seen.
 
 ## What to skip
 
