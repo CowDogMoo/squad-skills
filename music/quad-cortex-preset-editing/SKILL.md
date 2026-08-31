@@ -28,6 +28,12 @@ measurement that would reach the next one.
   changes how hard the model is driven.
 - **Save is a real write to the user's preset.** Do it once, at the end, after
   a screenshot confirms every change, and confirm the "Preset saved." toast.
+- **The preset and the plugin are the user's instrument. Editing either in
+  service of a *measurement* is their call, not yours.** This skill's remit is
+  the structural cleanup the user asked for. Anything you want to change only
+  so a number comes out cleaner — a gate, a pitch block, an EQ, a level — gets
+  named to the user with its cost, and waits for a yes. Restore it afterwards
+  and say so.
 - Stop and ask if: the capture the user named is not in MY CAPTURES; the
   preset has more than one row with an input assigned (parallel paths — the
   bucket sort below assumes one path); a block's panel shows something you
@@ -213,7 +219,13 @@ depth — plus the interpretation. The preset side of that job, which this skill
 must set up before the take:
 
 - Preset input block on In 1. Reverb and delay in the preset bypassed for the
-  take.
+  take. **Reverb and delay, and nothing else.** Do not bypass the post-capture
+  EQ, the input gate, or the capture Volume for a measurement take: every take
+  in the measurement skill's `references/calibration-baseline.md` was measured
+  with a post-capture EQ active, so a take with it bypassed compares to no
+  stored baseline. Measure the preset the user plays. An EQ curve that is
+  wrong for this preset — a bell carried over from an earlier capture, say —
+  is a finding for the measurement to report, not a pre-edit.
 - **The lane output must reach USB.** Set the Out tile at the end of the audio
   path to **Multi Out** and confirm USB Output 3/4 is enabled in the Multiple
   Outputs list. With the tile on "Out 3" the Wet Signal channels are silent

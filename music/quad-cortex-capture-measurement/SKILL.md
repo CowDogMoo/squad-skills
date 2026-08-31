@@ -68,7 +68,8 @@ Then:
 1. Put the plugin in its capture-time reference state. Read it from the
    project's `CAPTURE-TEST-STATE.md`, which `quad-cortex-plugin-capture`
    writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, gate
-   off, pitch off, mono). Don't guess it.
+   off, pitch off, mono). Don't guess it. **Say which controls you are about
+   to move and get a yes before moving them** — see "Whose call it is" below.
 2. Preset input block on In 1, reverb and delay bypassed for the take, lane
    output routed to USB, preset saved.
 3. Play 20–30 s continuously: chugs, single notes, one ringing chord.
@@ -90,6 +91,37 @@ the DI, the plugin's sound only exists on the Post-FX REC track, and a
 Utility on the QC track is not in the recorded file — set that after
 measuring.
 
+### Whose call it is
+
+The plugin and the preset are the user's instrument, and the two controls
+this method most often has to move — **Tighten Gate off, Pitch Power off** —
+are the two the user is most likely to be playing through right now. Reading
+state is yours. Writing it is theirs.
+
+- Name the controls, say what each costs the measurement if left as-is, and
+  wait for a yes. One question covers the whole set.
+- Restore every one of them the moment the take is recorded, and say so.
+- Working unattended, leave them alone, take the pass as configured, and
+  report which bands the contamination makes unreadable.
+
+A contaminated take you can explain is a smaller failure than a silent edit
+to somebody's rig. Both are avoidable by asking.
+
+### Do NOT bypass the post-capture EQ for a measurement take
+
+Step 2 lists reverb and delay. It stops there on purpose.
+
+Every take in `references/calibration-baseline.md` was measured with a
+post-capture EQ **active** — the four 2026-08-24 takes are an EQ sweep, and
+the standing-preset envelope in `thall-amp-neural-capture` was measured
+through its Parametric-3. Bypass the EQ and the numbers compare to nothing;
+there is no stored raw-capture baseline to land them against.
+
+The same holds for the preset's input gate, its capture Volume, and its lane
+output. Measure the preset the user plays. An EQ curve that is wrong for the
+preset — a bell left over from an earlier capture, say — is a **finding for
+the measurement to report**, not something to change before measuring it.
+
 ## Pre-flight checks
 
 Every invalid take so far had the same signature and the same root causes.
@@ -103,9 +135,13 @@ Check these with tools before the user plays, not by asking them.
    fine at a glance.
 2. **Plugin state** via `ableton-mcp` `get_device_parameters(show_all=true)`
    on the plugin's track, compared line by line against
-   `CAPTURE-TEST-STATE.md`. The parameter that bites is **"Device On"** —
-   the thall amp has been found bypassed twice in one session, including
-   after a set reload, so re-check it after *any* reload or preset load.
+   `CAPTURE-TEST-STATE.md`. Report the diff to the user and get a yes before
+   writing any of it back (see "Whose call it is"); a state file that lists a
+   restore step — "Tighten Gate → −30 dB, Pitch Power → On after the capture"
+   — means the user is deliberately running the play state, not drifting. The
+   parameter that bites is **"Device On"** — the thall amp has been found
+   bypassed twice in one session, including after a set reload, so re-check it
+   after *any* reload or preset load.
    `enable_device` fixes it; `set_device_parameter` with normalized 0.0 sets
    Tighten Gate to −100 dB and Pitch Power off.
 3. **Live's audio input device must be "Quad Cortex".** After a capture

@@ -34,6 +34,15 @@ the offset puts out of range:
    bar `y+260`, end at 286. The window then ends around y 555, and the
    wizard's FILL METADATA / START / SAVE plus the bottom bar become reachable.
    Verify by toggling GIG VIEW at its `y+260` and back.
+
+   **Moving a window upward needs the Finder grant.** Any drag that ends above
+   the window ends over bare desktop, and the click guard refuses it with
+   "would land on the desktop shell". `computer_resolve_access` /
+   `computer_request_access` with exactly `Finder` clears it — one extra
+   approval, and window drags then work normally. Resizing from the top-left
+   corner does not need it; only the reposition does. The window's bottom edge
+   is usually unreachable (its `y+260` exceeds the frame), so shrink from the
+   top corner and then move, never the other way round.
 2. **Gig View.** Have the user click GIG VIEW in the bottom bar. The selected
    row then sits at y~177, panel title and power at y~322, value text at
    y~432–543.
