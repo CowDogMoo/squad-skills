@@ -1,0 +1,138 @@
+{
+  "comment": "Candidate pool for the week of 2026-08-31 (late summer tipping into early fall). Discovery is the public weekday-dinner-recipes skill's job: it searched the curated sources, pulled the star rating and review count off each live page and confirmed no 404s. This file is that batch, annotated with the dish/source/cuisine/role/protein the planner needs and ranked by editorial preference. Constraint flags (tomato, sesame, timing) are NOT recorded here on purpose -- they are derived from the recipe's own ingredients and totalTime after import, so a hand-typed flag can never be wrong.",
+  "season": "late-summer-early-fall",
+  "pool": [
+    {
+      "rank": 1,
+      "url": "https://www.budgetbytes.com/cold-sesame-noodles/",
+      "title": "Cold Sesame Noodles",
+      "dish": "cold sesame noodles",
+      "source": "budgetbytes.com",
+      "cuisine": "asian",
+      "role": "vegetarian",
+      "protein": "plant",
+      "why": "No-oven 20-minute night while it is still 90 degrees out. Peanut-sesame dressing over spaghetti with bell pepper, cucumber and herbs."
+    },
+    {
+      "rank": 2,
+      "url": "https://www.skinnytaste.com/parmesan-herb-baked-salmon/",
+      "title": "Parmesan-Herb Baked Salmon",
+      "dish": "baked salmon",
+      "source": "skinnytaste.com",
+      "cuisine": "american",
+      "role": "flex",
+      "protein": "seafood",
+      "why": "Seafood night that is genuinely 25 minutes. Four ingredients on the fish, one pan."
+    },
+    {
+      "rank": 3,
+      "url": "https://www.themediterraneandish.com/shakshuka-recipe/",
+      "title": "Shakshuka",
+      "dish": "shakshuka",
+      "source": "themediterraneandish.com",
+      "cuisine": "north african",
+      "role": "vegetarian",
+      "protein": "egg",
+      "why": "The week's one tomato-heavy meal, and a skillet-and-bread dinner that needs no side."
+    },
+    {
+      "rank": 4,
+      "url": "https://www.skinnytaste.com/sheet-pan-balsamic-herb-chicken-and-vegetables/",
+      "title": "Sheet Pan Balsamic-Herb Chicken and Vegetables",
+      "dish": "sheet pan chicken",
+      "source": "skinnytaste.com",
+      "cuisine": "italian",
+      "role": "chicken",
+      "protein": "chicken",
+      "why": "Chicken night with the vegetables already on the pan. Nothing else to cook alongside it."
+    },
+    {
+      "rank": 5,
+      "url": "https://www.budgetbytes.com/oven-roasted-autumn-medley/",
+      "title": "Oven Roasted Autumn Medley",
+      "dish": "roasted sausage and apples",
+      "source": "budgetbytes.com",
+      "cuisine": "american",
+      "role": "flex",
+      "protein": "pork",
+      "why": "The first properly fall dinner of the year: sausage, sweet potato, apple, sage. Friday, when an hour in the oven is fine."
+    },
+    {
+      "rank": 6,
+      "url": "https://www.skinnytaste.com/chicken-shawarma-sheet-pan-dinner/",
+      "title": "Chicken Shawarma Sheet Pan Dinner",
+      "dish": "chicken shawarma",
+      "source": "skinnytaste.com",
+      "cuisine": "middle eastern",
+      "role": "chicken",
+      "protein": "chicken",
+      "why": "Alternate chicken night; marinade is hands-off but it lands in the 45-60 band."
+    },
+    {
+      "rank": 7,
+      "url": "https://cookieandkate.com/sweet-potato-black-bean-tacos/",
+      "title": "Sweet Potato and Black Bean Tacos",
+      "dish": "sweet potato tacos",
+      "source": "cookieandkate.com",
+      "cuisine": "mexican",
+      "role": "vegetarian",
+      "protein": "plant",
+      "why": "Alternate vegetarian night. Long for a weeknight, and the avocado-pepita dip is a second component."
+    },
+    {
+      "rank": 8,
+      "url": "https://www.themediterraneandish.com/baked-cod-recipe-lemon-garlic/",
+      "title": "Baked Cod Recipe with Lemon and Garlic",
+      "dish": "baked cod",
+      "source": "themediterraneandish.com",
+      "cuisine": "mediterranean",
+      "role": "flex",
+      "protein": "seafood",
+      "why": "Alternate seafood night, 22 minutes, needs a starch alongside it."
+    },
+    {
+      "rank": 9,
+      "url": "https://www.budgetbytes.com/sheet-pan-chicken-sausage-dinner/",
+      "title": "Sheet Pan Chicken Sausage Dinner",
+      "dish": "sheet pan sausage",
+      "source": "budgetbytes.com",
+      "cuisine": "american",
+      "role": "flex",
+      "protein": "chicken",
+      "why": "Alternate one-pan night; sits right on the 45-minute line."
+    },
+    {
+      "rank": 10,
+      "url": "https://www.skinnytaste.com/turkey-taco-skillet/",
+      "title": "Turkey Taco Skillet",
+      "dish": "taco skillet",
+      "source": "skinnytaste.com",
+      "cuisine": "mexican",
+      "role": "flex",
+      "protein": "turkey",
+      "why": "Alternate 30-minute skillet night."
+    },
+    {
+      "rank": 11,
+      "url": "https://www.budgetbytes.com/sesame-noodles-wilted-greens/",
+      "title": "Sesame Noodles with Wilted Greens",
+      "dish": "sesame noodles",
+      "source": "budgetbytes.com",
+      "cuisine": "asian",
+      "role": "vegetarian",
+      "protein": "egg",
+      "why": "Alternate sesame night with a jammy egg on top."
+    },
+    {
+      "rank": 12,
+      "url": "https://cookieandkate.com/vegetarian-enchiladas-recipe/",
+      "title": "Veggie Black Bean Enchiladas",
+      "dish": "enchiladas",
+      "source": "cookieandkate.com",
+      "cuisine": "mexican",
+      "role": "vegetarian",
+      "protein": "plant",
+      "why": "Alternate vegetarian night; a full hour, so only worth it on a Friday."
+    }
+  ]
+}

@@ -1,324 +1,309 @@
 ---
 name: plan-weekly-dinners
-description: Propose a balanced weekly meal plan — exactly 5 weeknight dinner candidates for human review — enforcing household policy on protein mix, cuisine variety, tomato limit, sesame-allergy handling, complete meals, and weeknight time budget, and emitting a structured JSON-able record per candidate for a downstream review page and inventory checker. Use when the user says "plan my dinners for the week", "make a weekly meal plan", "plan next week's dinners", or "what should we eat this week" and wants a balanced, constraint-checked week. For a plain recipe round-up with no weekly balancing ("dinner ideas", "more recipes", "recipe round-up"), use weekday-dinner-recipes instead.
+description: Plan one week of household dinners in Mealie and run the week ritual — import candidate recipes by URL, tag them with the household's constraint vocabulary, honor the 28-day reuse cooldown, read BOTH people's ratings with their own API tokens, write the Mon–Fri dinner mealplan, send the week to Signal for approval, and send the still-needed groceries once the household has ticked off what it already has. Use for "plan our dinners for the week", "what are we eating next week", "redo Thursday", "add this recipe to the plan", "send the week", "send the grocery list", or anything that produces a whole week rather than a list of ideas. Candidate discovery belongs to weekday-dinner-recipes; this skill decides the week, writes it down, and gets it in front of both people.
 ---
 
-# Plan Weekly Dinners
+# Plan weekly dinners
 
-You are proposing five weeknight dinner candidates for human review.
-The goal is not to auto-decide perfectly — it is to propose meals that
-fit the household's actual cooking bandwidth, food preferences,
-ingredient constraints, and desired variety, while clearly surfacing
-tradeoffs. The human picks; you propose and annotate.
+You are turning a batch of candidate recipes into one committed week of dinners for a two-adult, one-small-child household, and writing it into Mealie so the calendar, the shopping list, and the review page all read from the same place.
 
-The deliverable is host-agnostic structured data: a JSON-able list of
-per-candidate records (see "Per-candidate record" below) plus a
-whole-week check summary. A downstream review page displays the
-records and an inventory checker consumes the ingredient quantities —
-they are consumers of the output, not dependencies of this skill. You
-are done when the five annotated candidates and the check summary are
-returned.
+You are not a recipe search engine. Finding well-rated, link-verified, season-appropriate candidates is the **weekday-dinner-recipes** skill's job — call it, or use the batch it already produced. This skill starts once there are candidates and ends with a grocery list on somebody's phone: five dinners on the Mealie mealplan, tagged, with the tradeoffs written down, sent to Signal for approval, and — after the household has said what it already has — the shopping list that is actually left.
 
-If the user just wants recipe ideas with no weekly balancing, that is
-the `weekday-dinner-recipes` skill, not this one.
+## Mealie is the substrate
+
+Everything lives in Mealie at `https://mealie.techvomit.xyz` (v3.24, OIDC via authentik, one group `Home`, one household `Family`).
+
+| What | Where |
+|---|---|
+| Recipes | imported **by URL** (`POST /api/recipes/create/url`) so each keeps a live `orgURL` |
+| Constraint flags | Mealie tags, from a fixed vocabulary (below) |
+| The week | dinner entries on `/api/households/mealplans` |
+| Reuse cooldown | Mealie's own query language, `lastMade <= "$NOW-28d"` |
+| Ratings | per user; only that user's token can read them |
+| Groceries | the `Groceries` shopping list |
+| The week in front of people | Signal, via the bridge in LXC 109 |
+| Feedback, blocks, priors | `history.json` in `$XDG_STATE_HOME/meal-planner/` — outside every repo |
+
+Home Assistant mirrors the mealplan and the shopping list, so anything written here shows up on the kitchen dashboard without a second write.
 
 ## Host-environment translation
 
-Candidate sourcing needs web search and page fetch on any host.
-Resolve each action to whatever your host supports:
+| Action | This host (Claude Code / shell) | Notes |
+|---|---|---|
+| Talk to Mealie | `node scripts/*.mjs` | **Node's own sockets are blocked here.** `fetch()` gets EHOSTUNREACH on the LAN; `curl` is proxied through. Every request in `scripts/mealie.mjs` shells out to curl. Do not "modernise" it. |
+| Read a token | `sh -c '. ~/.op-token; op read "op://automation/mealie-api-tokens/<field>"'` | Never write a token to a file, never paste one into a commit. |
+| Find candidates | the `weekday-dinner-recipes` skill | It verifies ratings and links; this skill trusts that verification. |
+| Talk to Signal | `node scripts/send-summary.mjs`, `node scripts/finalize-week.mjs` | Same curl constraint, same reason. A send is only real once the bridge hands back a `timestamp`. |
 
-| Action | Squad / shell hosts | Claude Code / Desktop | Browser-MCP-only hosts |
-|---|---|---|---|
-| Search the web for candidates | `WebSearch` | `WebSearch` | `WebSearch` |
-| Fetch a recipe page | `Bash`: `curl -sL -A "Mozilla/5.0" --max-time 15 URL` | `WebFetch URL` | browser MCP `get_page_text` |
-| Verify a URL is live | `Bash`: `curl -sIL -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" --max-time 15 URL` | `WebFetch` (treat a non-empty body as live) | browser MCP `navigate`, then check the page |
+## Scripts
 
-Anti-bot note: some sites return `403` to plain `curl` but render fine
-via `WebFetch` or a real browser (the source catalog flags which). Try
-the richer fetch path before declaring a link broken. A successful
-fetch from any method is sufficient; a `404` from any method
-disqualifies the recipe.
+    scripts/mealie.mjs           shared adapter: auth, request, import-by-URL, tags, mealplan, ratings, shopping list, flag derivation
+    scripts/history.mjs          the history store and the MEAL-HISTORY-SPEC scoping rules
+    scripts/propose-week.mjs     the whole flow; --apply to write, otherwise a dry run
+    scripts/read-ratings.mjs     both people's ratings, separately (--json for planning context)
+    scripts/scope-feedback.mjs   filter candidates through the household's scoped blocks
+    scripts/record-feedback.mjs  record one person's vote, a scoped block, and that a meal was cooked
+    scripts/verify-cooldown.mjs  prove the cooldown query still excludes a recipe made today
+    scripts/signal.mjs           the Signal bridge: mode check and one send that returns a real timestamp
+    scripts/send-summary.mjs     the proposal message — the week, the three warnings, the at-a-glance counts
+    scripts/finalize-week.mjs    the grocery message — only what is still unticked, grouped by aisle
 
-## Inputs
+## The constraint tag vocabulary
 
-The user invocation may include:
+Exact slugs. Anything outside this list is somebody's personal tag and is left alone.
 
-- A dinner count for the week (default 5).
-- Week notes ("we're out Thursday", "make Monday the quick one").
-- Extra constraints ("no seafood this week", "use up the tofu").
-- Vetoes or repeats ("not tacos again", "keep the gochujang bowls").
+| Group | Slugs | Where it comes from |
+|---|---|---|
+| Timing | `quick` (≤30 min) · `standard` (31–45) · `longer` (>45) | derived from `totalTime` |
+| Band callout | `45-60` | derived: total time is 45 to 60 minutes inclusive |
+| Flags | `tomato` · `sesame` | derived from the recipe's own ingredients |
+| Role | `vegetarian` · `vegan` · `chicken` · `flex` · `indulgent` | the planner's judgement, one per recipe |
 
-Household policy below holds unless the user explicitly overrides a
-piece of it for this week. Treat the sesame-allergy rule as standing
-policy: only an explicit user statement relaxes it, never an
-inference from other instructions.
+**Derive the flags; never type them.** `constraintTagsFor()` reads the recipe back out of Mealie and decides from what Mealie actually stored, so a tag can never quietly disagree with the ingredient list. The two flags that matter:
+
+- **tomato** means tomato-*heavy*: the processed base forms — canned, crushed, diced, whole peeled, San Marzano, fire-roasted, paste, purée, sauce, passata, marinara, sun-dried, ketchup — **and** fresh tomatoes in volume, because shakshuka built on six medium tomatoes is as tomato-heavy as one built on a tin and reads as neither with a base-form-only test. A sliced tomato on top for garnish does **not** count, and neither does half a cup of grape tomatoes in a noodle salad — if they did, the "at most one tomato-heavy meal a week" target would fire every week and mean nothing.
+- **sesame** is a child-safety flag and is deliberately broad: sesame seeds, sesame oil, tahini, za'atar, gomashio, halva. For every sesame meal the summary must name the exact component and say whether it can be left out, because the child-safe portion has to be separated before that component goes in.
+
+If Mealie imported a recipe with no usable `totalTime`, fix it before tagging — a missing total time means the timing tag and the `45-60` callout cannot be derived at all, and an untagged dinner is worse than a slow one:
+
+    curl -X PATCH -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+      -d '{"totalTime":"40 Minutes"}' "$MEALIE/api/recipes/<slug>"
+
+## The 28-day reuse cooldown
+
+The cooldown is a Mealie query, not arithmetic in this skill:
+
+    lastMade <= "$NOW-28d"
+
+Mealie resolves `$NOW` server-side, so the planner never computes a date and never drifts from the server's clock. `candidatesOffCooldown()` runs exactly that filter; `RECENTLY_MADE_QUERY` (`lastMade > "$NOW-28d"`) is its complement and is what tells you which candidate URLs to drop from this week's pool. A recipe that has never been made has no `lastMade` and is treated as long ago — "new recipe", eligible.
+
+**Write `lastMade` only through `PATCH /api/recipes/<slug>/last-made`.** Mealie v3 keeps `lastMade` per household. A plain `PATCH /api/recipes/<slug>` with a `lastMade` field changes what `GET` hands back but leaves the household row untouched, so the cooldown query goes on treating the recipe as never made. Verified against v3.24.0: after a plain PATCH, `GET /api/households/self/recipes/<slug>` still reports `lastMade: null`, and the recipe is still returned by the cooldown query. `PUT /api/recipes/<slug>` with a full body and `POST /api/recipes/timeline/events` do not write it either. Use `markMade()` and this stays right.
+
+Because that failure mode looks exactly like success from every read, `scripts/verify-cooldown.mjs` exists: it creates a throwaway recipe, marks it made today, asserts the cooldown query excludes it *and* the inverse query returns it, then deletes the probe. Run it after every Mealie upgrade.
+
+## Per-person ratings are a hard requirement
+
+Mealie only lets a token read **its own** user's ratings. There is no household ratings endpoint, and you must not invent one by averaging.
+
+So the planner holds one long-lived API token **per account**, in 1Password item `mealie-api-tokens` (vault `automation`):
+
+| Field | Account |
+|---|---|
+| `jayson-planner` | jayson — also the token the planner acts as for imports, tags and mealplan writes |
+| `amanda-planner` | amanda |
+| `amanda-password` | recovery password for her Mealie account (she normally signs in with authentik SSO) |
+
+`read-ratings.mjs` reads each person's ratings with **each person's own token** and keeps them apart. Both votes are surfaced separately, always. Agreement makes a household favorite; disagreement is a per-person preference signal and is exactly the thing an average destroys. A single blended "household rating" is a spec violation, not a simplification.
+
+Amanda's Mealie username and email match her authentik identity character for character (`amanda` / `amandajean119@gmail.com`). Keep it that way — if they drift, her next SSO login creates a *second* account and silently orphans the token her votes are read with.
+
+## The week shape
+
+From MEAL-SPEC, in priority order:
+
+1. **A quick night.** At least one dinner at 30 minutes or less.
+2. **At most one tomato-heavy meal.** Two is allowed but must be surfaced as a warning before approval, not smuggled through.
+3. **Protein variety.** The role tag is a menu classification, not a protein — two `flex` nights can both be fish. Track the protein separately or a week of salmon, cod and shrimp scores as "varied".
+4. **At least one vegetarian night.**
+5. **Not a pile of `45-60` dinners.** Anything in that band needs explicit human approval, so one is a feature and three is a chore.
+6. **Don't let one source take the week.** Three of five dinners off one blog is a narrow week however good the ratings are.
+7. **Keep the whole week under about three and a half hours of cooking.**
+
+`scoreWeek()` in `propose-week.mjs` states every one of these as an explicit term, and the tradeoffs it had to make come back in `tradeoffs` so the review page can say *why* this week and not another.
+
+Day order: shortest dinner on Monday, longest on Friday.
+
+## history.json — feedback, scoped
+
+`$XDG_STATE_HOME/meal-planner/history.json` (in practice `~/.local/state/meal-planner/history.json`). Per-machine runtime state, deliberately outside every repo.
+
+    recipes          canonical URL -> { title, source, dish, cuisine, timing, tomato, sesame,
+                                        proposedAt, cookedAt, votes: { jayson, amanda }, ... }
+    blocks           [ { id, person, reason, scope, target, recordedAt, confidence } ]
+    sourcePriors     source -> { up, down, prior, samples, confidence }
+    reasonVocabulary the 12 structured reasons from MEAL-HISTORY-SPEC
+    ingredientSignals / workflowSignals   repeated-signal counters
+
+`votes` is a **map keyed by person**. Never one household score.
+
+### Scope the negative feedback to the reason
+
+A generic thumbs down means "not this exact recipe" and nothing more. Only an explicitly broad reason reaches wider:
+
+| Reason | Reaches |
+|---|---|
+| `i-did-not-like-this-recipe` | that one URL |
+| `i-do-not-like-this-dish` | that dish, across sources |
+| `i-do-not-like-a-specific-ingredient` | recipes where it is a meaningful component — **not** adjacent ingredients (a fennel block does not touch star anise) |
+| `bad-source` | that source |
+| `too-repetitive` | that dish or cuisine |
+| everything else (`too-much-work`, `took-too-long`, `too-heavy`, `not-flavorful-enough`, `too-spicy`, `did-not-work-for-our-household`, `other`) | that one URL |
+
+A block that reaches wider than its reason licenses is **advisory**: the candidate stays in play with a penalty until the household says it a second time. One rejected tofu recipe is not a tofu ban.
+
+    node scripts/scope-feedback.mjs --candidates pool.json           # blocks from the store
+    node scripts/scope-feedback.mjs --candidates pool.json --blocks other.json
+
+When `--blocks` is given it is the whole world — the store's own blocks are not mixed in, because the caller is asking what survives *those* blocks.
+
+## The week ritual
+
+The week is not finished when the mealplan is written. It is finished when two
+people have seen it, changed what they wanted to change, said what is already in
+the cupboard, and been handed a list they can shop from.
+
+| Step | What runs | Who acts |
+|---|---|---|
+| 1. Propose | `propose-week.mjs --week … --apply` | the planner writes five dinners into Mealie |
+| 2. Summary | `send-summary.mjs --week …` | the household reads the week on their phones |
+| 3. Edit | Mealie itself, or another `propose-week.mjs` run | the household swaps whatever it does not want |
+| 4. Ingredient check | the Mealie app, the kitchen dashboard's todo card, or `--have` | the household ticks off what it already has |
+| 5. Finalize | `finalize-week.mjs` | the still-needed groceries go to Signal |
+
+**The order is the point.** MEAL-SPEC generates the grocery list *after* the
+ingredient check, never before, and steps 4 and 5 do not collapse into one. A
+list that asks the household to buy the olive oil they told you they had is a
+list they stop reading, and then the whole ritual is theatre.
+
+### The summary message
+
+    node scripts/send-summary.mjs --week 2026-08-31                          # send it
+    node scripts/send-summary.mjs --week 2026-08-31 --dry-run --print-body   # read it first
+    node scripts/send-summary.mjs --from-json week.json --print-body         # rehearse a week Mealie does not hold
+
+It reads the week back out of Mealie, so what goes to Signal is what Mealie
+actually holds rather than what the planner meant to write. Every meal is named,
+followed by three warnings and then MEAL-SPEC's weekly counts — vegetarian /
+chicken / flex, cuisine mix, tomato count, quick / standard / longer, sesame.
+
+The three warnings are the whole reason the message exists:
+
+| Warning | Fires when | Says |
+|---|---|---|
+| tomato double-count | more than one tomato-heavy meal | which meals, and that the week is meant to carry one |
+| sesame | any meal carries sesame | the meal **and its exact component**, so the child-safe portion comes out before that component goes in |
+| `45-60` | any meal lands in the band | which meals, and their times, for an explicit yes |
+
+**Every one of them is conditional.** A warning that prints every week is
+wallpaper, so nothing is emitted for an empty class, and
+`assertWarningsAreConditional()` re-reads the composed text before it is sent and
+refuses a message that reads as a double-count on a one-tomato week, mentions
+sesame when nothing has any, or prints the band callout with nothing in the band.
+`--from-json` exists so both branches can be rehearsed against a week that has
+two of each, because the live week usually has one of each and a warning nobody
+has ever seen fire is a warning nobody knows is broken. A `--from-json` run never
+sends: the week it describes is not the week Mealie holds.
+
+### The grocery message
+
+    node scripts/finalize-week.mjs --print-body
+    node scripts/finalize-week.mjs --have "1/2 tsp salt" --have "2 Tbsp olive oil"
+    node scripts/finalize-week.mjs --from-recipes --week 2026-08-31   # fill an empty list first
+
+Reads the `Groceries` list and sends **only the unticked items**.
+`assertCheckedItemsAreAbsent()` re-reads the composed text before the send and
+refuses outright if a ticked label was printed as a line of the list. It only
+warns when a ticked label turns up *inside* a longer line, because those are
+different things: tick the bare `black pepper` and the shakshuka's
+`1/2 tsp black pepper` still legitimately needs buying. Tick the specific line
+rather than the bare ingredient and the warning goes away.
+
+Quantities go out exactly as Mealie holds them, one line per recipe, because
+"olive oil" with no amount is not a shopping list. Sections come from Mealie's
+own label when the food carries one; the recipe importer creates most items as
+plain notes with no food and therefore no label, so those fall back to a keyword
+classifier over the item text — spice rack asked before produce, tinned tomatoes
+before fresh. Ingredients several dinners want get one "buy for the total, not
+per line" note at the bottom, which is how MEAL-SPEC's "combine duplicates
+intelligently" survives without deleting the per-recipe amounts.
+
+`--from-recipes` is opt-in and only that. The list is the household's working
+copy between the proposal and the shop; refilling it on every finalize would wipe
+the ticks that make step 4 mean anything.
+
+## The Signal bridge
+
+signal-cli REST API in Proxmox LXC 109, compose at `/opt/signal-bridge/docker-compose.yml`.
+
+| | |
+|---|---|
+| Send API | `http://192.168.20.45:8080` — `POST /v2/send`, and a send is only proven by the `timestamp` it returns |
+| Port 8081 | the Alertmanager adapter for the whole cluster. Alert-shaped bodies only; meal messages do not go through it |
+| Mode | `MODE: json-rpc` |
+| Image | pinned to a real version tag, never `:latest` |
+
+**`MODE: normal` is a disk bomb.** It spawns signal-cli per request, and each
+spawn extracts ~153 MB of libsignal into `/tmp`; about fifty sends fill the 7.8 G
+rootfs and the API starts answering `400 No space left on device`. In `json-rpc`
+mode one daemon extracts it once at startup and every send reuses it — one
+`/tmp/libsignal*` directory dated container start, however many messages later.
+`send()` warns on stderr if it ever finds the bridge back in `normal`.
+
+Both settings live in the compose file so a restart cannot revert them, and the
+image is pinned in the same change: `docker compose up -d` on an unpinned
+`:latest` pulls whatever upstream tagged since, which is exactly the wrong moment
+to find out a new build behaves differently. Pin to the tag that resolves to the
+digest already running — check with `docker inspect <tag> --format '{{.Id}}'`
+against the running container's image, and pin by `@sha256:` if no tag matches.
+
+Pinned to `bbernhard/signal-cli-rest-api:0.99` (`sha256:96578363477d…`), which
+is the digest `:latest` had already pulled; upstream `:latest` has since moved on
+to `0.100`. Every change to this file leaves a dated backup beside it, and a
+rollback is that backup plus a recreate:
+
+    ssh proxmox
+    pct exec 109 -- sh -c 'cd /opt/signal-bridge && cp docker-compose.yml.bak-2026-08-30-prejsonrpc docker-compose.yml && docker compose up -d'
+
+Afterwards, confirm what you meant to change: `GET /v1/about` reports the mode,
+and `POST http://192.168.20.45:8081/` with an Alertmanager-shaped body must still
+answer `ok` — the cluster's alerts ride the same bridge.
 
 ## Step-by-step
 
-### 1. Collect the week's inputs
+1. **Get candidates.** Run `weekday-dinner-recipes` for the season, or reuse `references/candidate-pool.json`. Annotate each with `dish`, `source`, `cuisine`, `role`, `protein` and a one-line `why`.
+2. **Dry-run the week.** `node scripts/propose-week.mjs --week YYYY-MM-DD`. Read the summary and the warnings. This writes nothing.
+3. **Adjust and re-run** if the shape is wrong — add candidates, fix a `role`, record a block.
+4. **Apply.** `node scripts/propose-week.mjs --week YYYY-MM-DD --apply`. This imports by URL, normalizes `totalTime`, tags from the stored recipe, replaces the week's dinner entries (idempotent — re-running does not stack duplicates), and records the proposals in `history.json`.
+5. **Send the week.** `node scripts/send-summary.mjs --week YYYY-MM-DD`. Read it once with `--dry-run --print-body` first if the week is unusual. The tomato count, the sesame components and the `45-60` callouts are derived from the recipes Mealie stored, not from the proposal.
+6. **Wait for the ingredient check.** The household edits the week in Mealie and ticks off what it already has on the `Groceries` list. Do not shortcut this by sending the list early.
+7. **Finalize.** `node scripts/finalize-week.mjs --print-body`. Only the unticked items go out.
+8. **After dinner, record votes.** One entry per person — `--vote` refuses to run without `--person`, because a household vote is not a thing:
 
-Note any count changes, vetoes, and which nights need the quick meal.
-No inputs is normal — the defaults below fully specify a week.
+       node scripts/record-feedback.mjs --url <url> --person amanda --vote down --reason too-much-work
+       node scripts/record-feedback.mjs --url <url> --cooked 2026-09-02
 
-### 2. Choose sources
+   `--cooked` marks it made in Mealie through `/last-made`, which is what starts the 28-day cooldown. A block wider than its reason licenses (`--scope dish` on a `not-flavorful-enough`) is stored as advisory and only becomes binding the second time the household says it.
 
-Read `references/sources.md` — the curated catalog of sites, why each
-is on the list, and per-site fetch quirks. Pinch of Yum is the strong
-positive reference for the household's preferred style; RecipeTin
-Eats is deprioritized. Other sources are welcome when they fit the
-preferences. Don't search arbitrary sites first — the catalog encodes
-which sites publish complete ingredient lists with quantities, which
-this skill's output contract depends on.
+## Hard rules
 
-### 3. Sketch the week, then search
-
-Sketch the five slots against the weekly shape and cuisine variety
-sections before searching — for example: 1 Latin-inspired vegetarian,
-1 Asian-inspired tofu, 1 chicken sheet-pan, 1 quick shrimp or salmon,
-1 flexible/indulgent. Then search per slot with site-scoped queries:
-
-- `site:pinchofyum.com weeknight lentil curry`
-- `site:budgetbytes.com black bean tacos`
-- `site:thewoksoflife.com quick chicken stir fry`
-
-Generate 8–10 candidates so five survive screening.
-
-### 4. Screen each candidate on the live recipe page
-
-Fetch the actual page. Pull the total time, active prep time (when
-shown), and the full ingredient list with quantities from the page —
-never from memory. A recipe you can't fetch doesn't ship. Then screen
-against every household policy section below and drop or flag
-accordingly.
-
-### 5. Build one record per surviving candidate
-
-Fill all fields of the per-candidate record. Partial records break
-the downstream review page and inventory checker; if a field is
-genuinely unavailable (e.g. the page shows no active prep time), say
-so in the field rather than omitting it.
-
-### 6. Run the whole-week checks
-
-Evaluate the five as a set (see "Whole-week checks"). A single miss
-can ship if it is surfaced as an explicit tradeoff — the shape is a
-target, not a quota. If the week fails several checks, regenerate
-before presenting it.
-
-### 7. Present and offer follow-ups
-
-Return the records and the check summary, flagging anything that
-needs a human call (a 45–60 minute recipe, a tomato ambiguity, a
-sesame component). End with a soft offer: once picks are approved,
-the `extract-recipe-grocery-list` skill can turn the chosen recipe
-URLs into a deduplicated grocery list.
-
-## Household policy
-
-### Weekly shape
-
-Aim for:
-
-- 5 dinners total
-- 2 to 3 vegetarian or vegan dinners
-- 1 chicken dinner
-- 1 flex dinner — vegetarian, chicken, salmon, shrimp, or another
-  suitable option
-- Minimize beef overall
-- Avoid pork-chop-style meals and similar meat-centric dinners that
-  don't fit the household's usual cooking style
-
-This is a target, not a rigid quota. The week should feel balanced as
-a whole.
-
-### Complete meals
-
-Prefer meals that feel like complete dinners rather than isolated
-protein preparations. Each proposed meal must either:
-
-- already include protein + vegetables + a satisfying starch or
-  equivalent component, or
-- explicitly include very easy sides that complete it — rice plus
-  cucumber salad, roasted vegetables, flatbread, potatoes, and the
-  like.
-
-Never propose a bare meat preparation and leave the user to figure
-out the rest of dinner.
-
-### Time budget
-
-Weeknight practicality is a core requirement. Prefer recipes with
-total elapsed time around 45 minutes or less. Recipes in the 45 to 60
-minute range are allowed, but must be clearly flagged as longer so
-the user can approve them knowingly — an unflagged 60-minute dinner
-is how trust in the plan erodes.
-
-Exclude recipes that require:
-
-- long stovetop simmers
-- several labor-intensive stages before a simmer or braise
-- starting dinner hours before mealtime
-- three-hour total cook windows
-- extensive sear-then-build-then-simmer workflows
-
-Marinades are acceptable when they are flexible and easy to fit into
-the day — the marinade can happen while other prep is underway, or
-earlier with little effort. A rigid "marinate exactly 4 hours ahead"
-recipe fails the same test as an early-start braise.
-
-### Effort distribution
-
-- Include at least one genuinely quick dinner that works on an
-  exhausted night: roughly 25 minutes or less.
-- Allow up to one heavier or more indulgent dinner per week — pasta,
-  a richer cheesy dish, or another comfort-food option.
-- The remaining dinners should feel fresh, balanced, and satisfying
-  rather than heavy.
-
-### Flavor and style
-
-Prioritize flavorful food with good sauces, interesting seasoning,
-and enough substance to feel satisfying. Strongly favor meals built
-around:
-
-- beans and lentils
-- tofu
-- vegetables
-- chicken
-- shrimp or salmon when appropriate
-- grains, noodles, potatoes, rice, or other satisfying carbs
-
-Avoid weeks dominated by cream, cheese, heavy pasta, or meat-heavy
-meals. Equally, don't optimize for austere "healthy" food that feels
-like rabbit food — the meals should feel delicious first, while still
-being balanced. Saucy beats spartan.
-
-### Cuisine variety
-
-The five-meal set should span cuisines and flavor profiles rather
-than clustering in one lane. A good target:
-
-- 1 Latin-inspired meal
-- 1 to 2 Asian-inspired meals, preferably from different traditions
-  or flavor profiles rather than nearly identical dishes
-- up to 1 Italian or pasta-oriented meal
-- 1 straightforward sheet-pan, roast, meat-and-veg, or similarly
-  simple dinner
-- 1 flexible slot
-
-Don't force these categories mechanically — they exist to prevent
-repetitive weeks, not to be filled by checkbox.
-
-### Tomato limit
-
-Tomato-heavy meals appear no more than once per week, because tomato
-can cause heartburn. Count meals with meaningful amounts of tomato,
-tomato sauce, crushed tomatoes, tomato paste, or similar tomato-heavy
-bases toward this limit. Small incidental quantities may be
-acceptable — but if there is any ambiguity about whether a meal
-counts, surface it for review instead of deciding silently.
-
-### Sesame allergy
-
-A household member has a sesame allergy. Sesame is not an automatic
-exclusion: a recipe is acceptable when sesame is isolated in a
-removable component — a sauce, dressing, topping, or garnish that can
-be omitted from the portion served to the household member with the
-allergy.
-
-Whenever sesame appears anywhere in a recipe:
-
-- flag it clearly,
-- identify exactly which component contains it,
-- state whether that component is fully removable, and
-- reject the recipe if sesame is integrated throughout the dish in a
-  way that cannot be cleanly separated (sesame oil stirred into the
-  main sauce is integrated; sesame seeds sprinkled on top are not).
-
-Never silently assume sesame can be omitted. This is an allergy, not
-a preference — a wrong guess here has real consequences, so an
-uncertain case is a rejection or an explicit flag, never a quiet
-pass.
-
-### Pantry floor and quantities
-
-Do not assume the household has everything except unusual
-ingredients. Only true always-on-hand basics are excluded from
-inventory checking:
-
-- salt
-- black pepper
-- basic cooking oil
-
-Everything else is inventory that may need checking — produce, meat
-and seafood, canned goods, tomato paste, mayonnaise, soy sauce,
-oyster sauce, other sauces and condiments, rice, noodles, grains,
-beans, dairy, herbs, and spices beyond that narrow always-on-hand
-set.
-
-Always preserve required quantities ("2 cans chickpeas", "1 lb
-salmon") so the inventory checker can determine whether the household
-has *enough*, not merely whether the ingredient exists.
-
-## Per-candidate record
-
-Return every field for every candidate, as structured data the
-review page can display:
-
-1. Recipe title
-2. Source (site name)
-3. Source URL
-4. Short description
-5. Cuisine / flavor profile
-6. Classification: vegetarian / vegan / chicken / flex
-7. Total elapsed time
-8. Active prep time, when the page provides it
-9. Speed class: quick / standard / longer
-10. What makes the meal complete
-11. Suggested easy sides, if the main recipe is incomplete on its own
-12. Tomato presence, and whether it counts toward the weekly
-    tomato-heavy limit
-13. Sesame presence: the exact component and whether it is removable
-14. Any timing gotchas (marinade window, a sauce that needs the rice
-    started first, a long oven preheat)
-15. Full ingredient list with quantities, excluding only the pantry
-    floor (salt, black pepper, basic cooking oil)
-16. A one-line explanation of the role this meal plays in the week
-    ("the quick night", "the one indulgent dinner")
-
-## Whole-week checks
-
-Before returning the five candidates, evaluate the set as a whole:
-
-- Is there at least one very quick meal (roughly 25 minutes)?
-- Is there no more than one heavy / indulgent meal?
-- Are 2 to 3 meals vegetarian or vegan?
-- Is there roughly one chicken dinner and one flex dinner?
-- Is beef minimized?
-- Is there cuisine variety?
-- Is there no more than one tomato-heavy dinner?
-- Are the meals complete dinners, or paired with clear easy sides?
-- Are any 45 to 60 minute meals clearly marked?
-- Have long-simmer / multi-stage weeknight projects been excluded?
-- Are sesame-containing recipes separable and clearly flagged?
-
-If the week fails several of these checks, regenerate before
-presenting it. A single miss may ship only when it is surfaced as an
-explicit tradeoff for the human to accept.
+- Import **by URL**. A pasted recipe has no `orgURL`, so the review page cannot link out and link rot can never be detected.
+- Derive `tomato`, `sesame` and the timing tags from the recipe Mealie stored. Never from the candidate file, never from memory.
+- Exactly one dinner entry per weekday, each linked to a **distinct** recipe. Re-running the planner replaces the week; it does not stack.
+- The cooldown is `lastMade <= "$NOW-28d"`, asked of Mealie. Do not reimplement it with local date maths.
+- Read ratings **per account**, with that person's own token. Never average.
+- Never write a token, or a password, into a file in this skill.
+- If a recipe has no usable `totalTime`, fix the recipe. Do not guess a timing tag.
+- After a Mealie upgrade, run `scripts/verify-cooldown.mjs` before trusting a proposed week.
+- Send the grocery list **after** the ingredient check, and never send a ticked item back.
+- Keep the Signal bridge in `json-rpc` on a pinned image. Both live in the compose file so a restart cannot undo them.
+- Meal messages go to `:8080`. Port `:8081` belongs to the cluster's Alertmanager path; do not borrow it.
 
 ## Anti-patterns
 
-- Annotating a recipe from memory. Time, ingredients, and sesame
-  content come from the live page — model recall of a recipe is
-  routinely wrong about exactly the fields the checker needs.
-- Assuming sesame is removable without checking which component it
-  lives in.
-- Dropping quantities from the ingredient list. "Chickpeas" is
-  useless to an inventory checker; "2 cans chickpeas" is the point.
-- Proposing a bare protein and calling the sides someone else's
-  problem.
-- Letting a 50-minute recipe through unflagged because it "seemed
-  close enough" to 45.
-- Padding to five with a candidate that failed screening. Go back to
-  step 3 and source a replacement instead of shipping a silent dud —
-  and if a slot genuinely can't be filled, say so explicitly.
+- ❌ Searching for recipes here instead of delegating to `weekday-dinner-recipes`, and skipping its rating/link verification.
+- ❌ Setting `lastMade` with a plain recipe PATCH — it looks like it worked and the cooldown silently stops working.
+- ❌ Collapsing two people's ratings into one number because the API made it awkward.
+- ❌ Tagging `tomato` because the recipe mentions a tomato somewhere. Garnish is not a base.
+- ❌ Blocking a whole cuisine because one recipe from it was a miss.
+- ❌ Five dinners that are all 50 minutes, or all from one blog, because each one looked good on its own.
+- ❌ Printing all three warnings every week "so nobody misses one". Two weeks later nobody reads any of them.
+- ❌ Saying "one meal has sesame" without naming the component. The cook needs to know what goes in last, not that a flag is set.
+- ❌ Sending the grocery list straight after the summary. The tick-off step is what makes it a *shopping* list.
+- ❌ Rebuilding the shopping list from the recipes on every finalize. That erases the household's ticks.
+- ❌ Restoring `MODE: normal`, or unpinning the image "to get the latest fixes", on a bridge that also carries the cluster's alerts.
+
+## Related skills
+
+- [[weekday-dinner-recipes]] — candidate discovery, rating and link verification. Public; keep household specifics out of it.
+- [[extract-recipe-grocery-list]] — turns the approved week's URLs into an aisle-grouped list.
+- [[detect-dinner-freezer-protein]] — what to pull out of the freezer that morning.
