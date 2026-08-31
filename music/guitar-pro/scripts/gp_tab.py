@@ -36,8 +36,10 @@ try:
     from guitarpro import models as gpm
 except ImportError:  # pragma: no cover
     sys.exit(
-        "PyGuitarPro is required. Install it with:\n"
-        "    pip install pyguitarpro --break-system-packages"
+        "PyGuitarPro is required. From the skill directory:\n"
+        "    uv venv .venv\n"
+        "    uv pip install --python .venv/bin/python -r scripts/requirements.txt\n"
+        "then run this script with .venv/bin/python."
     )
 
 
@@ -156,6 +158,7 @@ _NOTE_TOKEN_RE = re.compile(r"^(\d+)\.(\d+)([xX~hpb/gomls]*)$")
 
 _EFFECT_FLAGS = {
     "x": "dead",
+    "X": "dead",
     "~": "vibrato",
     "h": "hammer",
     "p": "hammer",  # pull-off is the same flag in the format; direction is implied by pitch
@@ -263,6 +266,19 @@ class Tab:
     ):
         if _song is not None:
             self.song = _song
+            # A loaded song carries its meter in its measure headers, not in
+            # the constructor argument. Without picking it up here, riff() on
+            # a loaded tab dies with AttributeError as soon as it has to grow
+            # the song -- which is the whole point of loading one.
+            first = _song.measureHeaders[0] if _song.measureHeaders else None
+            self._time_signature = (
+                time_signature
+                if first is None
+                else (
+                    first.timeSignature.numerator,
+                    first.timeSignature.denominator.value,
+                )
+            )
             return
 
         self.song = gpm.Song()
@@ -415,6 +431,7 @@ class Tab:
         beat.status = gpm.BeatStatus.rest if not spec["notes"] else gpm.BeatStatus.normal
 
         string_count = len(track.strings)
+        used_strings: set[int] = set()
         for note_spec in spec["notes"]:
             string = note_spec["string"]
             if not 1 <= string <= string_count:
@@ -423,6 +440,20 @@ class Tab:
                     f"which has {string_count} strings (1 = highest, "
                     f"{string_count} = lowest)."
                 )
+            # A beat stores its strings as bit flags, one bit per string, so a
+            # second note on the same string overwrites the first and the rest
+            # of the beat decodes as garbage. gp.write accepts it; gp.parse
+            # then fails on the file with an unrelated-looking error, so catch
+            # it here where the offending token is still in hand.
+            if string in used_strings:
+                raise ValueError(
+                    f"Two notes fall on string {string} in the same beat. A "
+                    f"string can only sound one note at a time, and the .gp5 "
+                    f"format has no way to store the second one -- the file "
+                    f"would write and then fail to reopen. Move one note to "
+                    f"another string."
+                )
+            used_strings.add(string)
             fret = note_spec["fret"]
             if not 0 <= fret <= track.fretCount:
                 raise ValueError(
@@ -946,8 +977,8 @@ class Tab:
             import mido
         except ImportError:  # pragma: no cover
             raise ImportError(
-                "MIDI export needs mido. Install it with:\n"
-                "    pip install mido --break-system-packages"
+                "MIDI export needs mido. From the skill directory:\n"
+                "    uv pip install --python .venv/bin/python -r scripts/requirements.txt"
             ) from None
 
         ticks_per_beat = gpm.Duration.quarterTime
@@ -1116,6 +1147,16 @@ class Tab:
                             suffix += "h"
                         if n.effect.palmMute:
                             suffix += "m"
+                        if n.effect.letRing:
+                            suffix += "l"
+                        if n.effect.ghostNote:
+                            suffix += "g"
+                        if n.effect.harmonic is not None:
+                            suffix += "o"
+                        if n.effect.bend is not None:
+                            suffix += "b"
+                        if n.effect.slides:
+                            suffix += "/"
                         parts.append(f"{n.string}.{n.value}{suffix}")
                     tokens.append(f"{dur}:{'+'.join(parts)}")
             if tokens:
@@ -1372,13 +1413,18 @@ def main(argv: list[str] | None = None) -> int:
         tuning: Sequence[str] | str = args.tuning
         if " " in args.tuning:
             tuning = args.tuning.split()
+        # argparse hands back a string, but add_track also takes a General
+        # MIDI program number, so '--instrument 30' has to survive the trip.
+        instrument: str | int = args.instrument
+        if instrument.isdigit():
+            instrument = int(instrument)
         tab = Tab(
             title=args.title,
             artist=args.artist,
             tempo=args.tempo,
             tuning=tuning,
             track_name=args.track_name,
-            instrument=args.instrument,
+            instrument=instrument,
         )
         tab.riff(args.notes)
         tab.save(args.out)

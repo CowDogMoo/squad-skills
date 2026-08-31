@@ -30,11 +30,22 @@ and read `references/pyguitarpro-notes.md` before you do.
 
 ## Setup
 
+Install the dependencies into a virtualenv inside this skill directory, so
+nothing lands in the system Python:
+
 ```bash
-pip install pyguitarpro mido --break-system-packages
+uv venv .venv
+uv pip install --python .venv/bin/python -r scripts/requirements.txt
 ```
 
-`mido` is only needed for MIDI export. Everything else works without it.
+Then run everything with `.venv/bin/python` instead of `python3`. Without `uv`,
+`python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`
+does the same job.
+
+`mido` is only needed for MIDI export. Everything else works without it. Native
+`.gp` export additionally needs Node and `npm install @coderline/alphatab` in
+`scripts/`; `save()` falls back to MusicXML with a clear message when it is
+absent.
 
 ## The seven-string ceiling — read this before writing extended range
 
@@ -208,9 +219,10 @@ spend the extra few seconds:
   string 7 fret 0 is B1 (MIDI 35) — `info()` reports the tuning so you can
   confirm the part sits where the user expects.
 
-`python scripts/test_gp_tab.py` runs 120 checks over the helper itself. Run it
-if you change `gp_tab.py`, or if something behaves unexpectedly and you want to
-rule the helper out.
+`.venv/bin/python scripts/test_gp_tab.py` runs 137 checks over the helper
+itself (plus a native-`.gp` block that skips when Node or alphaTab is missing).
+Run it if you change `gp_tab.py`, or if something behaves unexpectedly and you
+want to rule the helper out. See Setup above for the virtualenv it needs.
 
 ## Writing music that's worth playing
 
