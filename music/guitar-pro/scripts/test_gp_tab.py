@@ -15,14 +15,23 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import guitarpro as gp
-from guitarpro import models as gpm
+try:
+    from guitarpro import models as gpm
+    import mido
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        f"{exc.name} is required to run these tests. From the skill directory:\n"
+        "    uv venv .venv\n"
+        "    uv pip install --python .venv/bin/python -r scripts/requirements.txt\n"
+        "    .venv/bin/python scripts/test_gp_tab.py"
+    ) from None
 
 from gp_tab import (
     INSTRUMENTS,
     TUNINGS,
     RiffSyntaxError,
     Tab,
+    main as gp_tab_cli,
     midi_from_name,
     name_from_midi,
     parse_riff,
@@ -215,8 +224,6 @@ def main() -> int:
     mid_path = os.path.join(tmp, "out.mid")
     tab.midi(mid_path)
     check("midi file written", os.path.getsize(mid_path) > 0)
-    import mido
-
     mf = mido.MidiFile(mid_path)
     notes_on = [m for tr in mf.tracks for m in tr if m.type == "note_on" and m.velocity > 0]
     check("5 note-ons", len(notes_on) == 5, str(len(notes_on)))
@@ -373,6 +380,72 @@ def main() -> int:
     info = Tab.load(p).info()
     check("7/8 preserved", info["time_signatures"] == ["7/8"], str(info["time_signatures"]))
 
+    print("\n[regressions]")
+    tab = Tab(tuning="standard")
+    tab.riff("4:6.0 4:6.2 4:6.3 4:r")
+    p = os.path.join(tmp, "reopen.gp5")
+    tab.save(p)
+    reopened = Tab.load(p)
+    try:
+        reopened.riff("4:5.0 4:5.2 4:5.3 4:r")
+        check(
+            "riff() grows a loaded tab",
+            len(reopened.song.tracks[0].measures) == 2,
+            str(len(reopened.song.tracks[0].measures)),
+        )
+    except AttributeError as exc:
+        check("riff() grows a loaded tab", False, repr(exc))
+    odd = Tab(tuning="standard", time_signature=(7, 8))
+    odd.riff("8:6.0 8:6.0 8:6.3 8:6.0 8:6.0 8:6.3 8:6.5")
+    p78 = os.path.join(tmp, "reopen78.gp5")
+    odd.save(p78)
+    grown = Tab.load(p78)
+    grown.riff("8:6.0 8:6.0 8:6.3 8:6.0 8:6.0 8:6.3 8:6.5")
+    check(
+        "a loaded tab keeps its meter as it grows",
+        grown.check_measures() == [],
+        str(grown.check_measures()),
+    )
+
+    try:
+        Tab(tuning="standard").riff("4:6.5+6.7 4:r 4:r 4:r")
+        check("rejects two notes on one string", False, "wrote an unreadable file")
+    except ValueError as exc:
+        check("rejects two notes on one string", "same beat" in str(exc), str(exc)[:60])
+
+    check(
+        "uppercase X is a dead note too",
+        parse_riff("8:6.0X")[0][0]["notes"][0]["effects"] == {"dead"},
+        str(parse_riff("8:6.0X")[0][0]["notes"][0]["effects"]),
+    )
+
+    fx_tab = Tab(tuning="standard")
+    fx_tab.riff("8:6.5~ 8:6.5h 8:6.5m 8:6.5l 8:6.5g 8:6.12o 8:6.5b 8:6.5/ 8:6.5x")
+    emitted = fx_tab.to_riff()
+    for flag, label in [("l", "let ring"), ("g", "ghost"), ("o", "harmonic"),
+                        ("b", "bend"), ("/", "slide")]:
+        check(f"to_riff keeps {label}", flag in emitted, emitted)
+    rebuilt = beats_of(Tab(tuning="standard").riff(emitted))
+    check(
+        "to_riff output rebuilds the same effects",
+        rebuilt[3].notes[0].effect.letRing
+        and rebuilt[4].notes[0].effect.ghostNote
+        and rebuilt[5].notes[0].effect.harmonic is not None
+        and rebuilt[6].notes[0].effect.bend is not None
+        and bool(rebuilt[7].notes[0].effect.slides),
+        emitted,
+    )
+
+    cli_out = os.path.join(tmp, "cli.gp5")
+    rc = gp_tab_cli(
+        ["riff", cli_out, "--notes", "4:6.0 4:6.2 4:6.3 4:r", "--instrument", "30"]
+    )
+    check(
+        "CLI takes a General MIDI program number",
+        rc == 0 and Tab.load(cli_out).song.tracks[0].channel.instrument == 30,
+        str(rc),
+    )
+
     print("\n[native GP7 export -- skipped if Node/alphaTab absent]")
     tab = Tab(title="GP7", artist="Example Artist", tempo=150, tuning="8-string")
     tab.riff("16:8.0m 16:8.0m 16:8.3 8:8.0 8:7.2 | 4:8.0+7.0 4:r 2:6.5~")
@@ -402,7 +475,7 @@ def main() -> int:
             any(sorted(t) == [30, 35, 40, 45, 50, 55, 59, 64] for t in tunings),
             str(tunings),
         )
-        check("4 bars", len(root.findall(".//MasterBar")) == 2, str(len(root.findall(".//MasterBar"))))
+        check("2 bars", len(root.findall(".//MasterBar")) == 2, str(len(root.findall(".//MasterBar"))))
 
         # Everything below crashed Guitar Pro before repair_gpif existed, and
         # none of it is detectable by reloading the file -- alphaTab reads its
