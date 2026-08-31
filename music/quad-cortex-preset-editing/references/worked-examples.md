@@ -12,9 +12,9 @@ Parametric-3 (HPF 55 Q0.71, +1.5 @ 350, hi shelf −0.5 @ 2k) → Reverb Room 15
 (byp) → Multi Out.
 
 Raw V4 measured with Volume 0 and the EQ bypassed: offset −4.4 dB; 1–12 kHz
-within 0.3 dB; 120–250 −0.4; 250–500 −3.2 at coherence 0.77 (EQ-able:
-+2 to 3 dB @ 350 Q1); 60–120 −5.0 at coherence 0.31 (not EQ-able, present in
-V1/V2/V4 alike); null −3.2 / −3.7.
+within 0.3 dB; 120–250 −0.4; 250–500 −3.2 at coherence 0.77 (worth
+correcting: +2 to 3 dB @ 350 Q1); 60–120 −5.0 at coherence 0.31 (EQ would move
+the number but not the null; present in V1/V2/V4 alike); null −3.2 / −3.7.
 
 V3, which had no notes kept, had been loaded in this preset and measured −5.8
 at Volume +6 with +10–15 dB of sub and a roll-off above 2 kHz. Rejected.
@@ -36,10 +36,13 @@ this path.
 
 How it got there, four takes at one variant each: lo shelf +3 @ 75 → peak +3 @
 90 Q1.5 → peak +4 @ 90 Q3 plus HPF 50 → peak +3 @ 90 Q1.5 plus HPF 65. The
-bell never moved 80–100 Hz more than ~1 dB in any form, because coherence
-there is ~0.5 (see `quad-cortex-capture-measurement`, "The EQ-vs-coherence
-lesson"). The HPF is what improved the null and the coherence. Do not add more
-low-end EQ to this preset; the residual 80–100 Hz gap is a recapture item.
+four shapes differ by only about a dB in band-mean gain across 60–120 Hz, which
+is the whole spread these takes show — the bell moved the band every time, by
+the amount its shape predicts (see `quad-cortex-capture-measurement`, "What EQ
+moves, and what coherence tells you"). The HPF is what improved the null and the
+coherence. Do not add more low-end EQ to this preset: at coherence ~0.5 it would
+flatten the number without improving the match. The residual 80–100 Hz gap is a
+recapture item.
 
 ## 1D Thall Experimental, 2026-08-23 (rung 2)
 

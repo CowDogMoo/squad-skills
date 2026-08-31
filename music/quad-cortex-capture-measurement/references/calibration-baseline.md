@@ -22,9 +22,11 @@ band; coherence 0.93 / 0.94 / 0.87 at 120–250 / 250–500 / 500–1k, 0.55 at
 Polarity inverted on every take. Capture Volume +14 clipped ("crackly") —
 +6 is the ceiling on this path.
 
-The take sequence is the EQ-vs-coherence lesson in data: the 80–100 Hz
-deficit never moved more than ~1 dB across three bell shapes because
-coherence there is ~0.5; the HPF (below the plugin's own 65 Hz low cut) is
+The take sequence is what `references/eq-and-coherence.md` re-analyses. The
+four 60–120 Hz numbers are accounted for to within 0.22 dB by the band-mean
+gain of each EQ shape alone, with no coherence term: the shapes differ by only
+about a dB across 60–120 Hz, which is the whole spread the takes show. The EQ
+moved the band every time. The HPF (below the plugin's own 65 Hz low cut) is
 what improved the null and lifted coherence in every band.
 
 The residual 80–100 Hz deficit is neither an EQ item nor a recapture item.

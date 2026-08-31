@@ -59,10 +59,19 @@ selects an empty grid slot. Use single click, then `cmd+a`, type, `return`.
 
 ### TotalMix under the offset
 
-Buttons — Inst, AutoSet, submix mute — take clicks at the offset. The gain
-knob ignores every input form tried: `left_click_drag`, stepped
-down/move/up, scroll, and typed value; a double-click resets it to 0. When a
-capture needs analog input gain you cannot set this way, put the same dB into
+Everything in this subsection applies **only while the click-offset bug is
+present**. Without it the gain knob takes screen control normally (observed
+2026-08-31); do not carry these notes into a session that is not offset.
+
+Buttons — Inst, AutoSet, submix mute — take clicks at the offset. Under the
+offset the gain knob ignored every input form tried: `left_click_drag`,
+stepped down/move/up, scroll, and typed value. This note used to add that "a
+double-click resets it to 0". It does not — a double-click opens the Data Edit
+Window, which appears away from the knob and takes focus. Under the offset
+that dialog would have been both mis-aimed and easy to miss, which plausibly
+accounts for the whole "refuses every input form" observation. Look for a
+stray Data Edit Window before concluding a control is dead. When a capture
+needs analog input gain you cannot set this way, put the same dB into
 the plugin's Input Gain via `ableton-mcp` and reset it afterwards — it is
 equivalent pre-nonlinearity gain. See `quad-cortex-plugin-capture`.
 

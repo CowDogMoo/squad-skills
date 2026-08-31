@@ -61,15 +61,26 @@ track's `<MainSequence>`; solo is `<SoloSink>` (true = soloed).
 Wanted state: Thall `M0` armed, REC `Track.<thall>/PostFxOut` armed, QC `S1`
 armed, nothing soloed.
 
-## Driving Live when the UI won't cooperate
+## Driving Live's routing
 
-Live's **Settings window and the routing/chooser popups do not respond to
-screen-control clicks** — Settings closes on the first click, chooser popups
-never appear in screenshots, arrow keys do nothing in them. Don't burn more
-than one attempt. The macOS **menu bar works**, including keyboard
-navigation inside it.
+Live's **Settings window and the routing/chooser popups do take screen
+control**. Settings opens and reads normally, and both chooser popups render
+and accept clicks — observed at the rig on 2026-08-31. The macOS **menu bar**
+works too, including keyboard navigation inside it.
 
-To change routing, arm, or solo anyway:
+An earlier version of this file said the opposite: that Settings closed on the
+first click, that the popups never appeared in screenshots, and that you should
+not burn more than one attempt on them. That was wrong, and it cost a session
+real time. The likely origin is a session whose own tooling had no desktop
+screen control writing its limitation down as a property of Ableton. **Check
+what your session can actually drive before concluding the application refuses
+it**, and do not record a one-session failure as an application fact.
+
+The `.als` patch below is still worth keeping: `ableton-mcp` cannot write
+routing, arm or solo (see below), so a session with no desktop screen control
+has no other route. It is no longer the first thing to reach for.
+
+To change routing, arm, or solo by patching the set instead:
 
 1. `cmd+s`, and verify File → Save Live Set is greyed out.
 2. Copy the `.als` into `Backup/` with a descriptive name.

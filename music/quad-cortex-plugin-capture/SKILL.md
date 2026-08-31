@@ -48,8 +48,9 @@ OFF, gain calibrated so hard playing peaks near −15 dBFS in Ableton.
 Loading any TotalMix snapshot or workspace silently reverts all of this.
 Re-verify before every capture session.
 
-Full strip settings, both leak modes, and what to do when the input gain knob
-will not take screen control: `references/totalmix-routing.md`.
+Full strip settings, both leak modes, OSC remote control, and what to do if
+the input gain knob will not take screen control:
+`references/totalmix-routing.md`.
 
 ## Ableton
 
