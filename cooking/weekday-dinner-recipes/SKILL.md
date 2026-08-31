@@ -55,9 +55,25 @@ For each target slot (aim for 12–15 candidates to end up with 8–10 verified)
 
 Aim for variety across:
 
-- **Protein**: chicken, beef/pork, seafood, vegetarian (≥2 of each in the final 10)
+- **Protein**: chicken, beef/pork, seafood, vegetarian
 - **Style**: grill, sheet pan, skillet, pasta, salad-as-meal, tacos
 - **Cuisine**: Mediterranean, Mexican, Asian, BBQ/American, Italian
+
+**Role mix.** A generic "≥2 of each" batch cannot feed a household week that
+asks for more vegetarian than anything else. When the batch is for
+`plan-weekly-dinners`, or the caller names a role mix, hit these floors in the
+final 10 rather than an even spread:
+
+| Role | Floor in a batch of 10 | Why |
+|---|---|---|
+| vegetarian / vegan | **4** | the week wants two to three of five, and some candidates get dropped by the 28-day cooldown or by household feedback before the planner picks |
+| chicken | **2** | the week wants one |
+| flex (salmon, shrimp, other seafood) | **2** | the week wants one; flex is the slot for fish that is not always welcome, so give the planner a choice |
+
+The floors are deliberately above what the week needs. The planner picks five
+from what survives filtering, so a batch that supplies exactly the target
+leaves it no room to reject anything. If you cannot hit a floor, say which one
+and by how much — do not pad the batch with a role that is already covered.
 
 ### 4. Verify each candidate — DROP if any fail
 
