@@ -35,6 +35,10 @@ __pycache__/
 # Generated checklists and plans
 .unlazy/
 
+# Built plugin packages. Also keeps the Validate Skills "Category Layout"
+# job happy: it fails any top-level dir absent from plugin.json "skills".
+dist/
+
 # Transient handoff artifacts (skill restore staging)
 cowork-shit/
 .flat-tmp/

@@ -1,0 +1,18 @@
+{
+  "name": "cowdogmoo",
+  "description": "CowDogMoo skill plugins: the full squad-skills set, plus a music-only cut for Quad Cortex and Guitar Pro work.",
+  "owner": {
+    "name": "Jayson Grace",
+    "url": "https://github.com/CowDogMoo"
+  },
+  "plugins": [
+    {
+      "name": "squad-skills",
+      "source": "./"
+    },
+    {
+      "name": "cowdogmoo-music",
+      "source": "./music"
+    }
+  ]
+}
