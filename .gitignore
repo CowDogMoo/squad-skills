@@ -22,8 +22,12 @@ Thumbs.db
 __pycache__/
 .coverage
 
-# Claude Code local config — never commit
-.claude/
+# Claude Code personal/local state — never commit.
+# Do NOT blanket-ignore .claude/: settings.json, agents/, skills/, and
+# commands/ are team-shared and belong in git.
+.claude/settings.local.json
+.claude/worktrees/
+.claude/agent-memory-local/
 
 # Squad local session state — never commit
 .squad/
@@ -33,3 +37,4 @@ __pycache__/
 
 # Transient handoff artifacts (skill restore staging)
 cowork-shit/
+.flat-tmp/
