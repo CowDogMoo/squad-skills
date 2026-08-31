@@ -82,8 +82,30 @@ To change routing, arm, or solo anyway:
 5. Re-check plugin state — it can come back different after the reload.
 
 `ableton-mcp` cannot read or set input routing, monitoring, or the audio
-device. It can read and set device parameters, arm, solo, mute, and volume.
-Use it for state verification and the `.als` for routing.
+device, and it cannot **set** arm, solo, or mute either — verified against the
+installed build 2026-08-30, when a track needed arming and no tool existed.
+`get_track_info` *reports* arm, solo and mute; the only writes on offer are
+device parameters, device enable/disable, track volume, panning, and name.
+Use it for state verification and device state, and the `.als` patch + reload
+above for routing, arm, and solo — or ask Jayson, which is two clicks and
+does not risk the plugin coming back in a different state.
+
+## thall amp normalized parameter mappings
+
+`set_device_parameter` takes 0.0-1.0 and its response echoes a stale display
+string, so always re-read with `get_device_parameters(show_all=true)`. Worked
+out 2026-08-30 restoring the V4 reference after a preset had been loaded over
+Mirar-Leo:
+
+| Parameter | Normalized |
+| --------- | ---------- |
+| Amp Lo / Mid / Hi / Presence | `n = 0.5 + dB / 23.5` (0.5 = 0.0 dB) |
+| Input Gain | `n = 0.5 + dB / 60` — inferred from one point (+2.4 dB = 0.54), unverified |
+| Amp Drive, Tighten Chug, Tone Match Amount/Smooth | percent / 100 |
+| Tighten Frequency | log; fitted from 51 Hz @ 0.19 and 362 Hz @ 0.60: `n = 0.6 + (log10(f) - 2.5587) / 2.0759`. 1.6 kHz = 0.9109, confirmed by read-back; the implied 20.6 Hz / 2.45 kHz endpoints are extrapolation |
+| Tighten Gate off (-100 dB), Pitch Power off, Lo-Cut off | 0.0 |
+| Hi-Cut off | 1.0 |
+| Mono | 0.0 (Mono/Stereo Toggle) |
 
 ## Recorded files
 
