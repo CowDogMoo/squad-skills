@@ -80,8 +80,15 @@ equivalent pre-nonlinearity gain. See `quad-cortex-plugin-capture`.
 - **An un-granted app in front blocks every click**, even when it is on the
   other monitor. `computer_open_application` on Cortex Control brings it back
   to front without asking the user.
-- **Windows on the non-primary display can receive no clicks at all.** Ask for
-  the app on the primary (menu-bar) monitor.
+- **Windows on the non-primary display are clickable once you switch to it.**
+  Call `computer_switch_display` with the monitor name the screenshot note
+  gives (e.g. `ASUS XG32VQR`), and every click lands there, offset and all —
+  verified 2026-09-01 with Cortex Control, TotalMix and Ableton all on the
+  non-primary monitor. An earlier note here said such windows "can receive no
+  clicks at all" and told you to have the user move the app to the primary
+  monitor; that was a missing `computer_switch_display`, not a limitation.
+  `computer_request_access` reports which display each app is on — read it
+  before the first screenshot.
 - **Cursor parked on the other monitor sends your clicks nowhere.** Move to
   any point on the primary display first; the next click then lands, with the
   usual offset. `computer_cursor_position` reporting `logical_points` on

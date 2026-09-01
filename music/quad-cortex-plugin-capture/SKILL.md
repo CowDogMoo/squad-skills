@@ -41,6 +41,9 @@ The one rule that decides whether the capture is usable: **only the Ableton
 playback channel reaches the output feeding QC In 2.** Every hardware input
 row and every other software playback row in that submix goes to −∞. A leak
 from either sums dry signal with the plugin, and the capture models the sum.
+**And that one row must actually be up** — found at −∞ on 2026-09-01, which
+would have captured silence. Check both directions; the strips are custom-named
+and `references/totalmix-routing.md` says which is which.
 
 Then, on the input receiving CAPTURE OUT (In 4): Inst OFF, +13 dBu, AutoSet
 OFF, gain calibrated so hard playing peaks near −15 dBFS in Ableton.

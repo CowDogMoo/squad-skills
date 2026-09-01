@@ -29,6 +29,44 @@ garbage. These settings exist to guarantee that.
   unmute afterwards; it is the user's monitoring. Removing that leak dropped
   the capture wizard's In 2 meter from −8.4 to −13.0 at the same In 2 level.
 
+## Which strip is which on this rig
+
+The playback and hardware-output strips carry custom names that do not say
+which channel they are, and picking the wrong one is the difference between a
+capture and silence. Read 2026-09-01:
+
+| Strip | Channel | Carries |
+| ----- | ------- | ------- |
+| "Computer Ou" | software playback 1/2 | Ableton's **Main** — the leak row |
+| "Music Out" | software playback 3/4 | Ableton's **Ext. Out 3** — the plugin feed to QC In 2 |
+| "Vox Out" | software playback 5/6 | |
+| "Phones" | software playback 7/8 | |
+| "Main" (right, control room) | hardware output Analog 1/2 | |
+| "Analog 3/4" | hardware output Analog 3/4 | the output feeding QC In 2 |
+
+Click the **Analog 3/4** hardware output strip to put every other strip into
+that submix; each strip's send value then reads at the bottom of the strip.
+Check both rows — hardware inputs and software playback — every strip.
+
+## The other half of the check: the Ableton row must be UP
+
+The leak check above is only half of it. On 2026-09-01 the Analog 3/4 submix
+had every hardware input at −∞ (clean), "Computer Ou" leaking at −11.9 dB,
+**and "Music Out" at −∞** — so nothing from the plugin reached QC In 2 at all.
+A capture started in that state records silence for 2–3 minutes and then
+spends another 3–5 minutes training on it before anything looks wrong.
+
+Verify both, every session: the wrong rows down **and** the Ableton track's own
+playback row up.
+
+## Keep a capture workspace
+
+The workspace loaded on 2026-09-01 was "Loud Fucking Vocals", and none of the
+seven entries in File → Open Recent was a capture one — which is why this
+routing gets rebuilt by hand every session and why a vocals workspace can
+silently undo it. Once the levels are dialed, **File → Save Workspace As
+"capture"**, and load that first thing in every capture session.
+
 ## Input receiving the QC's normal output (In 3, for A/B recording)
 
 Inst OFF, +13 dBu, gain 0, AutoSet OFF. The QC's main out is far hotter than
@@ -47,6 +85,17 @@ older notes are full of pixel-drag calibration.
 
 For a one-off exact value, double-click the control and use the Data Edit
 Window — see `quad-cortex-plugin-capture`, "Screen control during a capture".
+That works on a **knob**. On a **fader's** dB value text it does not: on
+2026-09-01 a double-click there opened no editor and toggled TotalMix's Info
+View instead. Buttons — Inst, AutoSet, channel M, hardware-output strip select
+— took clicks normally in the same session, so prefer mute over riding a send
+to −∞ when screen control is all you have.
+
+Two more mechanics worth not rediscovering:
+
+- **TotalMix menus do not close on Escape.** Click outside the menu instead.
+- `computer_resolve_access` resolves this app as **`Totalmix`** (bundle
+  `de.rme-audio.TotalmixFX`). "TotalMix FX" does not resolve.
 
 ## If the input gain knob will not take screen control
 
