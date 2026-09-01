@@ -97,7 +97,7 @@ each listed path exactly one level deep.
 | [quad-cortex-capture-measurement](./music/quad-cortex-capture-measurement) | Measure a Quad Cortex capture or preset against its plugin reference: one-pass QC-over-USB recording, bundled `analyze.py` (LUFS offset, banded deltas, coherence, null depth), interpretation thresholds, and the canonical claim ladder.                       |
 | [quad-cortex-plugin-capture](./music/quad-cortex-plugin-capture)           | Run a Neural Capture of an amp-sim plugin into the Quad Cortex on the user's rig (RME UCX II, Ableton, Cortex Control): cabling, TotalMix routing, capture-safe plugin state, level calibration, V2 capture, A/B verification.                                    |
 | [quad-cortex-preset-editing](./music/quad-cortex-preset-editing)           | Put a Neural Capture into a Quad Cortex preset via Cortex Control screen control: inventory every block, canonical order, bypass what the reference lacks, makeup on Volume, and report the claim rung reached (configured / structurally faithful / measured). |
-| [thall-amp-neural-capture](./music/thall-amp-neural-capture)               | Odeholm thall amp specifics: capture the preset as you play it, why Tighten Chug cannot be modelled by a static Neural Capture, the V1-V5 history and verdicts, the standing V4 preset, and its known-good measured envelope.                                     |
+| [thall-amp-neural-capture](./music/thall-amp-neural-capture)               | Odeholm thall amp specifics: every control and whether a static Neural Capture can model it, the Tone Lock trap, all 53 factory presets with a bundled `.afx` reader, the capture-as-played rule, the V1-V5 history, and the standing V4 measured envelope.        |
 
 ### cooking/
 

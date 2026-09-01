@@ -21,7 +21,7 @@
       "expectations": [
         "The numbers are identified as the expected signature for a Chug-50 capture of this amp, roughly -4 dB at coherence 0.4-0.5",
         "The verdict is that the capture is not defective and needs no recapture",
-        "Chasing the band with EQ is ruled out as cosmetic — a static boost would flatten the average of a dynamic control, and at this coherence it would not improve the null — rather than on the incorrect grounds that EQ cannot move the delta",
+        "Chasing the band with EQ is ruled out as cosmetic \u2014 a static boost would flatten the average of a dynamic control, and at this coherence it would not improve the null \u2014 rather than on the incorrect grounds that EQ cannot move the delta",
         "The rest of the bands sitting within a dB is read as confirmation the capture is good"
       ]
     },
@@ -35,6 +35,79 @@
         "V5 is described as the best-measuring capture but rejected by ear",
         "The response states that when the numbers and the ears disagree, the ears win",
         "The known-good V4 measured envelope is offered as the reference for detecting drift in a later take"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "What does the Tighten section of the thall amp actually do, and what are the ranges on those three knobs?",
+      "expected_output": "Describes Shape Power, Tighten Gate, Tighten Chug and Tighten Frequency with their real ranges and defaults, and notes that Shape Power bypasses the gate and Chug together.",
+      "files": [],
+      "expectations": [
+        "Chug is described as a processor that puts more emphasis on pick attack, disabled at 0, with a 0-100% range",
+        "Tighten Frequency is given as the chug processing cutoff spanning roughly 20 Hz to 2.5 kHz, with higher values described as more scrape-y",
+        "The gate range is given as -100 dB to -12 dB, with -100 dB being fully off",
+        "The response states that the section power switch bypasses the gate and Chug together, so the gate is silenced by setting it to -100 dB rather than by bypassing the section"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I loaded the Jesse Zuretti Monomythic factory preset in the thall amp and it doesn't sound like his demo. What am I missing?",
+      "expected_output": "Explains that the preset ships an embedded tone-match profile learned from the author's guitar, and that with Tone Lock enabled the plugin does not load it, so the user's own tone-match profile and input gain stay in the chain.",
+      "files": [],
+      "expectations": [
+        "Tone matching is identified as a correction EQ learned from a specific guitar and applied to the input, not an amp EQ",
+        "The response explains that Tone Lock prevents a preset from changing tone-match and input-gain parameters on load",
+        "It says the preset ships its own embedded profile at a high Match Amount that is therefore not being applied",
+        "It tells the user to check the profile name in the plugin window, noting that 'No Tone Profile' means none is loaded"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I want to make a thall amp capture that actually measures well. Which factory preset should I capture?",
+      "expected_output": "Names the presets with no dynamic controls running \u2014 Drewsif Air On Marshall and Mirar Marius \u2014 and explains that Chug, Pitch Thicken and Whammy are what make a preset unmodellable.",
+      "files": [],
+      "expectations": [
+        "At least one of Drewsif - Air On Marshall or Mirar - Marius is named as a preset with no dynamic processing running",
+        "The reasoning is that Chug, Pitch Thicken and Pitch Whammy are the controls a static capture cannot model",
+        "It notes that Mirar - Marius has Cab Power off, so it would be an amp-only capture needing an IR after it",
+        "It does not present measuring well as a reason to prefer a preset over the one the user actually plays"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Can you tell me exactly what settings the thall amp's 'Lance Prenc - World Ender' preset uses? I'm thinking of capturing it.",
+      "expected_output": "Reads the preset file from disk rather than guessing, reports its values, and warns that it loads a third-party cab IR that is missing on this machine, plus its Chug and Thicken settings.",
+      "files": [],
+      "expectations": [
+        "The preset values are obtained by reading the preset file on disk (or the bundled reader script is used or named), not recalled or invented",
+        "The response warns that this preset references a cab IR by absolute path that is not present on this machine, so it falls back to the internal cab",
+        "The dynamic controls that will limit the capture are called out with their values",
+        "The response does not claim the capture will match the preset as its author built it"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Explain the thall amp's Tighten Chug and Tighten Frequency to me like a guitar player, not an engineer. Can I get the same thing on my Quad Cortex?",
+      "expected_output": "Plain-language descriptions - Chug as the palm-mute attack/tightness control and Frequency as how far up the range that tightening reaches - plus an honest answer that a Neural Capture cannot carry it and no QC block reproduces it exactly.",
+      "files": [],
+      "expectations": [
+        "Chug is explained in playing terms as making palm-muted chugs percussive and separated, with 0 meaning the processing is off",
+        "Tighten Frequency is explained as how high up the range the tightening works - low for thick low-end chunk, high for pick-noise clack",
+        "The response says a Neural Capture cannot reproduce Chug, because it follows the playing and a capture is static",
+        "Any QC-side suggestion (compressor or dynamic filter before the capture) is offered as an untested approximation, not as an equivalent"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I want a QC capture of the thall amp's 'Buster Odeholm - Thick Chugs' preset that actually sounds like the preset. What do I do?",
+      "expected_output": "Sorts the preset's controls into baked-in, rebuilt on the QC grid, and lost; names the specific capture-time changes and the QC blocks needed, including a pitch block for its Pitch Thicken.",
+      "files": [],
+      "expectations": [
+        "The preset's actual values are read from the preset file rather than recalled, or the bundled reader script is used",
+        "Controls are sorted into what bakes into the capture, what gets rebuilt as QC blocks, and what is lost",
+        "The gate is set to -100 dB for the capture and put back as a QC gate block, and the Mono/Stereo toggle is set to mono",
+        "Pitch Thicken is identified as needing a QC pitch block before the capture rather than being captured, because a static model cannot learn an octave generator",
+        "Tighten Chug is named as the part that will not transfer, with the deficit expected rather than corrected"
       ]
     }
   ]
