@@ -212,8 +212,18 @@ shifter is not something a static model can learn, and leaving it in would
 have corrupted the amp model as well. But the octave then has to come back
 as a **QC pitch block before the capture**, and the standing preset does not
 have one — its Wham and Pitch Shifter blocks are bypassed. No recapture is
-needed; the preset needs a pitch block at −12 st, mix 17%, low-passed at
-10 kHz. See `references/plain-language-guide.md`.
+needed; enable the Pitch Shifter at **Coarse −12, Mix 17%**.
+
+**Do not write a low-pass into that spec.** The QC Pitch Shifter block has
+exactly three parameters — **Mix, Coarse, Fine** — and no wet-path filter, so
+there is nowhere on it to put the plugin's Pitch Hi-Cut (10.0 kHz in Leo, read
+from the preset file). An EQ dropped on the same row to supply it filters the
+**whole** signal into the capture, not the octave: a handoff spec of "−12 st,
+mix 17%, low-pass 270 Hz" applied literally would have hung a 270 Hz brick
+wall across the entire guitar. Filtering only the shifted voice needs a
+Splitter → [pitch block + EQ] and dry → Mixer. Leo's Hi-Cut is near full range
+anyway, so a bare single-row pitch block is a small error here — but say
+"close, not exact". See `references/plain-language-guide.md`.
 
 ## Capture history and verdicts
 
@@ -312,9 +322,11 @@ rung 3, measured.
 
 1. **The standing preset is missing Leo's octave.** Mirar – Leo ships Pitch
    Thicken at 17% and the capture correctly excluded it, but the QC pitch
-   block that should replace it is bypassed. Add one at −12 st, mix 17%,
-   low-pass 10 kHz, before the capture block, then A/B against the plugin
-   with its pitch section on. A preset edit, not a recapture.
+   block that should replace it is bypassed. Enable the Pitch Shifter at
+   **Coarse −12, Mix 17%**, before the capture block, then A/B against the
+   plugin with its pitch section on. **No low-pass on that row** — the block
+   has only Mix/Coarse/Fine, and an EQ beside it filters the dry signal too
+   (see the note above). A preset edit, not a recapture.
 2. **Does Pitch Power off also bypass Low Dirt?** The UI files Low Dirt
    under the pitch section. It has not mattered — every capture so far used
    Low Dirt 0 — but 37 of 54 installed presets have it above zero. Set Low

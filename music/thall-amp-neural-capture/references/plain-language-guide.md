@@ -112,9 +112,13 @@ below, mixed with the dry signal: 0% is dry only, 100% is the octave only.
 **Pitch Hi-Cut** — *how much treble that added octave keeps.* Down at
 100–300 Hz the octave is a subby rumble under the riff. Up near 10 kHz it is
 a full-range octave that argues with the guitar.
-→ Rebuilt with the octave. On a single row you cannot low-pass only the
-octave, so an exact rebuild needs a **Splitter → [pitch block + EQ] and dry →
-Mixer** into the capture. A single-row pitch block gets you close, not exact.
+→ Rebuilt with the octave — but **not on the pitch block**, which carries only
+Mix, Coarse and Fine and has no filter of its own. On a single row you cannot
+low-pass only the octave: an EQ next to the pitch block low-passes the dry
+guitar and everything else feeding the capture with it. An exact rebuild needs
+a **Splitter → [pitch block + EQ] and dry → Mixer** into the capture. A
+single-row pitch block gets you close, not exact — and a Hi-Cut value copied
+from the plugin into a single-row spec is how a preset gets wrecked.
 
 **Thicken Amp Parallel** — *does the octave go through its own amp, or get
 mixed into your guitar before the amp?* Off (the common case) means the

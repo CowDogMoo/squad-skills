@@ -17,6 +17,13 @@
   metadata forms, TotalMix strips. Batched blind clicks are what caused the
   one real failure of a capture session — a capture started with the wrong
   name and type.
+- **TotalMix faders and knobs both take `computer_left_click_drag`.** Verified
+  2026-09-01 in a session with no click offset. There is no class of TotalMix
+  control that drags refuse; when one seems dead, the cause is the click-offset
+  session bug (`quad-cortex-preset-editing`,
+  `references/screen-control-workarounds.md`) or a stray Data Edit Window
+  holding focus — check those two, in that order, before recording a
+  limitation.
 - **TotalMix knobs take the scroll wheel.** Measured 2026-08-31 on the Reverb
   Pre Delay knob: three line-scroll events moved it 20 → 11 (≈3 units a tick)
   and three the other way put it back to exactly 20. There is a preference for
