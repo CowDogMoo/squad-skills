@@ -153,6 +153,15 @@ Special cases:
 
 - Pitch blocks at 0 semitones or pedal 0% still run the pitch engine: latency
   and smeared attack. Bypass; the user re-enables when using the pedal.
+- **The Pitch Shifter block has only Mix, Coarse and Fine — no wet-path
+  filter.** A plugin octave with its own tone control does not port to one row:
+  an EQ placed beside the pitch block to supply that filter hits the dry
+  signal and everything else downstream, so a "low-pass the octave at N Hz"
+  instruction becomes a low-pass on the whole chain into the capture. Filtering
+  only the shifted voice needs Splitter → [pitch + EQ] and dry → Mixer. On one
+  row, set Mix and Coarse, leave the filter out, and report "close, not
+  exact" — never transcribe the plugin's filter frequency into a single-row
+  pitch spec.
 - An EQ with an HPF/LPF duplicating the plugin's baked Lo/Hi Cut is
   double-filtering. Bypass rather than reset, so the curve survives.
 - If the EQ's Output was the only makeup gain, carry that number to the

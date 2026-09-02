@@ -5,9 +5,17 @@ refuses every input form, or when the app will not come forward.
 
 ## The click-offset bug
 
-Hover (`computer_mouse_move`) lands where aimed, but every click and
-mouse-down lands a fixed ~260–270 px **above** the aim point, on both
-monitors. Observed across two sessions at 270 px and 260 px.
+**It is a per-session bug, not a property of this rig.** Observed in two
+sessions at 270 px and 260 px, and **absent in others** — two 2026-09-01
+sessions differed, one offset and one landing every click exactly where it was
+aimed, same two monitors and same apps. It can therefore flip between sessions
+on the same day. Calibrate at the start of each one; never inherit an offset
+from these notes, and never explain a stubborn control by an offset you have
+not measured in this session.
+
+While it is present: hover (`computer_mouse_move`) lands where aimed, but
+every click and mouse-down lands a fixed ~260–270 px **above** the aim point,
+on both monitors.
 
 **Symptoms.** Clicking a row-3 block opens the preset browser or switches
 scenes. Clicks in the top ~260 px do nothing. Double-clicks deselect the block
@@ -60,8 +68,15 @@ selects an empty grid slot. Use single click, then `cmd+a`, type, `return`.
 ### TotalMix under the offset
 
 Everything in this subsection applies **only while the click-offset bug is
-present**. Without it the gain knob takes screen control normally (observed
-2026-08-31); do not carry these notes into a session that is not offset.
+present**. Off-offset TotalMix takes screen control normally: **faders and
+knobs both move with `computer_left_click_drag`** (2026-09-01, offset-free
+session), and the gain knob takes the scroll wheel as well (2026-08-31). Do
+not carry these notes into a session that is not offset.
+
+Every "TotalMix faders don't respond" and "the gain knob refuses every input
+form" note in this project's history traces back to this offset or to a stray
+Data Edit Window. None of it is a property of the rig. Treat a dead-seeming
+control as a symptom to diagnose, never as a documented limitation.
 
 Buttons — Inst, AutoSet, submix mute — take clicks at the offset. Under the
 offset the gain knob ignored every input form tried: `left_click_drag`,

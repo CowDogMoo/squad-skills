@@ -83,13 +83,20 @@ the port changed first. Every fader, gain, Inst, AutoSet and mute is
 addressable this way. Nothing in this corpus ever used it, which is why the
 older notes are full of pixel-drag calibration.
 
+**Faders and knobs both take `computer_left_click_drag`** (2026-09-01, a
+session with no click offset). Riding a send down to −∞ by dragging its fader
+works, and so does the input gain knob. Every "TotalMix faders/knobs don't
+respond" note in this project's history was the click-offset session bug or a
+stray Data Edit Window swallowing the input — not this app and not this rig.
+Diagnose both before writing a control off.
+
 For a one-off exact value, double-click the control and use the Data Edit
 Window — see `quad-cortex-plugin-capture`, "Screen control during a capture".
 That works on a **knob**. On a **fader's** dB value text it does not: on
 2026-09-01 a double-click there opened no editor and toggled TotalMix's Info
-View instead. Buttons — Inst, AutoSet, channel M, hardware-output strip select
-— took clicks normally in the same session, so prefer mute over riding a send
-to −∞ when screen control is all you have.
+View instead. Drag the fader for that case, or mute the channel. Buttons —
+Inst, AutoSet, channel M, hardware-output strip select — take clicks
+normally.
 
 Two more mechanics worth not rediscovering:
 
@@ -99,9 +106,9 @@ Two more mechanics worth not rediscovering:
 
 ## If the input gain knob will not take screen control
 
-The knob normally **does** take screen control, including the scroll wheel
-(measured 2026-08-31). An earlier note presented refusal as the expected
-state; it is not. Check, in order:
+The knob normally **does** take screen control — `left_click_drag` and the
+scroll wheel both (measured 2026-08-31 and 2026-09-01). An earlier note
+presented refusal as the expected state; it is not. Check, in order:
 
 1. **A stray Data Edit Window holding focus.** A double-click anywhere opens
    one, it appears away from the control, and it swallows everything aimed at
