@@ -176,7 +176,12 @@ def main():
     print("(-1.5 to -2.5 dB is NORMAL for high-gain; residual is drive character)")
 
     # --- ESR (error-to-signal ratio), the number the capture community quotes
-    # (NAM prints it after training). Reference is the gain-matched plugin.
+    # (NAM prints it after training). Computed at the optimal (least-squares)
+    # gain and normalized by the capture's own energy, so it is bounded [0,1]
+    # (= 1 - r^2 = the gain-match null in linear units) and converges to NAM's
+    # number in the high-correlation regime where the ladder applies.
+    # Normalizing by the LS-scaled reference instead inflates ESR past 1 on
+    # weakly correlated material (measured 2.33 on a real high-gain take).
     # Pre-emphasized variant (1 - 0.85 z^-1, DAFx-19) weights the error closer
     # to how it is heard. Ladder: <0.01 great, <0.05 good, <0.1 borderline,
     # >0.2 wrong -- but a physical rig re-recorded against itself bottoms out
@@ -185,10 +190,10 @@ def main():
     # engines put fizz harmonics at different phases, exactly like the null.
     # See references/similarity-metrics.md before quoting the ladder.
     ref_e = g * a
-    esr = ((b - ref_e) ** 2).mean() / ((ref_e**2).mean() + 1e-30)
+    esr = ((b - ref_e) ** 2).mean() / ((b**2).mean() + 1e-30)
     b_pe = signal.lfilter([1.0, -0.85], [1.0], b)
     r_pe = signal.lfilter([1.0, -0.85], [1.0], ref_e)
-    esr_pe = ((b_pe - r_pe) ** 2).mean() / ((r_pe**2).mean() + 1e-30)
+    esr_pe = ((b_pe - r_pe) ** 2).mean() / ((b_pe**2).mean() + 1e-30)
     word = ("great" if esr < 0.01 else "good" if esr < 0.05 else
             "borderline" if esr < 0.1 else "off")
     esr_line = f"ESR {esr:.4f} ({word}); pre-emphasized (1-0.85z^-1) {esr_pe:.4f}"
