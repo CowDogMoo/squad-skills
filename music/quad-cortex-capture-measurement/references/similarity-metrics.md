@@ -12,6 +12,15 @@ Neural Amp Modeler trainer prints after every run, so quoting it makes this
 skill's measurements comparable with every NAM/AIDA-X/ToneX accuracy
 conversation.
 
+Convention detail that matters on this rig: `analyze.py` computes ESR at the
+optimal (least-squares) gain and normalizes by the unscaled signal energy,
+which makes it bounded [0,1], equal to `1 − r²`, and exactly the gain-match
+null depth in linear units (−1.6 dB null ⇒ ESR 0.69). Normalizing by the
+LS-scaled reference instead inflates ESR past 1 on weakly correlated
+material — a real high-gain take measured 2.33 that way, which is
+meaningless as an error-to-signal ratio. In the high-correlation regime
+where the NAM ladder applies, the two conventions converge.
+
 Ladders actually shipped in tools:
 
 | ESR | NAM (`nam/train/core.py`) | AIDA-X best practices |
