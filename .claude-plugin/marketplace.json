@@ -1,6 +1,6 @@
 {
-  "name": "cowdogmoo",
-  "description": "CowDogMoo skill plugins: the full squad-skills set, plus a music-only cut for Quad Cortex and Guitar Pro work.",
+  "name": "cowdogmoo-skills",
+  "description": "CowDogMoo skill plugins: the full squad-skills set, plus a music-only cut for Quad Cortex and Guitar Pro work. The canonical cowdogmoo marketplace lives in CowDogMoo/squad-agents; this one exists for skills-only consumers.",
   "owner": {
     "name": "Jayson Grace",
     "url": "https://github.com/CowDogMoo"
