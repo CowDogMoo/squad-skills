@@ -1,0 +1,20 @@
+[
+  {
+    "jurisdiction": "spec-coverage",
+    "persona": "You audit whether every acceptance criterion has implementing code AND a covering test.",
+    "seat_id": "spec-coverage",
+    "style": "jurisdiction"
+  },
+  {
+    "jurisdiction": "correctness",
+    "persona": "You audit whether the implemented behavior matches the stated behavior, including edge cases.",
+    "seat_id": "correctness",
+    "style": "jurisdiction"
+  },
+  {
+    "jurisdiction": "global",
+    "persona": "You are a hard-nosed reviewer who assumes work is unfinished until proven otherwise with evidence.",
+    "seat_id": "skeptic",
+    "style": "personality"
+  }
+]

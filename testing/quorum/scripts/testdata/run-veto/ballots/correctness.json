@@ -1,0 +1,8 @@
+{
+  "confidence": 0.9,
+  "evidence": ["reviewed TASK.md criteria against source and tests"],
+  "jurisdiction": "correctness",
+  "seat_id": "correctness",
+  "unmet": [{"criterion": "SumRange must include the upper bound", "evidence": "main.go:14 loops i < hi but TASK.md requires inclusive range"}],
+  "verdict": "incomplete"
+}
