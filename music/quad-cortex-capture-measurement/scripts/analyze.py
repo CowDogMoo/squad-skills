@@ -5,8 +5,9 @@ Takes the three files recorded in one pass over the QC's USB interface
 (DI = Dry Input 1, plugin = the Post-FX REC track, QC = Wet Signal L/R) and
 reports: same-performance check (full-band cross-correlation), LUFS/peak,
 1/6-oct spectra normalised at 500 Hz-2 kHz with banded QC-plugin deltas,
-per-band coherence, and null depth after signed gain match and after a
-best-fit 512-tap linear EQ. Saves the two-panel plot as
+per-band coherence, null depth after signed gain match and after a
+best-fit 512-tap linear EQ, and ESR (plain + pre-emphasized) against the
+gain-matched plugin, optionally relative to a rig floor (--esr-floor). Saves the two-panel plot as
 null-test-YYYY-MM-DD-HHMM.png, stamped with the take time parsed from the
 Ableton filename (`[YYYY-MM-DD HHMMSS]`), falling back to the clock.
 
@@ -87,6 +88,8 @@ def main():
     ap.add_argument("qc")
     ap.add_argument("--out-dir", default=".", help="where the PNG lands (project folder)")
     ap.add_argument("--label", default="", help="title context, e.g. '15:07 take, Thall Amp+Cab vs plugin'")
+    ap.add_argument("--esr-floor", type=float, default=None,
+                    help="rig self-ESR from a repeat-take run; ESR is also reported relative to it")
     args = ap.parse_args()
 
     di, sr = load(args.di)
@@ -172,6 +175,27 @@ def main():
     print(f"null after gain match: {null_gain:.1f} dB ; after best-fit linear EQ (512 taps): {null_eq:.1f} dB")
     print("(-1.5 to -2.5 dB is NORMAL for high-gain; residual is drive character)")
 
+    # --- ESR (error-to-signal ratio), the number the capture community quotes
+    # (NAM prints it after training). Reference is the gain-matched plugin.
+    # Pre-emphasized variant (1 - 0.85 z^-1, DAFx-19) weights the error closer
+    # to how it is heard. Ladder: <0.01 great, <0.05 good, <0.1 borderline,
+    # >0.2 wrong -- but a physical rig re-recorded against itself bottoms out
+    # near 0.04, and a cross-architecture pair (QC vs plugin) reads higher
+    # than NAM-vs-own-target at the same audible match: different nonlinear
+    # engines put fizz harmonics at different phases, exactly like the null.
+    # See references/similarity-metrics.md before quoting the ladder.
+    ref_e = g * a
+    esr = ((b - ref_e) ** 2).mean() / ((ref_e**2).mean() + 1e-30)
+    b_pe = signal.lfilter([1.0, -0.85], [1.0], b)
+    r_pe = signal.lfilter([1.0, -0.85], [1.0], ref_e)
+    esr_pe = ((b_pe - r_pe) ** 2).mean() / ((r_pe**2).mean() + 1e-30)
+    word = ("great" if esr < 0.01 else "good" if esr < 0.05 else
+            "borderline" if esr < 0.1 else "off")
+    esr_line = f"ESR {esr:.4f} ({word}); pre-emphasized (1-0.85z^-1) {esr_pe:.4f}"
+    if args.esr_floor is not None:
+        esr_line += f"; rig floor {args.esr_floor:.4f} -> {esr / args.esr_floor:.1f}x floor"
+    print(esr_line)
+
     # --- plot: spectra + coherence on top, envelopes below
     fig, ax = plt.subplots(2, 1, figsize=(14, 12))
     ax[0].semilogx(f, dp, label=f"Plugin post-FX   {L_p:.1f} LUFS, peak {pk_p:.1f} dBFS", color="#2f6fd6", lw=2)
@@ -204,7 +228,8 @@ def main():
     ax[1].set_ylabel("RMS dBFS (10 ms)")
     ax[1].grid(alpha=0.3)
     ax[1].set_title(f"Envelopes — LUFS offset QC−plugin {L_q - L_p:+.1f} dB; "
-                    f"null after gain match {null_gain:.1f} dB, after best-fit linear EQ {null_eq:.1f} dB")
+                    f"null after gain match {null_gain:.1f} dB, after best-fit linear EQ {null_eq:.1f} dB; "
+                    f"ESR {esr:.4f}")
     ax[1].legend(loc="lower right")
     plt.tight_layout()
 

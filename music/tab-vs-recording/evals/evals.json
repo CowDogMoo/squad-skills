@@ -1,0 +1,28 @@
+{
+  "skill_name": "tab-vs-recording",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Generate the test fixtures with evals/files/make_fixtures.py into a temp directory, then tell me how faithful tab.mid is to perf.wav (perf.mid is a transcription of the recording). Also check wrongtab.mid against the same recording.",
+      "expected_output": "Runs make_fixtures.py, then compare_tab.py twice; reports DTW cost/step, chroma similarity, onset F1 and onset+pitch F1 for the matching tab (near 1.0, cost ~0.075) and the wrong tab (F1 near 0, cost far higher); names the ladder rung for each and does not invent numbers.",
+      "files": ["evals/files/make_fixtures.py"],
+      "expectations": [
+        "scripts/compare_tab.py is executed on both tabs with --ref-midi",
+        "The response reports DTW cost/step and onset+pitch F1 as numbers from the script output",
+        "The matching tab is called excellent/faithful and the wrong tab is identified as not the same music",
+        "No number is stated that the script did not produce"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "i found a guitar pro tab for this song online. how do i know if it's actually right before i spend a week learning it?",
+      "expected_output": "Explains the pipeline: export the tab to MIDI (guitar-pro skill), get the recording, transcribe it (Basic Pitch) for note-level scoring, run compare_tab.py; explains the confidence gate, the F1 ladder, the transcriber ceiling, and the calibration discipline rather than promising an absolute verdict.",
+      "files": [],
+      "expectations": [
+        "The response does not declare a verdict without running the comparison",
+        "It routes Guitar Pro parsing/MIDI export to the guitar-pro skill",
+        "It explains that scores are a lower bound set by the transcriber ceiling and recommends calibrating on a known-good tab"
+      ]
+    }
+  ]
+}
