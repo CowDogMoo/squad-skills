@@ -1,0 +1,8 @@
+{
+  "confidence": 0.9,
+  "evidence": ["reviewed TASK.md criteria against source and tests"],
+  "jurisdiction": "correctness",
+  "seat_id": "correctness",
+  "unmet": [{"criterion": "criterion 2 lacks a covering test", "evidence": "duplicate citation from correctness"}, {"criterion": "error message must name the flag", "evidence": "main.go:22 returns generic error"}],
+  "verdict": "incomplete"
+}

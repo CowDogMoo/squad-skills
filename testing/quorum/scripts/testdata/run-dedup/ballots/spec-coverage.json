@@ -1,0 +1,8 @@
+{
+  "confidence": 0.9,
+  "evidence": ["reviewed TASK.md criteria against source and tests"],
+  "jurisdiction": "spec-coverage",
+  "seat_id": "spec-coverage",
+  "unmet": [{"criterion": "criterion 2 lacks a covering test", "evidence": "no test exercises ParseFlags error path"}],
+  "verdict": "incomplete"
+}

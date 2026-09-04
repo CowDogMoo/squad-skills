@@ -1,0 +1,8 @@
+{
+  "confidence": 0.9,
+  "evidence": ["reviewed TASK.md criteria against source and tests"],
+  "jurisdiction": "correctness",
+  "seat_id": "correctness",
+  "unmet": [],
+  "verdict": "complete"
+}

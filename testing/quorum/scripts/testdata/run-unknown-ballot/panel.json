@@ -1,0 +1,4 @@
+[
+  {"jurisdiction": "spec-coverage", "required": true, "seat_id": "spec-coverage"},
+  {"jurisdiction": "correctness", "required": true, "seat_id": "correctness"}
+]
