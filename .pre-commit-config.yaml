@@ -22,7 +22,7 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        entry: codespell -q 3 -f -S ".git,.github,README.md" --ignore-words-list=hass,als,calle,secction
+        entry: codespell -q 3 -f -S ".git,.github,README.md" --ignore-words-list=hass,als,calle,secction,nam
 
   - repo: https://github.com/jumanjihouse/pre-commit-hooks
     rev: 3.0.0

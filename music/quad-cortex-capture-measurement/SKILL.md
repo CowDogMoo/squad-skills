@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-capture-measurement
-description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
+description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth, ESR), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
 ---
 
 # Quad Cortex capture measurement
@@ -182,7 +182,9 @@ across sessions:
   spectra normalised to the 500 Hz–2 kHz mean, with banded QC−plugin deltas
   (60–120, 120–250, 250–500, 500–1k, 1–2k, 2–4k, 4–5k, 5–8k, 8–12k);
   per-band coherence; null depth after a signed gain match and after a
-  best-fit 512-tap linear EQ.
+  best-fit 512-tap linear EQ; ESR (plain and pre-emphasized 1−0.85z⁻¹)
+  against the gain-matched plugin, with `--esr-floor` reporting it relative
+  to the rig's own repeat-take floor.
 - Plot: top panel spectra overlay, coherence in grey on a second axis,
   per-band deltas annotated, title stating what is compared and that it is
   the same performance; bottom panel 10 ms RMS envelopes of DI, plugin, and
@@ -198,6 +200,17 @@ across sessions:
 - A capture that is actually wrong shows up as **multi-dB band deltas or
   coherence < 0.6 in the 120–500 Hz body**, usually input level at capture
   time.
+- **ESR** is the community-comparable headline — the same number NAM prints
+  after training. Ladder: **< 0.01 great, < 0.05 good, ~0.1 borderline,
+  > 0.2 wrong**. Two qualifiers before quoting it: a physical rig
+  re-recorded against itself bottoms out near **0.04**, so measure the rig's
+  own floor once — record the same pass twice, run the script with the two
+  repeat takes as PLUGIN and QC, read the ESR line — and pass it back with
+  `--esr-floor` on real runs; and a cross-architecture pair (QC vs plugin)
+  reads higher than NAM-vs-own-target at the same audible match, for the
+  same phase reason the null is shallow. The pre-emphasized variant tracks
+  audibility better than plain ESR. Ladder sources and the full metric
+  hierarchy: `references/similarity-metrics.md`.
 - Quote the level offset only from continuously played material — idle time
   biases it. See `references/idle-noise-diagnostic.md`.
 - Known-good calibration baseline, from a finished matched preset:
@@ -329,3 +342,6 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
   (2026-08-24 run).
 - `references/eq-and-coherence.md` — what a post-capture EQ does to a band
   delta, what coherence does and does not govern, with the measurements.
+- `references/similarity-metrics.md` — the ESR ladder with sources, the
+  null-depth reconciliation, the strict-to-forgiving metric hierarchy, and
+  which perceptual/embedding metrics are worth running on guitar.
