@@ -50,6 +50,25 @@ auto-installed, so install both:
 /plugin install squad-agents@cowdogmoo
 ```
 
+### Gemini CLI and Codex
+
+The SKILL.md format is the open [Agent Skills](https://agentskills.io)
+standard, so these skills also load in Gemini CLI, Codex, and any other
+adopter. `.agents/skills/` at the repo root is a flat view of every skill
+(symlinks into the category folders) that both tools read natively:
+
+```bash
+# Inside a checkout of this repo, Codex (repo tier) and Gemini CLI
+# (project tier) discover .agents/skills/ automatically.
+
+# Install a skill for all projects:
+gemini skills install https://github.com/CowDogMoo/squad-skills  # Gemini CLI
+cp -r writing-quality/comment-scrub-playbook ~/.agents/skills/   # Codex, user scope
+```
+
+The repo is also a Codex plugin (`.codex-plugin/plugin.json`), pointing
+at the same `.agents/skills/` view.
+
 ### Any other host
 
 Skills live in a directory containing a single `SKILL.md`. Wire a host
