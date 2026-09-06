@@ -15,7 +15,8 @@ Full inventory in `references/rig-and-automation.md`.
 ## Workflow
 
 1. Cable the loop and set TotalMix so nothing but the plugin reaches QC In 2.
-2. Set the plugin to its capture-safe state and read it back.
+2. Set the plugin to its capture-safe state — or leave it as played if the
+   user chooses an organic capture — and read it back.
 3. Calibrate levels: input side sets the tone, return side sets loudness only.
 4. Run Neural Capture V2 from Cortex Control, one screen at a time.
 5. Judge it on the A/B screen, then save.
@@ -85,6 +86,25 @@ parameter indices in parens, via `ableton-mcp`):
   which is the only way to keep a non-exportable internal cab. Do both; save
   both.
 
+**Organic capture is a valid mode, and it is the user's call.** The
+capture-safe overrides above are the default because they make the capture
+comparable to capture-safe baselines — but the user may choose to capture the
+preset fully organic: gate, pitch, everything exactly as played (done
+~2026-09-04/05 for "Brutal Death Thall", Tighten Gate −30, Pitch On, measured
+2026-09-05). Do not "correct" that choice. Consequences to record in
+`CAPTURE-TEST-STATE.md`: the **measurement reference becomes the play state**
+(no overrides, no restore step for takes), and the capture-safe coherence
+baselines do not apply. That capture's body coherence read 0.68–0.81 across
+its clean 2026-09-05 takes (the clipped 14:46 take excluded) — below the best
+capture-safe result on this rig (Monomythic, 0.87–0.94) but level with the
+capture-safe capture of the same preset (V2b, 0.67–0.77), and two
+capture-safe draws of identical state (V2 vs V2b) differed by more than that
+on their own. So no organic-vs-capture-safe
+gap has been measured; if one exists, the leading explanation is that the
+model can only average the live gate/pitch behaviour, and that is
+unconfirmed. State the mode explicitly in the file — a reader must never have
+to guess which reference a capture answers to.
+
 **Dynamic controls stay exactly where the preset plays them.** A time-varying
 control — anything that ducks, tightens, or gates by level — cannot be
 reproduced by a static model, and leaves a permanent band deficit with low
@@ -146,8 +166,8 @@ record.
 
 Before leaving a capture session, write the capture-time plugin state into the
 project's `CAPTURE-TEST-STATE.md`: capture name, Amp vs Amp+Cab, cab on/off,
-Lo/Hi Cut, tone-match profile, In/Out gain, gate/pitch/mono state, and the
-In 4 gain used.
+Lo/Hi Cut, tone-match profile, In/Out gain, the capture mode (capture-safe or
+organic) with the gate/pitch/mono state, and the In 4 gain used.
 
 `quad-cortex-preset-editing` reads this as "the reference" when it puts the
 capture into a preset, and `quad-cortex-capture-measurement` reads it to put

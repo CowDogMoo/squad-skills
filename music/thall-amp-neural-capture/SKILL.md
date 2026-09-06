@@ -71,7 +71,7 @@ one question before capturing anything.
 | Amp Drive, Lo, Mid, Hi, Presence | **Tighten Chug** — emphasis that follows pick attack |
 | The cab (internal or a loaded IR) | **Pitch Thicken** — generates an octave below |
 | Tone Matching (a static input EQ) | **Pitch Whammy** — pitch shifting |
-| Low Dirt (static pre-distortion) | **Tighten Gate** — level-dependent; turn it off anyway |
+| Low Dirt (static pre-distortion) | **Tighten Gate** — level-dependent; off for a capture-safe capture, as played for an organic one (user's call, see `quad-cortex-plugin-capture`) |
 | Input Gain (baked in — it sets the drive) | Anything with modulation assigned |
 | Lo-Cut, Hi-Cut, Lo-Fi (output filters) | |
 
