@@ -93,9 +93,10 @@ The reference is what the capture was made of. Read it, don't guess.
 
 For a plugin capture, `quad-cortex-plugin-capture` records the capture-time
 plugin state in the project's `CAPTURE-TEST-STATE.md`: cab on/off, Lo/Hi Cut,
-tone-match profile, In/Out gain, gate off, pitch off, mono. An "Amp and Cab"
-capture has the cab and filters baked in; an "Amp" capture needs an IR after
-it.
+tone-match profile, In/Out gain, and the capture mode — capture-safe (gate
+off, pitch off, mono) or organic (captured as played; the play state is then
+the measurement reference). An "Amp and Cab" capture has the cab and filters
+baked in; an "Amp" capture needs an IR after it.
 
 Write the reference chain as one line, for example: `guitar → [thall amp: gate
 off, pitch off, cab ON, LoCut 97, HiCut 8.6k] → out`.

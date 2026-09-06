@@ -67,9 +67,12 @@ Then:
 
 1. Put the plugin in its capture-time reference state. Read it from the
    project's `CAPTURE-TEST-STATE.md`, which `quad-cortex-plugin-capture`
-   writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, gate
-   off, pitch off, mono). Don't guess it. **Say which controls you are about
-   to move and get a yes before moving them** — see "Whose call it is" below.
+   writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, and the
+   capture mode: capture-safe — gate off, pitch off, mono — or **organic**,
+   captured as played, in which case the play state IS the reference and no
+   overrides or restores are needed). Don't guess it. **Say which controls
+   you are about to move and get a yes before moving them** — see "Whose call
+   it is" below.
 2. Preset input block on In 1, reverb and delay bypassed for the take, lane
    output routed to USB, preset saved.
 3. Play 20–30 s continuously: chugs, single notes, one ringing chord.
@@ -95,8 +98,9 @@ measuring.
 
 The plugin and the preset are the user's instrument, and the two controls
 this method most often has to move — **Tighten Gate off, Pitch Power off** —
-are the two the user is most likely to be playing through right now. Reading
-state is yours. Writing it is theirs.
+are the two the user is most likely to be playing through right now. (For an
+**organic** capture neither moves: the play state is the reference, and there
+is nothing to ask.) Reading state is yours. Writing it is theirs.
 
 - Name the controls, say what each costs the measurement if left as-is, and
   wait for a yes. One question covers the whole set.
@@ -193,10 +197,21 @@ across sessions:
 ## Reading the numbers (high-gain captures)
 
 - Bands within **±0.5 dB from 250 Hz up** = a matched capture.
-- Coherence ~0.9 at 120–500 Hz falling to ~0.3 by 3 kHz is **normal** —
-  different nonlinearities put fizz harmonics at different phases. A null
-  depth of only −1.5 to −2.5 dB is therefore expected and is NOT a failed
-  capture; the residual is drive character, judged by ear.
+- Coherence ~0.9 at 120–500 Hz falling to ~0.3 by 3 kHz is **normal** for a
+  capture-safe reference. The falloff itself is expected — different
+  nonlinearities put fizz harmonics at different phases. A null depth of only
+  −1.5 to −2.5 dB is therefore expected and is NOT a failed capture; the
+  residual is drive character, judged by ear.
+- An **organic** capture (gate and pitch left as played) is not held to those
+  baselines. The one measured so far (Brutal Death Thall, 2026-09-05, one
+  capture, clean takes only) read 0.68–0.81 through the body — level with the
+  capture-safe capture of the same preset (V2b, 0.67–0.77) and inside the
+  spread two capture-safe draws of identical state showed (V2 vs V2b). So no
+  organic penalty has been measured. If one shows up, the leading explanation
+  is that the model can only average the reference's live gate/pitch
+  behaviour; treat that as a hypothesis, not attribution, until an
+  organic-vs-capture-safe pair of the same preset is run with a repeat-take
+  control.
 - A capture that is actually wrong shows up as **multi-dB band deltas or
   coherence < 0.6 in the 120–500 Hz body**, usually input level at capture
   time.
