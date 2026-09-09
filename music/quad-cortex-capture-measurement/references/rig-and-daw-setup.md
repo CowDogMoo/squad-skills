@@ -25,6 +25,35 @@ Wet Signal follows the preset's output routing. With the last row ending on
 (Cortex Control: click the Out tile → OUTPUT list → Multiple Outputs), then
 save the preset. This is the only silent-channel cause seen.
 
+## Two Live sets: capture and measurement
+
+Since 2026-09-08 the rig has two projects side by side under
+`~/Music/Ableton/Recording Projects/`:
+
+| Project | Set | Used for |
+| ------- | --- | -------- |
+| `amp-sim-neural-capture Project` | `amp-sim-neural-capture.als` | Neural Capture runs (`quad-cortex-plugin-capture`); home of `CAPTURE-TEST-STATE*.md`, `NOTES.md`, the historic `null-test-*.png` plots |
+| `amp-sim-measurement Project` | `amp-sim-measurement.als` | Measurement takes only. Three audio tracks, routed and armed as this skill wants, no clips |
+
+The measurement set was built from the capture set by XML patch (see
+"Stripping clips from a set" below), so both share the same thall amp
+instance settings as of that moment; the plugin reference is still the
+capture project's state file. The measurement project carries its own
+`README.md` with the pre-flight, a `Backup/` with every intermediate variant
+(including the one that crashes Live, labelled), and `.capture-set.sha256`,
+the checksum of the capture set it was built from.
+
+What the split does and does not fix:
+
+- Track routing, arm, monitor and solo are per set, so they are now right the
+  moment the measurement set opens. No more Ext. In 1 / Ext. In 4 juggling on
+  the plugin track after a capture.
+- The audio input device is a **global Live preference**. The capture skill
+  leaves it on the Fireface; the measurement set cannot switch it back. That
+  is the one manual step left before a take.
+- A `Utility` on the QC track is not in the recorded file (Live records
+  pre-FX), so the measurement set keeps it and it does no harm.
+
 ## Ableton audio devices
 
 - Live only enumerates CoreAudio devices at launch. Separate input (Quad
@@ -44,8 +73,25 @@ save the preset. This is the only silent-channel cause seen.
 
 ## Reading the set without the UI
 
-Live's audio input device: `~/Library/Preferences/Ableton/Live <version>/
-Log.txt`, the `CoreAudio: Device init:` lines from the last launch.
+Live's log is `~/Library/Preferences/Ableton/Live <version>/Log.txt` (pick
+the newest version directory).
+
+- **Audio input device:** the last `Audio In Out: Input Device:` line, e.g.
+  `Audio In Out: Input Device: Fireface UCX II (24196183) (20 In, 20 Out)`.
+  It is written at launch and whenever Live reconfigures audio, including a
+  document load, and it carries a timestamp, so the history of switches is
+  readable too. The `CoreAudio: Device init:` lines only enumerate what
+  exists; they do not say which one is selected. Caveat: on 2026-09-06 a
+  checker reading this line reported Fireface while Settings showed Quad
+  Cortex, so a switch made in Settings can go unlogged until the next
+  reconfigure. Use the log to catch the common case (left on the Fireface
+  after a capture) and confirm in Settings > Audio by eye before the take.
+- **Which set is open:** the last `Loading document "<path>"` line. A Live
+  relaunch loads whatever the user picks from the recent list, not the last
+  set this skill worked in. Cross-check with `ableton-mcp` `get_session_info`
+  (track count) and `get_track_info` (names): the measurement set has three
+  audio tracks named "Thall Amp Raw Dawg", "REC plugin post FX", "QC amp and
+  cab" plus three empty MIDI tracks.
 
 Track routing: the `.als` is gzipped XML. Each `<AudioTrack>` carries
 
@@ -92,6 +138,44 @@ To change routing, arm, or solo by patching the set instead:
    prompt; the input meters light up immediately if routing is right.
 5. Re-check plugin state — it can come back different after the reload.
 
+Reloading from the shell also works: `open -a "Ableton Live 12 Suite"
+"<set>.als"`. If the set currently open has unsaved changes, Live prompts,
+and **Save is the default button** — Return saves the old set (Live writes a
+copy into that project's `Backup/` first). That is how the capture set's
+Ext. In 4 routing fix got committed on 2026-09-08 without anyone choosing to
+save it. Decide before pressing Return, and note in the new project's README
+what the prompt committed.
+
+### Stripping clips from a set (building a new set from an old one)
+
+Copying a set and deleting its clips by XML is fine only in Live's own form.
+Learned 2026-09-08 building the measurement set from a capture set that held
+968 take-lane clips pointing at the other project's samples:
+
+- Removing every `<AudioClip>` / `<MidiClip>` but leaving each
+  `<TakeLane Id="n">` in place with an empty `<ClipAutomation>` makes Live
+  12.4.5 segfault (EXC_BAD_ACCESS at 0x0) while "Loading document". The
+  crashed variant is kept in the measurement project's `Backup/`, labelled.
+- What loads: per track, replace the whole `<TakeLanes>…</TakeLanes>` block
+  with `<TakeLanes><TakeLanes /><AreTakeLanesFolded Value="true" /></TakeLanes>`,
+  collapse `<ArrangerAutomation><Events>…</Events>` to `<Events />`, and write
+  each session slot as `<ClipSlot><Value /></ClipSlot>`. That is exactly what
+  Live writes after a delete. Routing, arm, monitor and Speaker patches on
+  the same pass are safe.
+- Keep the previous `.als` in `Backup/` before every patch, reload with
+  `open -a`, and confirm the Live process is still alive before trusting the
+  file. Confirm the result with a parse: zero `<TakeLane`, zero
+  `<AudioClip`, and the three routings above.
+
+### Screen control is one session at a time
+
+`request_access` returns "Computer use is in use by another Claude session
+(<id>)" when a second session tries to drive the desktop. Nothing in that
+session can open Settings, the routing choosers, or Cortex Control until the
+first one exits or finishes. The log and `.als` checks above still work, so do
+those, report which session holds the screen, and stop rather than looping on
+the request.
+
 `ableton-mcp` cannot read or set input routing, monitoring, or the audio
 device, and it cannot **set** arm, solo, or mute either — verified against the
 installed build 2026-08-30, when a track needed arming and no tool existed.
@@ -100,6 +184,14 @@ device parameters, device enable/disable, track volume, panning, and name.
 Use it for state verification and device state, and the `.als` patch + reload
 above for routing, arm, and solo — or ask the user, which is two clicks and
 does not risk the plugin coming back in a different state.
+
+`delete_track` does work (used 2026-09-08 to strip the capture set down to
+its one capture track). Delete by name, one call at a time, and re-read the
+track list between calls: Live renumbers unnamed default tracks as others go,
+so after "1-MIDI" and "2-MIDI" are deleted the former "3-MIDI" is called
+"1-MIDI", and a delete by the old name reports "No track named" rather than
+removing the wrong one. Deleting a track drops its clip references only; the
+WAVs stay in `Samples/Recorded/`. The change is unsaved until the user saves.
 
 ## thall amp normalized parameter mappings
 

@@ -4,7 +4,11 @@
 
 - Interface: RME Fireface UCX II ("Fireface UCX II (24196183)"), TotalMix FX.
 - DAW: Ableton Live 12 Suite, project `~/Music/Ableton/Recording Projects/
-  amp-sim-neural-capture Project`.
+  amp-sim-neural-capture Project`. Measurement takes go in the sibling
+  `amp-sim-measurement Project` (its own set, own `README.md`), not here.
+  Since 2026-09-08 the capture set holds one track, "Thall Amp Raw Dawg"
+  (Ext. In 4 → Ext. Out 3/4, thall amp), plus two unused returns; the
+  measurement tracks that used to sit next to it were deleted.
 - Cortex Control (desktop app) runs the entire Neural Capture flow, so the
   hardware screen is never needed. Menu (⋯, top right) → **New Neural
   Capture**.
