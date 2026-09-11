@@ -1,4 +1,6 @@
-# Curated recipe sources
+# Curated recipe sources (fallback)
+
+The household's live list in Mealie (`node scripts/recipe-sources.mjs`) is the authority. This file is the fallback when Mealie is not configured or unreachable, and it is what the Mealie fork's `dev/scripts/seed_recipe_sources.py` loads into a fresh household: Tier 1 becomes known-good, Tier 2 caution, "Do NOT use" blocked. Keep the table shapes when editing.
 
 Sites with reliably visible star ratings + review counts on a per-recipe page. Use only these; bring in others only after confirming they show both numbers on the page (not in a popup, not in JSON-LD only).
 
