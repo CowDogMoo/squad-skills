@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, judgeRun, ProtocolError, validateBallot } from './judge.mjs';
 import { checkPromptIndependence, COMPLETION_QUESTION, renderPrompt } from './render-prompts.mjs';
-import { extractBallot, stripFence } from './run-seats.mjs';
+import { customDriverFrom, extractBallot, extractEnvelopeText, resolveDriver, SEAT_DRIVERS, stripFence } from './run-seats.mjs';
 
 const HARNESS = dirname(fileURLToPath(import.meta.url));
 const TESTDATA = join(HARNESS, 'testdata');
@@ -261,6 +261,112 @@ test('extractBallot strips one optional fence and validates', () => {
   assert.equal(extractBallot(JSON.stringify({ result: 'I believe it is complete.' }), 'alpha').ok, false);
   assert.equal(extractBallot('not json at all', 'alpha').ok, false);
   assert.equal(extractBallot(JSON.stringify({ no_result: true }), 'alpha').ok, false);
+});
+
+test('resolveDriver honours QUORUM_SEAT_CLI, bin and model overrides', () => {
+  const overridden = resolveDriver({ QUORUM_SEAT_CLI: 'claude', QUORUM_SEAT_BIN: '/opt/claude', QUORUM_SEAT_MODEL: 'opus' });
+  assert.equal(overridden.driver.label, 'claude');
+  assert.equal(overridden.bin, '/opt/claude');
+  assert.equal(overridden.model, 'opus');
+
+  assert.throws(() => resolveDriver({ QUORUM_SEAT_CLI: 'nope' }), /unknown QUORUM_SEAT_CLI/);
+  // Auto-detect with nothing installed must fail loudly, not pick a missing binary.
+  const savedPath = process.env.PATH;
+  process.env.PATH = '';
+  try {
+    assert.throws(() => resolveDriver({}), /no seat CLI found/);
+  } finally {
+    process.env.PATH = savedPath;
+  }
+  // A bin override with no named driver would bind to whichever driver comes
+  // first — reject it instead of guessing.
+  assert.throws(() => resolveDriver({ QUORUM_SEAT_BIN: '/bin/sh' }), /QUORUM_SEAT_BIN is set but QUORUM_SEAT_CLI is not/);
+});
+
+test('resolveDriver auto-detects claude when its binary is on PATH', () => {
+  const fakeBinDir = join(scratch, 'fake-bin');
+  mkdirSync(fakeBinDir, { recursive: true });
+  writeFileSync(join(fakeBinDir, 'claude'), '#!/bin/sh\n', { mode: 0o755 });
+  const savedPath = process.env.PATH;
+  process.env.PATH = fakeBinDir;
+  try {
+    const picked = resolveDriver({});
+    assert.equal(picked.driver.label, 'claude');
+    assert.equal(picked.bin, 'claude');
+    assert.equal(picked.model, 'sonnet');
+  } finally {
+    process.env.PATH = savedPath;
+  }
+});
+
+test('custom driver is built from env and rejects a broken configuration', () => {
+  assert.throws(() => resolveDriver({ QUORUM_SEAT_CLI: 'custom' }), /requires QUORUM_SEAT_BIN/);
+  assert.throws(() => resolveDriver({ QUORUM_SEAT_CLI: 'custom', QUORUM_SEAT_BIN: '/opt/voter' }), /requires QUORUM_SEAT_ARGS/);
+  assert.throws(() => customDriverFrom({ QUORUM_SEAT_ARGS: 'not json' }), /not valid JSON/);
+  assert.throws(() => customDriverFrom({ QUORUM_SEAT_ARGS: '{"a":1}' }), /array of strings/);
+  assert.throws(() => customDriverFrom({ QUORUM_SEAT_ARGS: '["--json"]' }), /"\{prompt\}"/);
+
+  const picked = resolveDriver({
+    QUORUM_SEAT_CLI: 'custom',
+    QUORUM_SEAT_BIN: '/opt/voter',
+    QUORUM_SEAT_ARGS: '["ask", "{prompt}", "--json", "--dir", "{fixture_dir}", "--model", "{model}"]',
+    QUORUM_SEAT_MODEL: 'big-model',
+    QUORUM_SEAT_SCRUB_ENV: 'VOTER_SESSION, VOTER_PARENT',
+  });
+  assert.equal(picked.driver.label, 'custom');
+  assert.equal(picked.bin, '/opt/voter');
+  assert.deepEqual(
+    picked.driver.buildArgs('vote please', '/tmp/fixture', picked.model),
+    ['ask', 'vote please', '--json', '--dir', '/tmp/fixture', '--model', 'big-model'],
+  );
+  // No model configured: drop the placeholder and its flag, never pass a blank.
+  assert.deepEqual(
+    picked.driver.buildArgs('vote please', '/tmp/fixture', ''),
+    ['ask', 'vote please', '--json', '--dir', '/tmp/fixture'],
+  );
+  const env = { VOTER_SESSION: 'x', VOTER_PARENT: 'y', KEEP: 'z' };
+  picked.driver.scrubEnv(env);
+  assert.deepEqual(env, { KEEP: 'z' });
+});
+
+test('extractEnvelopeText recovers the envelope past a CLI setup banner', () => {
+  const envelope = JSON.stringify({ response: 'hi' });
+  assert.equal(extractEnvelopeText(envelope), envelope);
+  assert.equal(extractEnvelopeText(`=== seat ready: /tmp/x ===\n${envelope}\n`), envelope);
+  assert.equal(extractEnvelopeText('banner only, no json'), null);
+  assert.equal(extractEnvelopeText(''), null);
+  assert.equal(extractEnvelopeText('[1,2,3]'), null); // arrays are not envelopes
+});
+
+test('custom driver reads its result field and fails closed on a bad status', () => {
+  const custom = customDriverFrom({
+    QUORUM_SEAT_ARGS: '["{prompt}"]',
+    QUORUM_SEAT_RESULT_FIELD: 'response',
+    QUORUM_SEAT_STATUS_FIELD: 'status',
+    QUORUM_SEAT_STATUS_OK: 'OK',
+  });
+  const ballot = { seat_id: 'alpha', jurisdiction: 'global', verdict: 'complete', unmet: [], evidence: ['e'], confidence: 1 };
+  const ok = `=== seat ready: /tmp/x ===\n${JSON.stringify({ status: 'OK', response: JSON.stringify(ballot) })}`;
+  assert.equal(extractBallot(ok, 'alpha', custom).ok, true);
+
+  // A claude-shaped envelope has no .response — must not be silently accepted.
+  assert.equal(extractBallot(JSON.stringify({ status: 'OK', result: JSON.stringify(ballot) }), 'alpha', custom).ok, false);
+
+  const failed = extractBallot(JSON.stringify({ status: 'ERROR', response: JSON.stringify(ballot) }), 'alpha', custom);
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /status "ERROR"/);
+  // Missing status field is not success.
+  assert.equal(extractBallot(JSON.stringify({ response: JSON.stringify(ballot) }), 'alpha', custom).ok, false);
+
+  // Without a status field configured, only the result field decides.
+  const plain = customDriverFrom({ QUORUM_SEAT_ARGS: '["{prompt}"]' });
+  assert.equal(extractBallot(JSON.stringify({ result: JSON.stringify(ballot) }), 'alpha', plain).ok, true);
+});
+
+test('claude driver fails closed on an is_error envelope', () => {
+  const failed = extractBallot(JSON.stringify({ is_error: true, result: 'API error 529' }), 'alpha');
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /voter reported is_error/);
 });
 
 test('run-seats --dry-run: valid envelope -> ballot; invalid -> raw only', () => {
