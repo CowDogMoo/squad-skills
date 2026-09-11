@@ -54,6 +54,14 @@ sample-locked, from the same performance:
 - Ableton tracks, all three armed: "Thall Amp Raw Dawg" ← Ext. In 1 (QC Dry
   Input 1), plugin on that track, Monitor Auto; "REC plugin post FX" ←
   Thall track Post FX; "QC amp and cab" ← Ext. In 3/4 (QC Wet Signal L/R).
+- Those tracks live in their own set: `~/Music/Ableton/Recording Projects/
+  amp-sim-measurement Project/amp-sim-measurement.als`, built 2026-09-08 from
+  the capture set with every clip stripped and the routing above saved in.
+  Its `README.md` carries the pre-flight, takes land in its
+  `Samples/Recorded/`, and the `null-test-*.png` plots go in its folder. The
+  capture project next to it (`amp-sim-neural-capture Project`) is only for
+  Neural Capture runs and for the `CAPTURE-TEST-STATE*.md` plugin reference
+  files. Do not record measurement takes into the capture set.
 
 Do NOT propose two passes, a third cable, a reamp, or "plug the other cable
 in" — there is no other cable. Do NOT ask to check TotalMix meters; the RME
@@ -131,13 +139,20 @@ the measurement to report**, not something to change before measuring it.
 Every invalid take so far had the same signature and the same root causes.
 Check these with tools before the user plays, not by asking them.
 
-1. **Sanity-check the newest take, if one exists.** Stage the three newest
+1. **Which set Live has open.** Read the last `Loading document` line in
+   Live's log and cross-check the track names `ableton-mcp` `get_track_info`
+   returns against the three measurement tracks. A hand-off that says "the
+   measurement set is open" describes the moment it was written: on
+   2026-09-08 Live had been relaunched since and was showing the band's live
+   template, whose own thall amp instance is not the reference. Every later
+   check reads the wrong set if this one is skipped.
+2. **Sanity-check the newest take, if one exists.** Stage the three newest
    WAVs and compare them sample-for-sample. DI == REC (plugin post FX) means
    the plugin was bypassed. DI == one channel of the QC file means the "DI"
    track is fed from the same physical input as the QC track. All three
    bit-identical means both at once — that has happened, and the set looked
    fine at a glance.
-2. **Plugin state** via `ableton-mcp` `get_device_parameters(show_all=true)`
+3. **Plugin state** via `ableton-mcp` `get_device_parameters(show_all=true)`
    on the plugin's track, compared line by line against
    `CAPTURE-TEST-STATE.md`. Report the diff to the user and get a yes before
    writing any of it back (see "Whose call it is"); a state file that lists a
@@ -148,12 +163,19 @@ Check these with tools before the user plays, not by asking them.
    after *any* reload or preset load.
    `enable_device` fixes it; `set_device_parameter` with normalized 0.0 sets
    Tighten Gate to −100 dB and Pitch Power off.
-3. **Live's audio input device must be "Quad Cortex".** After a capture
+4. **Live's audio input device must be "Quad Cortex".** After a capture
    session it stays on the Fireface, because `quad-cortex-plugin-capture`
-   switches it there. Read it from Live's log rather than the UI.
-4. **Track routing, arm, and solo** — read from the `.als`, not the screen.
+   switches it there, and the measurement set cannot carry it — audio devices
+   are a global Live preference, not part of the set — so opening the right
+   set fixes nothing here. Read the `Audio In Out: Input Device:` line from
+   Live's log first; when it says Fireface, switch it in Settings > Audio
+   (input only; output stays on the Fireface), and confirm by eye — the log
+   line has lagged a Settings change once (see the reference).
+5. **Track routing, arm, and solo** — read from the `.als`, not the screen.
+   The measurement set was verified 2026-09-08: M0 / Track.8 PostFxOut / S1,
+   all armed, nothing soloed, no take lanes, no clips.
 
-For steps 3 and 4, and for changing anything Live's UI refuses to change,
+For steps 4 and 5, and for changing anything Live's UI refuses to change,
 see `references/rig-and-daw-setup.md`.
 
 ## Analysis — scripts/analyze.py
@@ -336,6 +358,9 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
 | All three takes identical | Plugin bypassed *and* DI track fed from the QC's analog out | Pre-flight steps 1–3 |
 | DI == plugin take | Plugin bypassed ("Device On": Off) | `enable_device`, then re-read all parameters |
 | Live won't show a new device | Live enumerates CoreAudio at launch | Hot-plugged devices are fine; an Aggregate Device needs a restart |
+| Screen control refused: "in use by another Claude session" | Only one session can hold computer use at a time | Nothing in Live's Settings or routing can be changed until that session exits or does it itself; verify what you can from the log and the `.als`, and say which session should drive |
+| Live segfaults while "Loading document" after a `.als` patch | A clip strip that removed `<AudioClip>`s but left emptied `<TakeLane>` elements behind | Rebuild from the pre-patch Backup using Live's own empty-lane form (`references/rig-and-daw-setup.md`) |
+| The previous set changed on disk when the new one was opened | Live's save prompt on switching sets defaults to **Save**; Return commits the old set's unsaved edits | Live writes a Backup copy first; record what was committed in the new project's README provenance |
 | Routing popups ignore clicks | Not an Ableton limit — Settings and the chooser popups do take screen control. Suspect this session's own screen-control state, or the click-offset bug | Re-check the session's grants and cursor; if it genuinely has no screen control, patch the `.als` and reload (`references/rig-and-daw-setup.md`) |
 | Measurement contradicts Cortex Control | The app can save locally while the device runs the old state | Idle-spectrum comparison (`references/idle-noise-diagnostic.md`) |
 | Level offset looks too negative | Idle time in the take | Re-read from continuous playing only |
@@ -343,10 +368,10 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
 
 ## Reference files
 
-- `references/rig-and-daw-setup.md` — QC USB channel map, Ableton device and
-  routing facts, reading and patching the `.als`, what screen control does
-  and does not drive,
-  recorded-file facts.
+- `references/rig-and-daw-setup.md` — QC USB channel map, the two Live sets
+  (capture and measurement), Ableton device and routing facts, reading the
+  log and the `.als`, patching a set and stripping clips without crashing
+  Live, what screen control does and does not drive, recorded-file facts.
 - `references/idle-noise-diagnostic.md` — proving what the device is running
   without a note being played.
 - `references/cross-take-validity.md` — why cross-take plugin comparison

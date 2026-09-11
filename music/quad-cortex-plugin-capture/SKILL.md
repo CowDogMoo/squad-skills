@@ -175,11 +175,14 @@ the plugin back into capture-time state for the comparison take. Without it,
 both are guessing.
 
 Also record the DAW hand-off. Capturing leaves Live's input device on the
-Fireface and the plugin track on Ext. In 4, and every invalid measurement take
-so far traces to that state being left behind. Either switch the input device
-back to **Quad Cortex** and the plugin track to **Ext. In 1**, or write a line
-in `CAPTURE-TEST-STATE.md` saying it was left on the Fireface so the
-measurement skill's pre-flight catches it.
+Fireface, and every invalid measurement take so far traces to that being left
+behind. Since 2026-09-08 measurement takes are recorded in their own set
+(`amp-sim-measurement Project`, see the measurement skill's
+`references/rig-and-daw-setup.md`), so the capture track can stay on Ext. In 4
+in this set; the input device is a global Live preference and still has to go
+back. Either switch it to **Quad Cortex** yourself, or write a line in
+`CAPTURE-TEST-STATE.md` saying it was left on the Fireface so the measurement
+skill's pre-flight catches it.
 
 ## Verifying the capture
 
