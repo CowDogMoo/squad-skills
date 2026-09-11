@@ -100,13 +100,13 @@
     {
       "id": 9,
       "prompt": "I want a QC capture of the thall amp's 'Buster Odeholm - Thick Chugs' preset that actually sounds like the preset. What do I do?",
-      "expected_output": "Sorts the preset's controls into baked-in, rebuilt on the QC grid, and lost; names the specific capture-time changes and the QC blocks needed, including a pitch block for its Pitch Thicken.",
+      "expected_output": "Sorts the preset's controls into baked-in, rebuilt on the QC grid (the gate only), and captured as played; names the gate as the only capture-time change and Neural Capture Version 1 as the version to use.",
       "files": [],
       "expectations": [
         "The preset's actual values are read from the preset file rather than recalled, or the bundled reader script is used",
         "Controls are sorted into what bakes into the capture, what gets rebuilt as QC blocks, and what is lost",
-        "The gate is set to -100 dB for the capture and put back as a QC gate block, and the Mono/Stereo toggle is set to mono",
-        "Pitch Thicken is identified as needing a QC pitch block before the capture rather than being captured, because a static model cannot learn an octave generator",
+        "The gate is set to -100 dB for the capture and put back as a QC gate block, and no other plugin control is changed from the play state",
+        "Pitch Thicken is left as played for the capture, with a QC pitch block named only as the fallback if the capture audibly loses the octave",
         "Tighten Chug is named as the part that will not transfer, with the deficit expected rather than corrected"
       ]
     }

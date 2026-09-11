@@ -1,6 +1,6 @@
 ---
 name: thall-amp-neural-capture
-description: Amp-specific knowledge for capturing the Odeholm thall amp plugin into the Quad Cortex and judging the result - what every one of its 30 controls does and whether a static Neural Capture can model it, why Tighten Chug and Pitch Thicken cannot be, the Tone Lock trap that makes a preset load differently from its file, the 53 factory presets including the ones with missing cab IRs or embedded tone profiles, a bundled reader for preset files, the V1-V5 capture history, and the measured envelope for the standing V4 capture. Pair with quad-cortex-plugin-capture, quad-cortex-capture-measurement, and quad-cortex-preset-editing, which carry the general method. Trigger on "thall amp", "thall capture", "Mirar Leo", "Monomythic", "Chug", "Thicken", "Tone Match", "what does this knob do", "which preset should I capture", "why is my low end missing", "60-120 hole", "V4 vs V5", or any question about this plugin's controls, presets, capturing, or measuring. Do NOT use for other plugins or for general QC workflow questions.
+description: Amp-specific knowledge for capturing the Odeholm thall amp plugin into the Quad Cortex and judging the result - what every one of its 30 controls does and whether a static Neural Capture can model it, why Tighten Chug and Pitch Thicken cannot be, the Tone Lock trap that makes a preset load differently from its file, the 53 factory presets (missing cab IRs, embedded tone profiles), a preset-file reader, the capture history, the gate-only and Neural Capture V1 rules, and the standing capture's measured envelope. Pair with quad-cortex-plugin-capture, quad-cortex-capture-measurement, and quad-cortex-preset-editing, which carry the general method. Trigger on "thall amp", "thall capture", "Mirar Leo", "Monomythic", "Chug", "Thicken", "Tone Match", "what does this knob do", "which preset should I capture", "why is my low end missing", "60-120 hole", "V4 vs V5", or any question about this plugin's controls, presets, capturing, or measuring. Do NOT use for other plugins or for general QC workflow questions.
 ---
 
 # Thall amp — the plugin, and what a Neural Capture does with it
@@ -53,8 +53,9 @@ each bypass their whole section. Two of them bite:
   set Tighten Gate to −100 dB and leave Shape Power on. That is why the
   capture-safe state names the gate parameter and not the switch.
 - **Pitch Power off kills Whammy, Thicken, Cleanse, Latency** and possibly
-  Low Dirt. The capture workflow turns it off to drop the pitch shifter's
-  latency, which is correct only when Thicken is already at 0.
+  Low Dirt. Older captures (V4) turned it off to drop the pitch shifter's
+  latency; since 2026-09-11 it stays exactly as the preset plays it. The
+  gate is the only control a capture changes.
 
 The 30 automatable parameters, ranges, and defaults are in
 `references/control-reference.md`. Live's **Device On** is the plugin's Host
@@ -71,7 +72,7 @@ one question before capturing anything.
 | Amp Drive, Lo, Mid, Hi, Presence | **Tighten Chug** — emphasis that follows pick attack |
 | The cab (internal or a loaded IR) | **Pitch Thicken** — generates an octave below |
 | Tone Matching (a static input EQ) | **Pitch Whammy** — pitch shifting |
-| Low Dirt (static pre-distortion) | **Tighten Gate** — level-dependent; off for a capture-safe capture, as played for an organic one (user's call, see `quad-cortex-plugin-capture`) |
+| Low Dirt (static pre-distortion) | **Tighten Gate** — level-dependent; **always −100 dB before capturing**, the one change made to any preset (see `quad-cortex-plugin-capture`) |
 | Input Gain (baked in — it sets the drive) | Anything with modulation assigned |
 | Lo-Cut, Hi-Cut, Lo-Fi (output filters) | |
 
@@ -143,7 +144,8 @@ Consequences worth remembering:
   The rig's own profile stays in the chain instead — and gets baked into any
   capture made from those presets.
 - Confirm the profile by name in the plugin window. **"No Tone Profile"
-  means none is loaded**, whatever the Amount knob reads.
+  means none is loaded**, whatever the Amount knob reads. That is the state
+  the accepted 2026-09-11 capture was made in — record it, do not load one.
 
 ## Read the preset, don't guess it
 
@@ -175,13 +177,36 @@ the whole job; `--plan` above does the sorting for you.
    for free. Input Gain, Tone Matching, Low Dirt, the whole amp section, the
    cab, Lo-Cut, Hi-Cut, Lo-Fi.
 2. **Rebuilt on the grid** — turn it off in the plugin for the capture and
-   put a QC block back in its place. The gate, Whammy, and Thicken.
-3. **Lost** — Chug and its Frequency. Capture as played, expect the deficit,
-   record it, do not EQ it away.
+   put a QC block back in its place. **The gate, and only the gate.** Tighten
+   Gate → −100 dB via the parameter (not Shape Power, which takes Chug with
+   it), then a gate block before the capture on the QC.
+3. **Captured as played** — everything else, including Whammy, Thicken,
+   Chug and its Frequency, and the mono/stereo toggle. Expect the deficit
+   wherever a dynamic or pitch control operates, record it, do not EQ it
+   away.
 
-The mistake to avoid is capturing something in bucket 2 rather than
-rebuilding it. A capture trained on a signal containing a pitch shifter does
-not learn the pitch shifter — it learns a worse version of the amp.
+**The user's standing rule (2026-09-11): the only change from the organic
+preset is the gate to −100 dB. Literally the only change.** The older
+recipe — pitch section off, mono — is what V4 was made with and is history.
+The reasoning that a captured pitch shifter "learns a worse version of the
+amp" was never confirmed by ear on this plugin; the gate-on captures were,
+and they were the ones that sounded wrong. `--plan` below prints the plan
+in these terms.
+
+**Standing input state (2026-09-11, the accepted Ashen capture):** plugin
+**Input Gain +16.8 dB** with RME In 4 at gain 13, Tone Match **locked** and
+showing **No Tone Profile** (Amount 30%, Smooth 80% — inert without a
+profile), Lo Cut 97 Hz, hard playing around −13 dBFS on the plugin's Input
+meter. Screenshot in
+`quad-cortex-plugin-capture/references/thall-amp-input-ideal.png`. Input Gain
+is baked into a capture, so this number is part of the recipe, not a
+per-session calibration; set it before Start Capture and leave it alone.
+
+**Use Neural Capture Version 1.** V2 makes bad captures of this plugin:
+every rejected Ashen capture (2026-09-11) was V2, the accepted one was V1,
+and the two downloaded thall-amp captures the user rates highest are V1.
+The ideal calibration screen is the screenshot in
+`quad-cortex-plugin-capture/references/neural-capture-v1-calibration-ideal.png`.
 
 Plain-language meanings for every control, the QC block that replaces each
 rebuilt one, and the grid order they go back in:
@@ -189,7 +214,9 @@ rebuilt one, and the grid order they go back in:
 
 ## Capture-time state for V4 (the standing capture)
 
-V4 is the factory preset **Mirar – Leo** with five deliberate changes:
+V4 is the factory preset **Mirar – Leo** with five deliberate changes. This
+is the record of how V4 was made, not the current procedure — since
+2026-09-11 only the gate changes (see above):
 
 | Control | Mirar – Leo as shipped | V4 capture-time | Why |
 | ------- | ---------------------- | --------------- | --- |
@@ -234,6 +261,8 @@ anyway, so a bare single-row pitch block is a small error here — but say
 | V3 | No notes kept | **Rejected** — +10–15 dB sub, rolled off above 2 kHz, coherence 0.29 |
 | V4 | "Thall Mirar Leo Amp and Cab", Chug 50 | **STANDING CAPTURE.** Sounds right, measures well everywhere Chug allows |
 | V5 | "…Amp and Cab NoCh", Chug 0 | **Rejected by ear** despite being the best-measuring capture made here |
+| Ashen ×3 (2026-09-11) | Ashen preset, **Neural Capture V2**, gate at −50, otherwise as played | **Rejected by ear** — thin, clanky, unamped — although "wind" measured ±0.9 dB, ESR 0.66, body coherence 0.68–0.71 |
+| Ashen (2026-09-11) | Ashen preset, **Neural Capture V1**, gate −100, nothing else changed | **Accepted immediately.** Established the gate-only rule and the V1 rule |
 
 Keep V5 on the unit. It is the proof of the Chug hypothesis and the reason
 the 60–120 item is closed.

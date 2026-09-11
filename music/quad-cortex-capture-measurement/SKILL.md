@@ -76,9 +76,10 @@ Then:
 1. Put the plugin in its capture-time reference state. Read it from the
    project's `CAPTURE-TEST-STATE.md`, which `quad-cortex-plugin-capture`
    writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, and the
-   capture mode: capture-safe — gate off, pitch off, mono — or **organic**,
-   captured as played, in which case the play state IS the reference and no
-   overrides or restores are needed). Don't guess it. **Say which controls
+   capture mode: the current recipe is as played with only the gate at
+   −100 dB, so the play state IS the reference and the gate is the one
+   override; older captures may record capture-safe — gate off, pitch off,
+   mono). Don't guess it. **Say which controls
    you are about to move and get a yes before moving them** — see "Whose call
    it is" below.
 2. Preset input block on In 1, reverb and delay bypassed for the take, lane
@@ -105,10 +106,11 @@ measuring.
 ### Whose call it is
 
 The plugin and the preset are the user's instrument, and the two controls
-this method most often has to move — **Tighten Gate off, Pitch Power off** —
-are the two the user is most likely to be playing through right now. (For an
-**organic** capture neither moves: the play state is the reference, and there
-is nothing to ask.) Reading state is yours. Writing it is theirs.
+this method most often has to move — **Tighten Gate off**, and for older
+capture-safe captures **Pitch Power off** — are the two the user is most
+likely to be playing through right now. (For a current gate-only capture
+only the gate moves; for a fully organic one nothing does.) Reading state is
+yours. Writing it is theirs.
 
 - Name the controls, say what each costs the measurement if left as-is, and
   wait for a yes. One question covers the whole set.
@@ -162,7 +164,8 @@ Check these with tools before the user plays, not by asking them.
    bypassed twice in one session, including after a set reload, so re-check it
    after *any* reload or preset load.
    `enable_device` fixes it; `set_device_parameter` with normalized 0.0 sets
-   Tighten Gate to −100 dB and Pitch Power off.
+   Tighten Gate to −100 dB (and Pitch Power off, only when the capture's
+   recorded state says so).
 4. **Live's audio input device must be "Quad Cortex".** After a capture
    session it stays on the Fireface, because `quad-cortex-plugin-capture`
    switches it there, and the measurement set cannot carry it — audio devices

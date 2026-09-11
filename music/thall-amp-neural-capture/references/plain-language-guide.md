@@ -15,15 +15,22 @@ this and it will not.
 1. **Baked in** — set it correctly *before* you press Start Capture and the
    QC reproduces it for free. Change it afterwards and you have to recapture.
 2. **Rebuilt on the grid** — a QC block does this job, so turn it off in the
-   plugin for the capture and add the block to the preset.
-3. **Lost** — no static model reproduces it. Capture it as played, expect the
-   measured deficit, and do not chase it with EQ.
+   plugin for the capture and add the block to the preset. Since 2026-09-11
+   this bucket holds **the gate only**.
+3. **Captured as played** — no static model reproduces it exactly, and the
+   user's rule is to capture it anyway. Expect the measured deficit, and do
+   not chase it with EQ.
 
 | Bucket | Controls |
 | ------ | -------- |
-| Baked in | Input Gain, Tone Matching (Power/Amount/Smooth), Low Dirt, Amp Drive/Lo/Mid/Hi/Presence, the cab, Lo-Cut, Hi-Cut, Lo-Fi |
-| Rebuilt on the grid | Tighten Gate, Pitch Whammy, Pitch Thicken (+ its Hi-Cut and Parallel switch), Output Gain |
-| Lost | Tighten Chug and Tighten Frequency |
+| Baked in | Input Gain, Tone Matching (Power/Amount/Smooth), Low Dirt, Amp Drive/Lo/Mid/Hi/Presence, the cab, Lo-Cut, Hi-Cut, Lo-Fi, Mono/Stereo |
+| Rebuilt on the grid | Tighten Gate (→ −100 dB for the capture). Output Gain is loudness only |
+| Captured as played | Tighten Chug and Tighten Frequency, Pitch Whammy, Pitch Thicken (+ its Hi-Cut and Parallel switch) |
+
+**The only change made to a preset before capturing is Tighten Gate →
+−100 dB.** The pitch-block rebuild described below is the older recipe (how
+V4 was made) and a fallback if a capture audibly loses the octave; it is not
+the default any more.
 
 ## Global
 
@@ -42,8 +49,9 @@ sets it for you — click it and play hard for five seconds.
 DAW's bypass, which the plugin calls Host Bypass and Live shows as **Device
 On**.
 
-**Mono/Stereo Toggle** — *one speaker or two.* → Set **Off** (mono). The
-capture loop is mono, and a stereo source is not what the QC is listening to.
+**Mono/Stereo Toggle** — *one speaker or two.* → Leave it as the preset
+plays it. The capture loop is mono anyway; the older recipe set this Off and
+that is no longer done.
 
 ## Tone Matching — "make my guitar sound like the guitar this was built on"
 
@@ -101,13 +109,15 @@ open item 2 in `SKILL.md`.
 
 **Pitch Whammy** — *a pitch shifter on the whole signal*, ±24 semitones.
 −12 is an octave down, +12 an octave up. It transposes rather than blending.
-→ **Rebuilt on the grid**, with a **Wham** or **Pitch Shifter** block before
-the capture. Six factory presets use it.
+→ **Captured as played** since 2026-09-11. The older recipe rebuilt it with a
+**Wham** or **Pitch Shifter** block before the capture; keep that as the
+fallback if a capture audibly loses it. Six factory presets use it.
 
 **Pitch Thicken** — *blend a bass guitar in underneath your riff.* An octave
 below, mixed with the dry signal: 0% is dry only, 100% is the octave only.
-→ **Rebuilt on the grid**, and read the Parallel switch first — it decides
-*where* on the grid.
+→ **Captured as played** since 2026-09-11. If it has to be rebuilt (the
+older recipe, or a capture that audibly lost the octave), read the Parallel
+switch first — it decides *where* on the grid.
 
 **Pitch Hi-Cut** — *how much treble that added octave keeps.* Down at
 100–300 Hz the octave is a subby rumble under the riff. Up near 10 kHz it is
@@ -214,9 +224,13 @@ amp-and-cab capture is one block change.
 
 Three honest outcomes, worth naming before starting:
 
-- **Everything but Chug.** The realistic target for most presets. Bake the
-  static side, rebuild gate and octave on the grid, accept the Chug deficit
-  and record it. This is what the standing V4 capture is.
+- **Everything but the gate.** The current recipe: leave the preset as
+  played, gate to −100 dB, Neural Capture V1, gate block on the grid. Accept
+  whatever deficit Chug and the pitch section leave and record it. This is
+  what the accepted 2026-09-11 Ashen capture is.
+- **Everything but Chug.** The older recipe: bake the static side, rebuild
+  gate and octave on the grid, accept the Chug deficit and record it. This
+  is what the standing V4 capture is.
 - **Everything, including the feel** — only for the two presets with no
   dynamic control running at all (Drewsif – Air On Marshall, Mirar – Marius).
 - **Chug rebuilt separately** — capture at Chug 0, which models the static

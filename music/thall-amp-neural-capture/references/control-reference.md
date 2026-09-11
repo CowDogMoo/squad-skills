@@ -30,7 +30,7 @@ out — see "Section switches are blunt" below.
 | 2 | Power | Off/On | On | "Powers or bypasses the plugin." Separate from Device On; when off the UI shows "Click anywhere to unbypass". | Must be On |
 | 3 | Input Gain | −30…+30 dB | +0.0 | "Sets the input gain level." | **Baked in** — it sets how hard the amp is driven |
 | 4 | Output Gain | −30…+30 dB | +0.0 | "Sets the output gain level." | Loudness only; safe to change |
-| 30 | Mono/Stereo Toggle | Off/On | On | Off = mono, On = stereo. | Set **Off**; the QC capture loop is mono |
+| 30 | Mono/Stereo Toggle | Off/On | On | Off = mono, On = stereo. | Leave as played (the older recipe set it Off; since 2026-09-11 only the gate changes) |
 
 Next to Input Gain in the UI is **Auto Gain**: "Click and play hard for 5
 seconds to have the plugin automatically set your input gain." It is the
@@ -179,9 +179,9 @@ easy to reach for by mistake:
 - **Shape Power off** removes the gate *and* Chug. To silence only the gate,
   set Tighten Gate to −100 dB and leave Shape Power on.
 - **Pitch Power off** removes Whammy, Thicken, Thicken Hi-Cut, Cleanse,
-  Latency, and possibly Low Dirt. The capture workflow turns it off to drop
-  the pitch shifter's latency, which is right when Thicken is 0 and wrong
-  when it is not.
+  Latency, and possibly Low Dirt. The older capture recipe turned it off to
+  drop the pitch shifter's latency; since 2026-09-11 it stays as the preset
+  plays it, and the gate is the only capture-time change.
 
 ## State the preset file holds but the host cannot automate
 
