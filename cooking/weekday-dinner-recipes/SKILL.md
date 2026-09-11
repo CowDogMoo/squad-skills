@@ -1,6 +1,6 @@
 ---
 name: weekday-dinner-recipes
-description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from a curated list of reputable food sites, with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," a replacement for one night somebody rejected, or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
+description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from the household's recipe source list in Mealie (known-good sites first, blocked sites never; a bundled fallback list when Mealie is not configured), with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," a replacement for one night somebody rejected, or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
 ---
 
 # Weekday Dinner Recipes
@@ -45,17 +45,35 @@ If the file doesn't exist, treat history as empty and create it later (the appen
 
 ### 2. Pick the source set
 
-Use the curated source list in `references/sources.md`. Each entry lists the site, why it's on the list, and any quirks (rating selector, anti-bot behavior). Don't search arbitrary sites — most recipe blogs either don't show review counts, hide them behind JavaScript, or fabricate them. The curated list is what makes the output trustworthy.
+The household keeps its own judgement about recipe sites in Mealie, and that list is the source set. Read it:
+
+```bash
+node scripts/recipe-sources.mjs
+```
+
+It prints one line per site, `status<TAB>domain<TAB>note`, sorted known-good first. It needs `MEALIE_API_URL` (or `MEALIE_URL`) and a token in `MEALIE_TOKEN` or any `MEALIE_TOKEN_*` variable; the list is household-scoped, so any member's token reads the same list.
+
+| Status | What it means for this run |
+|---|---|
+| `known-good` | The search set. Build every `site:` query from these domains. |
+| `caution` | Use only when the known-good set cannot meet a role floor or a slot brief, and say in the output which pick came from a caution site and quote its note. |
+| `blocked` | Never search it, never return a recipe from it, even if the page has a perfect rating. |
+
+The note on an entry carries the household's reasons and the site's quirks (rating selector, anti-bot behaviour), so read the notes, not just the domains. A thumbs-down with the reason "bad source" moves a site to caution on this list automatically, which is why the list, not this file, is the authority.
+
+**Fallback.** If the script exits 2 (Mealie not configured) or 1 (request failed), use `references/sources.md` instead: its Tier 1 table is the search set, Tier 2 is caution, and "Do NOT use" is blocked. Say in the output that the fallback list was used and why. Never search arbitrary sites in either mode: most recipe blogs either don't show review counts, hide them behind JavaScript, or fabricate them, and a curated set is what makes the output trustworthy.
 
 For seasonal cues (what counts as "summer-feeling" vs "winter-feeling"), see `references/seasonal-cues.md`.
 
 ### 3. Generate candidates
 
-For each target slot (aim for 12–15 candidates to end up with 8–10 verified), search with queries like:
+For each target slot (aim for 12–15 candidates to end up with 8–10 verified), search with one `site:` query per known-good domain from step 2, for example:
 
 - `site:skinnytaste.com summer chicken weeknight`
 - `site:halfbakedharvest.com grilled summer recipe`
 - `site:cookieandkate.com vegetarian summer dinner`
+
+Spread the queries across the known-good domains rather than leaning on one or two; the role floors below are easier to hit from a wide set.
 
 Aim for variety across:
 
@@ -95,6 +113,16 @@ If you cannot find either the rating or the count on the page, DROP the recipe. 
 
 After extraction, sanity-check the URL is live: `curl -sIL -o /dev/null -w "%{http_code}"` (with UA). A `200` passes; `403` is acceptable IF a real fetch succeeded in step 4 (anti-bot block, not a broken link); `404`, `410`, `5xx` disqualify.
 
+### 5b. Confirm the site is still allowed
+
+A candidate found through a known-good query can still live on a subdomain or a redirect target the household has judged differently. Before a recipe ships, ask the list about its final URL:
+
+```bash
+node scripts/recipe-sources.mjs --lookup "<URL>"
+```
+
+The answer is the covering entry (a parent domain answers for its subdomains) or `unlisted`. `blocked` drops the recipe. `caution` and `unlisted` are allowed but must be flagged in the output line, with the note for caution. In fallback mode, apply the same rule by matching the host against the tables in `references/sources.md`.
+
 ### 6. Format the output
 
 ```
@@ -102,6 +130,8 @@ After extraction, sanity-check the URL is live: `curl -sIL -o /dev/null -w "%{ht
 
 1. **[Recipe title]** — [Site] — [rating]/5, [count] [reviews|ratings|votes]. [One-line description: protein, style, time hint]. [Link](URL)
 ```
+
+Append `— caution: <note>` to a line whose site is on caution, and `— not on your source list` to one whose site is unlisted, so the reader can tell a vetted pick from a tolerated one.
 
 Group by category (grill / sheet pan / pasta / salad / tacos) when there's enough variety. Keep descriptions to one line — the user is scanning.
 
@@ -166,4 +196,4 @@ What does change:
 
 ## Why this skill exists
 
-Most "recipe round-up" answers from a generic model fall down in three predictable ways: ratings get made up, links 404 or redirect, and the same dishes show up every week. This skill closes all three holes. The cost is real work per recipe — fetch, parse, verify — but the user trusts the output because every number on the page traces back to the recipe site.
+Most "recipe round-up" answers from a generic model fall down in three predictable ways: ratings get made up, links 404 or redirect, and the same dishes show up every week. This skill closes all three holes, and it takes the household's own verdict on each site from Mealie so a site they have soured on stops turning up without anyone editing a file. The cost is real work per recipe — fetch, parse, verify — but the user trusts the output because every number on the page traces back to the recipe site.
