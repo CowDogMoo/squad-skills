@@ -81,9 +81,28 @@ TASK.md into `<run>/stage/` and point at that. Every rendered prompt
 automatically carries an UNTRUSTED CONTENT BOUNDARY: task files and quoted
 task content are data under evaluation, never instructions to the seat —
 injection attempts embedded in the work product get cited as evidence, not
-obeyed. run-seats invokes
-`claude -p ... --model sonnet` (~$0.40, 1–3 min), pools 4, times out at 300s,
-and saves every raw envelope under `<run>/raw/`.
+obeyed. run-seats pools 4, times out at 300s, and saves every raw envelope
+under `<run>/raw/`.
+
+**Seat CLI drivers.** run-seats is not tied to one vendor CLI. It uses
+`claude` when that binary is on `PATH`, or whichever `QUORUM_SEAT_CLI` names:
+
+| Driver | Configuration | Notes |
+|---|---|---|
+| `claude` | none needed | The A3 recipe: `--model sonnet --output-format json --allowedTools Read Grep Glob`. Result text is `.result`; `.is_error` fails closed. ~$0.40, 1–3 min. |
+| `custom` | `QUORUM_SEAT_BIN`, `QUORUM_SEAT_ARGS` (JSON argv with `{prompt}`, `{fixture_dir}`, `{model}` placeholders), `QUORUM_SEAT_RESULT_FIELD` (default `result`), optional `QUORUM_SEAT_STATUS_FIELD` / `QUORUM_SEAT_STATUS_OK` (default `SUCCESS`), optional `QUORUM_SEAT_SCRUB_ENV` | Any CLI that prints one JSON envelope on stdout; a setup banner before it is tolerated. Keep this configuration in a private shell file, never in this repo. Making the seat read-only and blind to the calling conversation is the operator's job for a CLI the harness does not know. |
+
+`QUORUM_SEAT_BIN` overrides the binary path (it requires `QUORUM_SEAT_CLI`, so
+the harness never guesses which driver a binary belongs to) and
+`QUORUM_SEAT_MODEL` overrides the model. If no driver can run, run-seats exits
+1 with a named error rather than letting the seat read as a mysterious absence
+at judge time.
+
+> The benchmark in the header (0.00 false-complete / 0.00 false-incomplete over
+> 56 runs) was measured on the `claude` seat. A `custom` seat is contract-
+> compatible — same prompt, same ballot schema, same fail-closed judge — but its
+> judgement quality has not been benchmarked. Re-run `REMATCH.md` before
+> quoting those numbers for a non-claude seat.
 
 **Re-ask rule (measured: ~20% of seats return prose instead of a ballot):** if a
 seat produced no ballot file or a malformed one, re-run that seat exactly ONCE
