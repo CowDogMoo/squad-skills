@@ -1,6 +1,6 @@
 ---
 name: weekday-dinner-recipes
-description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from the household's recipe source list in Mealie (known-good sites first, blocked sites never; a bundled fallback list when Mealie is not configured), with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," a replacement for one night somebody rejected, or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
+description: Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from the household's recipe source list in Mealie (known-good sites first, blocked sites never), with the star rating and review count extracted from each live page and every link verified (no 404s). Use whenever the user asks for dinner ideas, weeknight meals, a recipe round-up, "more recipes," a replacement for one night somebody rejected, or anything resembling "what should I cook this week." For planning a full week of dinners under household constraints, defer to plan-weekly-dinners instead. Defaults to the current season; honors an explicit season if the user names one. Skips recipes already returned in prior runs by reading a local history file.
 ---
 
 # Weekday Dinner Recipes
@@ -45,10 +45,10 @@ If the file doesn't exist, treat history as empty and create it later (the appen
 
 ### 2. Pick the source set
 
-The household keeps its own judgement about recipe sites in Mealie, and that list is the source set. Read it:
+The household keeps its own judgement about recipe sites in Mealie, and that list is the only source set. Read it with the skill's own script. Throughout this file, `<skill-dir>` is the directory containing this `SKILL.md` (the host tells you it when the skill loads); your working directory is usually somewhere else, so always spell the path out:
 
 ```bash
-node scripts/recipe-sources.mjs
+node <skill-dir>/scripts/recipe-sources.mjs
 ```
 
 It prints one line per site, `status<TAB>domain<TAB>note`, sorted known-good first. It needs `MEALIE_API_URL` (or `MEALIE_URL`) and a token in `MEALIE_TOKEN` or any `MEALIE_TOKEN_*` variable; the list is household-scoped, so any member's token reads the same list.
@@ -61,7 +61,7 @@ It prints one line per site, `status<TAB>domain<TAB>note`, sorted known-good fir
 
 The note on an entry carries the household's reasons and the site's quirks (rating selector, anti-bot behaviour), so read the notes, not just the domains. A thumbs-down with the reason "bad source" moves a site to caution on this list automatically, which is why the list, not this file, is the authority.
 
-**Fallback.** If the script exits 2 (Mealie not configured) or 1 (request failed), use `references/sources.md` instead: its Tier 1 table is the search set, Tier 2 is caution, and "Do NOT use" is blocked. Say in the output that the fallback list was used and why. Never search arbitrary sites in either mode: most recipe blogs either don't show review counts, hide them behind JavaScript, or fabricate them, and a curated set is what makes the output trustworthy.
+**No list, no run.** If the script exits 2 (Mealie not configured) or 1 (the request failed), stop and report its message; do not search arbitrary sites in its place. Most recipe blogs either don't show review counts, hide them behind JavaScript, or fabricate them, and the household's list is what makes the output trustworthy. An empty list is the same stop: tell the person to add sites on Mealie's Recipe Sources page.
 
 For seasonal cues (what counts as "summer-feeling" vs "winter-feeling"), see `references/seasonal-cues.md`.
 
@@ -118,10 +118,10 @@ After extraction, sanity-check the URL is live: `curl -sIL -o /dev/null -w "%{ht
 A candidate found through a known-good query can still live on a subdomain or a redirect target the household has judged differently. Before a recipe ships, ask the list about its final URL:
 
 ```bash
-node scripts/recipe-sources.mjs --lookup "<URL>"
+node <skill-dir>/scripts/recipe-sources.mjs --lookup "<URL>"
 ```
 
-The answer is the covering entry (a parent domain answers for its subdomains) or `unlisted`. `blocked` drops the recipe. `caution` and `unlisted` are allowed but must be flagged in the output line, with the note for caution. In fallback mode, apply the same rule by matching the host against the tables in `references/sources.md`.
+The answer is the covering entry (a parent domain answers for its subdomains) or `unlisted`. `blocked` drops the recipe. `caution` and `unlisted` are allowed but must be flagged in the output line, with the note for caution.
 
 ### 6. Format the output
 

@@ -4,11 +4,11 @@
     {
       "id": 1,
       "prompt": "what should I cook this week? 8 dinners, nothing I've had before",
-      "expected_output": "8 season-appropriate recipes from the household's Mealie recipe source list (or references/sources.md when Mealie is not configured, and the output says so), each with exact rating and review count from the live page, links verified 200, no recipe from a blocked site, history file read first and appended after.",
+      "expected_output": "8 season-appropriate recipes from the household's Mealie recipe source list, each with exact rating and review count from the live page, links verified 200, no recipe from a blocked site, history file read first and appended after.",
       "files": [],
       "expectations": [
         "Exactly 8 recipes are returned, grouped by category header",
-        "The source set was read with scripts/recipe-sources.mjs, or the output states that the fallback list was used because Mealie was not configured or unreachable",
+        "The source set was read with <skill-dir>/scripts/recipe-sources.mjs, and the run stops with the script's message if Mealie is not configured or unreachable",
         "Every recipe line has a numeric rating, a review count, the site name, and a link",
         "The history file was read before selection and every returned URL is appended to it afterwards",
         "No returned URL appears in the history file from before this run",
@@ -36,7 +36,7 @@
         "Exactly one pick is returned first, followed by two ranked alternates",
         "No returned URL is on allrecipes.com or any of its subdomains",
         "A pick from seriouseats.com, if any, is flagged as caution with the list's note quoted",
-        "Every returned URL was looked up with scripts/recipe-sources.mjs --lookup before being returned"
+        "Every returned URL was looked up with <skill-dir>/scripts/recipe-sources.mjs --lookup before being returned"
       ]
     }
   ]
