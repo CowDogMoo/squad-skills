@@ -216,20 +216,16 @@ def capture_notes(p):
     if on("pitch_power") and v.get("pitch_thicken", 0) > 0:
         notes.append(
             "Pitch Thicken %.0f%% — an octave-down generator, also unmodellable. "
-            "Powering the Pitch section off for the capture REMOVES it; decide "
-            "whether that is the sound you play." % v["pitch_thicken"])
+            "Leave it as played (the gate is the only capture-time change); a QC "
+            "pitch block is the fallback if the capture audibly loses the octave."
+            % v["pitch_thicken"])
     if on("pitch_power") and abs(v.get("pitch_whammy", 0)) > 0.05:
-        notes.append("Pitch Whammy %s — pitch shifting cannot be captured at all."
-                     % fmt("pitch_whammy", v["pitch_whammy"]))
-    if on("pitch_power") and v.get("low_dirt", 0) > 0:
-        notes.append(
-            "Low Dirt %.0f%% — static pre-distortion, so it captures fine, but the "
-            "UI groups it with the Pitch section. Confirm by ear that Pitch Power "
-            "off does not also mute it before capturing this preset."
-            % v["low_dirt"])
+        notes.append("Pitch Whammy %s — pitch shifting cannot be modelled; captured "
+                     "as played anyway." % fmt("pitch_whammy", v["pitch_whammy"]))
     if v.get("tighten_gate", -100) > -99 and on("tighten_power"):
         notes.append("Tighten Gate %s — set it to -100 dB before capturing; a gate "
-                     "swallows the capture's own test signal."
+                     "bakes in a level-dependent choke that reads as thin and unamped. "
+                     "This is the ONLY change made to the preset."
                      % fmt("tighten_gate", v["tighten_gate"]))
     if p["cab_file"]:
         exists = os.path.exists(p["cab_file"])
@@ -295,23 +291,18 @@ def plan(p):
     get = lambda k, d=0: v.get(k, d)
     print("%s — capture plan\n" % p["file"])
 
-    print("BEFORE YOU CAPTURE — change these, then read them back from the plugin")
+    print("BEFORE YOU CAPTURE — the gate is the ONLY control that changes; read it back")
     if get("tighten_gate", -100) > -99 and on("tighten_power"):
-        print("  Tighten Gate        %-12s -> -100 dB   a gate swallows the QC's own"
+        print("  Tighten Gate        %-12s -> -100 dB   a gate bakes in a level-dependent"
               % fmt("tighten_gate", get("tighten_gate", -100)))
-        print("%stest signal" % (" " * 48))
-    if on("mono_stereo"):
-        print("  Mono/Stereo Toggle  %-12s -> Off       the capture loop is mono" % "On")
-    if on("pitch_power"):
-        why = ("removes the octave, which you rebuild on the grid"
-               if get("pitch_thicken") > 0 or abs(get("pitch_whammy")) > 0.05
-               else "drops the pitch shifter's latency; nothing audible is lost")
-        print("  Pitch Power         %-12s -> Off       %s" % ("On", why))
-    print("  Output Gain         %-12s -> +0.0 dB   make up level on the QC capture"
-          % fmt("output_gain", get("output_gain")))
-    print("%sblock's Volume, never its Gain" % (" " * 48))
+        print("%schoke (thin, clanky, unamped)" % (" " * 48))
+    else:
+        print("  Tighten Gate        already -100 dB or Shape off — nothing to change")
+    print("  Everything else     as played: Chug, Pitch (%s), Mono/Stereo (%s), Output Gain"
+          % ("On" if on("pitch_power") else "Off", "On" if on("mono_stereo") else "Off"))
     print("  Input Gain          set by level calibration, not by this file; it is baked")
     print("                      into the capture and decides how hard the model is driven")
+    print("  Neural Capture:     Version 1 (on-device). V2 makes bad captures of this plugin")
     print("  Capture type:       %s"
           % ("\"Amp and Cab\" (Cab Power is on — the only way to keep the internal cab)"
              if on("cab_power") else
@@ -343,35 +334,38 @@ def plan(p):
               % fmt("tighten_gate", get("tighten_gate")))
         print("    number does not transfer — dial it by ear against the plugin.")
         rebuilt = True
-    if on("pitch_power") and get("pitch_thicken") > 0:
-        where = ("its own row with its own capture, joined by a mixer"
-                 if on("thicken_parallel") else "before the Neural Capture block")
-        print("  Pitch block: -12 st, mix %s, low-pass %s — %s."
-              % (fmt("pitch_thicken", get("pitch_thicken")),
-                 fmt("pitch_hi_cut", get("pitch_hi_cut", 10000)), where))
-        print("    Thicken Amp Parallel is %s. On a single row you cannot low-pass only"
-              % fmt("thicken_parallel", get("thicken_parallel", 0)))
-        print("    the octave; an exact rebuild needs Splitter > [pitch + EQ] and dry > Mixer.")
-        rebuilt = True
-    if on("pitch_power") and abs(get("pitch_whammy")) > 0.05:
-        print("  Wham or Pitch Shifter block before the capture, at %s."
-              % fmt("pitch_whammy", get("pitch_whammy")))
-        rebuilt = True
     if not on("cab_power"):
         print("  IR Loader after the capture — this is an amp-only capture.")
         rebuilt = True
     if not rebuilt:
         print("  Nothing. Capture straight into the preset.")
 
-    print("\nLOST — expect it, record it, do not EQ it away")
+    print("\nCAPTURED AS PLAYED — expect a deficit, record it, do not EQ it away")
+    lost = False
     if get("tighten_chug") > 0 and on("tighten_power"):
         print("  Tighten Chug %s at %s. A static model cannot follow pick attack, so"
               % (fmt("tighten_chug", get("tighten_chug")),
                  fmt("tighten_freq", get("tighten_freq", 250))))
         print("  the capture will show a permanent band deficit at low coherence. The one")
         print("  measured case on this rig — Chug 50 — sat at -4 dB / 0.4-0.5 over 60-120 Hz.")
-    else:
-        print("  Nothing. No dynamic control is running in this preset.")
+        lost = True
+    if on("pitch_power") and get("pitch_thicken") > 0:
+        where = ("its own row with its own capture, joined by a mixer"
+                 if on("thicken_parallel") else "before the Neural Capture block")
+        print("  Pitch Thicken %s (Hi-Cut %s, Parallel %s). An octave generator; the model"
+              % (fmt("pitch_thicken", get("pitch_thicken")),
+                 fmt("pitch_hi_cut", get("pitch_hi_cut", 10000)),
+                 fmt("thicken_parallel", get("thicken_parallel", 0))))
+        print("  averages it. Fallback only if the capture audibly loses the octave: a QC")
+        print("  pitch block at -12 st, mix %s, %s." % (fmt("pitch_thicken", get("pitch_thicken")), where))
+        lost = True
+    if on("pitch_power") and abs(get("pitch_whammy")) > 0.05:
+        print("  Pitch Whammy %s. Pitch shifting cannot be modelled; fallback is a Wham or"
+              % fmt("pitch_whammy", get("pitch_whammy")))
+        print("  Pitch Shifter block before the capture.")
+        lost = True
+    if not lost:
+        print("  Nothing. No dynamic or pitch control is running in this preset.")
 
     warnings = []
     if p["cab_file"] and not os.path.exists(p["cab_file"]):

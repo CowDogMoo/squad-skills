@@ -4,10 +4,12 @@
     {
       "id": 1,
       "prompt": "Walk me through capturing the Odeholm thall amp preset into the Quad Cortex using my UCX II and Ableton. I want the amp only, no cab.",
-      "expected_output": "Step-by-step for the user's rig: cabling, TotalMix routing, Ableton track setup, capture-safe plugin state with cab disabled, level calibration, Neural Capture V2 run, A/B verification.",
+      "expected_output": "Step-by-step for the user's rig: cabling, TotalMix routing, Ableton track setup, plugin left as played with only the gate turned off and the cab disabled, level calibration, Neural Capture Version 1 run, A/B verification.",
       "files": [],
       "expectations": [
         "The plugin's cab/IR section is explicitly disabled before capture",
+        "Tighten Gate is set to -100 dB and no other plugin control is changed from the play state",
+        "Neural Capture Version 1 is used, not Version 2",
         "TotalMix routing and Ableton track setup are described with the specific inputs/outputs the skill defines",
         "Level calibration is done before starting the capture",
         "The response ends with an A/B verification step and a pointer to quad-cortex-capture-measurement for numbers"

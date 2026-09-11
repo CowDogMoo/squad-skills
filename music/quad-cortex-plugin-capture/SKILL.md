@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-plugin-capture
-description: Run a Neural Capture of a software amp-sim plugin (Neural DSP, Odeholm thall amp, or any VST/AU) into the Quad Cortex, using the user's rig - RME Fireface UCX II, Ableton Live, Cortex Control, TotalMix FX. Covers cabling, TotalMix routing, Ableton track setup, capture-safe plugin state, level calibration, running Neural Capture V2 from Cortex Control, and A/B verification. Trigger on "neural capture", "capture this plugin", "capture my amp sim", "quad cortex capture", "QC capture", "why is my capture quieter", or any request to turn a plugin preset into a Quad Cortex capture. Do NOT use for capturing physical amps/pedals (the manual covers that), for measuring an existing capture against its plugin reference (quad-cortex-capture-measurement), or for general Ableton/QC questions unrelated to capturing.
+description: Run a Neural Capture of a software amp-sim plugin (Neural DSP, Odeholm thall amp, or any VST/AU) into the Quad Cortex, using the user's rig - RME Fireface UCX II, Ableton Live, Cortex Control, TotalMix FX. Covers cabling, TotalMix routing, Ableton track setup, capture-time plugin state (as played, gate off), level calibration, running Neural Capture Version 1 from Cortex Control, and A/B verification. Trigger on "neural capture", "capture this plugin", "capture my amp sim", "quad cortex capture", "QC capture", "why is my capture quieter", or any request to turn a plugin preset into a Quad Cortex capture. Do NOT use for capturing physical amps/pedals (the manual covers that), for measuring an existing capture against its plugin reference (quad-cortex-capture-measurement), or for general Ableton/QC questions unrelated to capturing.
 ---
 
 # Quad Cortex plugin capture
@@ -15,10 +15,10 @@ Full inventory in `references/rig-and-automation.md`.
 ## Workflow
 
 1. Cable the loop and set TotalMix so nothing but the plugin reaches QC In 2.
-2. Set the plugin to its capture-safe state — or leave it as played if the
-   user chooses an organic capture — and read it back.
+2. Leave the plugin exactly as played and turn only the gate fully off
+   (Tighten Gate −100 dB). Read it back.
 3. Calibrate levels: input side sets the tone, return side sets loudness only.
-4. Run Neural Capture V2 from Cortex Control, one screen at a time.
+4. Run Neural Capture **Version 1** from Cortex Control, one screen at a time.
 5. Judge it on the A/B screen, then save.
 6. Write the capture-time state into `CAPTURE-TEST-STATE.md` before leaving.
 
@@ -30,6 +30,11 @@ Full inventory in `references/rig-and-automation.md`.
   also taps the dry In 1 signal, which is useful for recording DIs.
 - **RME rear line out (3 or 5) → QC Input 2** — the capture return.
 - **Guitar → QC Input 1** — reference for the level check and the A/B.
+- History: the 2026-08-23 capture that set the quality bar used **In 3** at
+  gain +13; the cable moved to In 4 on 2026-08-24 for an experiment that
+  measured worse, and the 2026-08-25 edit of this file made In 4 standard. In 4
+  is fine — the calibration (gain 13, Line, AutoSet off) is what must travel
+  with it.
 
 The QC cannot loop to itself over USB, so the physical loop is mandatory for
 **capturing**. For **comparing** a capture to the plugin afterwards, the QC's
@@ -47,7 +52,21 @@ would have captured silence. Check both directions; the strips are custom-named
 and `references/totalmix-routing.md` says which is which.
 
 Then, on the input receiving CAPTURE OUT (In 4): Inst OFF, +13 dBu, AutoSet
-OFF, gain calibrated so hard playing peaks near −15 dBFS in Ableton.
+OFF, gain calibrated so hard playing peaks near −15 dBFS in Ableton. **On this
+rig the calibrated value is gain 13** (2026-08-23 on In 3 and 2026-09-11 on
+In 4: In 4 tracks the QC In 1 meter at IN 1 LEVEL 0 dB to 0.1 dB). The
+interface gain and the plugin's Input Gain are one calibration, not two: the
+accepted 2026-09-11 thall-amp capture ran **In 4 gain 13 with plugin Input
+Gain +16.8 dB** (screenshot: `references/thall-amp-input-ideal.png`). An
+earlier note here warned against the +17 Input Gain as "chasing meters"; the
+accepted capture disproved that, so the pair above is the standard. Change
+neither one alone.
+
+**Mute In 4 in TotalMix for the capture workspace.** Mute is monitor-side only
+(Ableton still records In 4) and it kills every send of the CAPTURE OUT signal
+at once. Found 2026-09-11: In 4 sent to Analog 1/2 at −3.7 dB while RME Out 1/2
+reaches QC In 1 — at gain 13 that loop oscillated (QC In 1 −7.8 dBFS with no
+guitar). The Analog 3/4 leak check alone would not have caught it.
 
 Loading any TotalMix snapshot or workspace silently reverts all of this.
 Re-verify before every capture session.
@@ -72,38 +91,44 @@ the input gain knob will not take screen control:
   set volumes. Use it for anything it covers; use screen control only for I/O
   routing, monitor buttons, arming, and transport.
 
-## Capture-safe plugin state
+## Capture-time plugin state
 
-A Neural Capture models a static nonlinear system. Before capturing (thall amp
-parameter indices in parens, via `ableton-mcp`):
+**The thall amp is captured exactly as played, with one change: Tighten Gate
+→ −100 dB (param 10, normalized 0). That is literally the only change.**
+Chug, pitch, drive, EQ, tone match, mono/stereo, cab — everything else stays
+where the preset plays it. Do not power the pitch section off, do not flip
+mono, do not zero Chug. The user confirmed this on 2026-09-11 after the
+Ashen captures; it supersedes the older "capture-safe" recipe (gate off,
+pitch off, mono) that V4 was made with. That recipe is history, not
+procedure — do not apply it unless the user asks for it by name.
 
-- **Gate fully off** — Tighten Gate → −100 dB (param 10, normalized 0).
-- **Pitch/time section powered off** (param 13). Even at 0 st it adds latency
-  and processing.
-- **Mono** (param 30 → 0).
-- Static things are fine to leave: tone-match EQ, Low Dirt at 0, Lo/Hi Cut.
-- **Cab OFF for an "Amp" capture** (use IRs on the QC), **ON for "Amp + Cab"**,
-  which is the only way to keep a non-exportable internal cab. Do both; save
-  both.
+Why the gate is the exception: a Neural Capture models a static nonlinear
+system, and a gate is a level-dependent choke. Leaving it on bakes in an
+averaged version that reads as "thin, clanky, unamped" next to the plugin
+even when the capture measures within 1 dB of it. Measured/heard 2026-09-11
+on Ashen: three V2 captures with the gate at −50 ("wind" measured ±0.9 dB,
+ESR 0.66, body coherence 0.68–0.71) were all rejected by ear; the first
+capture with the gate at −100 — otherwise untouched, made with Neural
+Capture V1 — was accepted immediately. Set the gate parameter, not Shape
+Power: Shape Power off also kills Chug.
 
-**Organic capture is a valid mode, and it is the user's call.** The
-capture-safe overrides above are the default because they make the capture
-comparable to capture-safe baselines — but the user may choose to capture the
-preset fully organic: gate, pitch, everything exactly as played (done
-~2026-09-04/05 for "Brutal Death Thall", Tighten Gate −30, Pitch On, measured
-2026-09-05). Do not "correct" that choice. Consequences to record in
-`CAPTURE-TEST-STATE.md`: the **measurement reference becomes the play state**
-(no overrides, no restore step for takes), and the capture-safe coherence
-baselines do not apply. That capture's body coherence read 0.68–0.81 across
-its clean 2026-09-05 takes (the clipped 14:46 take excluded) — below the best
-capture-safe result on this rig (Monomythic, 0.87–0.94) but level with the
-capture-safe capture of the same preset (V2b, 0.67–0.77), and two
-capture-safe draws of identical state (V2 vs V2b) differed by more than that
-on their own. So no organic-vs-capture-safe
-gap has been measured; if one exists, the leading explanation is that the
-model can only average the live gate/pitch behaviour, and that is
-unconfirmed. State the mode explicitly in the file — a reader must never have
-to guess which reference a capture answers to.
+Cab: **OFF for an "Amp" capture** (use IRs on the QC), **ON for "Amp + Cab"**,
+which is the only way to keep a non-exportable internal cab. Do both if the
+user wants both; save both. Cab state is the preset's, not a capture-safe
+override.
+
+Record the state in `CAPTURE-TEST-STATE.md`: the play state is the
+measurement reference (gate excepted), and the old capture-safe coherence
+baselines do not apply (Brutal Death organic read 0.68–0.81; V2b capture-safe
+0.67–0.77; two capture-safe draws of identical state differed by more than
+that on their own).
+
+**Use Neural Capture Version 1, not Version 2, for this plugin.** V2 makes
+bad captures of it: every rejected Ashen capture was V2, the accepted
+2026-09-11 capture is V1, and the two downloaded thall-amp captures the user
+rates highest are V1. V1 is on-device, about three minutes, no cloud. Do not
+offer V2 as "better" — the skill used to say that, and it was wrong for this
+amp.
 
 **Dynamic controls stay exactly where the preset plays them.** A time-varying
 control — anything that ducks, tightens, or gates by level — cannot be
@@ -117,8 +142,9 @@ Tighten Chug control, is in `thall-amp-neural-capture`.
 **Verify against the plugin UI, not just parameter readouts.** Ableton's
 normalized values for VST3 params can mislead: +12 dB was displayed for what
 the UI showed as +2.4. Open the plugin window and confirm Input/Output gain and
-that the tone-match profile is actually loaded — "No Tone Profile" means it is
-not, even when the preset name suggests otherwise.
+the tone-match state. "No Tone Profile" means none is loaded, whatever the
+preset name suggests — and for the thall amp that is the accepted capture
+state (see Levels), so record it rather than "fix" it.
 
 **Read parameters back after writing them.** The `ableton-mcp` write response
 can echo a stale display string: setting Tighten Chug to normalized 0.5
@@ -136,24 +162,46 @@ record.
 - **Return side — arbitrary, NOT part of the tone.** Aim for QC **In 2 peaks
   ≈ −12 dB** (Neural DSP's target), using QC In 2 Level, plugin output, or the
   TotalMix output fader. This only sets the capture's output loudness.
-- In the Cortex Control calibration screen: In 1 = Instrument, 0 dB, 1 MΩ;
-  In 2 = Instrument. Type the values in — double-click the number, `cmd+A`,
-  type, `Return`.
+- Cortex Control calibration screen, the ideal for this plugin
+  (screenshot: `references/neural-capture-v1-calibration-ideal.png`, taken
+  right before Start Capture on the accepted 2026-09-11 capture):
 
-## Running Neural Capture V2 (Cortex Control)
+  | Control | Value |
+  | ------- | ----- |
+  | Version | **1** |
+  | IN 1 LEVEL (Instrument) | **4.0 dB**, type Instrument, 1 MΩ, phantom off |
+  | IN 2 LEVEL (Device) | **1.0 dB**, type Instrument, 1 MΩ, phantom off |
+  | IN 2 meter | peaks around **−4 dB** (red marker at −4.3) |
+  | CABSIM | **Off** (the plugin's cab is in the capture) |
 
-1. ⋯ menu → New Neural Capture → **Version 2** (cloud-processed and better;
-   the QC needs internet). Click through the connection screens.
-2. Calibration screen: set levels as above. CABSIM here is monitoring-only —
-   ON while capturing amp-only so it is listenable, OFF when the plugin's cab
-   is in the capture.
+  The In 4 calibration against the QC In 1 meter is done at IN 1 LEVEL 0 dB;
+  the capture then runs with the values above. Type values in — double-click
+  the number, `cmd+A`, type, `Return`.
+- **Thall amp input panel for the same capture**
+  (`references/thall-amp-input-ideal.png`): **Input Gain +16.8 dB**, Tone
+  Match **locked** with **No Tone Profile**, Amount 30%, Smooth 80%, Lo Cut
+  97 Hz, hard playing sitting around −13 dBFS on the plugin's own Input
+  meter. "No Tone Profile" is the accepted state for this capture, not a
+  fault to fix — do not go looking for a profile to load.
+
+## Running Neural Capture V1 (Cortex Control)
+
+1. ⋯ menu → New Neural Capture → **Version 1**. The header must read
+   "NEURAL CAPTURE VERSION 1" before anything else is clicked. V1 processes
+   on the device; no internet, no upload, no cloud training. Click through
+   the connection screens.
+2. Calibration screen: set the table above, then compare against
+   `references/neural-capture-v1-calibration-ideal.png` — same tab
+   (Calibration, not Ground Lift), same knob values, same CABSIM state. The
+   IN 2 meter should show signal with a peak marker near −4 dB while the
+   plugin plays. CABSIM here is monitoring-only — ON while capturing amp-only
+   so it is listenable, OFF when the plugin's cab is in the capture.
 3. **Metadata screen — go one click at a time.** It pre-fills the previous
    name plus " 2" and the previous type, and a misplaced click starts the
    capture with the wrong metadata. Set name, instrument (Guitar), and type
-   (Amp vs Amp + Cab — the type is sent to cloud training, so treat it as
-   load-bearing), and screenshot-verify before pressing Start Capture.
-4. Recording takes 2–3 min, then upload, then cloud training 3–5 min. Nobody
-   plays during this; the QC sends its own test signals.
+   (Amp vs Amp + Cab), and screenshot-verify before pressing Start Capture.
+4. Recording plus on-device training takes about three minutes. Nobody plays
+   during this; the QC sends its own test signals.
 5. The A/B screen alternates every 2 s between capture and reference. Judge
    gain, chug tightness, pick attack, and mids. Close but wrong is almost
    always input level. Then SAVE, and confirm the "Neural Capture Saved"
@@ -166,8 +214,9 @@ record.
 
 Before leaving a capture session, write the capture-time plugin state into the
 project's `CAPTURE-TEST-STATE.md`: capture name, Amp vs Amp+Cab, cab on/off,
-Lo/Hi Cut, tone-match profile, In/Out gain, the capture mode (capture-safe or
-organic) with the gate/pitch/mono state, and the In 4 gain used.
+Lo/Hi Cut, tone-match profile, In/Out gain, the Neural Capture version (V1),
+a line confirming the gate is the only change from the play state (with the
+pitch/mono/Chug values as played), and the In 4 gain used.
 
 `quad-cortex-preset-editing` reads this as "the reference" when it puts the
 capture into a preset, and `quad-cortex-capture-measurement` reads it to put
@@ -209,6 +258,7 @@ is not "measured"; do not use rung-3 language for it.
 | Plugin UI and parameter readout disagree | Normalized VST3 values display misleadingly | Trust the plugin window |
 | Capture started with the wrong name or type | The metadata screen pre-fills and a stray click starts it | One click, one screenshot, then Start |
 | Level check meters disagree by more than ~1 dB | In 4 gain is off calibration | Recalibrate against the meters, not the stored number |
+| Capture sounds thin, clanky, unamped next to the plugin, yet measures close | The plugin's gate was on during the capture, or it was a V2 run | Tighten Gate −100 dB, Version 1, recapture |
 
 ## Hand-off
 
@@ -226,3 +276,9 @@ is not "measured"; do not use rung-3 language for it.
   leak modes, the snapshot warning, and the plugin-Input-Gain substitute.
 - `references/rig-and-automation.md` — rig inventory and the screen-control
   lessons that apply during a capture.
+- `references/neural-capture-v1-calibration-ideal.png` — the Cortex Control
+  calibration screen exactly as it was for the accepted 2026-09-11 thall-amp
+  capture (V1, In 1 4.0 dB, In 2 1.0 dB, CABSIM off). Match it.
+- `references/thall-amp-input-ideal.png` — the thall amp input panel for the
+  same capture (Input Gain +16.8 dB, Tone Match locked, No Tone Profile,
+  Amount 30 / Smooth 80, Lo Cut 97 Hz). Match it too.
