@@ -123,7 +123,7 @@ each listed path exactly one level deep.
 | Skill                                                                | Description                                                                                                                                                     |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [extract-recipe-grocery-list](./cooking/extract-recipe-grocery-list) | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations. |
-| [weekday-dinner-recipes](./cooking/weekday-dinner-recipes)           | Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from the household's recipe source list in Mealie (known-good first, blocked never, a bundled fallback list otherwise), with ratings extracted from each live page, every link verified, and previously returned recipes skipped. |
+| [weekday-dinner-recipes](./cooking/weekday-dinner-recipes)           | Pull a fresh batch of well-rated, season-appropriate weekday dinner recipes from the household's recipe source list in Mealie (known-good first, blocked never), with ratings extracted from each live page, every link verified, and previously returned recipes skipped. |
 
 ## Skill Structure
 
