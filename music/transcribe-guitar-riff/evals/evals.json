@@ -1,0 +1,41 @@
+{
+  "skill_name": "transcribe-guitar-riff",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need the actual notes for the guitar track '29-Rein Xfer REAL 5' in my open Ableton set. The guitar is an 8-string tuned C1 G1 C2 F2 A#2 D#3 G3 C4. Start by getting the isolated track out of Ableton.",
+      "expected_output": "Finds the track and its clip via the Ableton MCP tools, locates the source sample and the exact region the clip plays with scripts/als_clip_region.py, cuts that region with ffmpeg instead of rendering through the track's effects, analyzes it with scripts/riff_salience.py (not pYIN), writes a cleaned MIDI from a spec with scripts/riff_midi.py, builds a MIDI A/B reference track in Live at the clip's bars, hands the tab to the guitar-pro skill (native .gp because 8 strings), and states plainly that the reading is not yet verified by ear.",
+      "files": [],
+      "expectations": [
+        "The exported audio is the source sample region the clip plays (cut with ffmpeg), not a render through the track's effect chain",
+        "Pitch analysis uses the CQT harmonic-salience script; a pYIN/monophonic tracker is not presented as the result",
+        "Fretting is given in the user's stated tuning with string and fret numbers",
+        "A MIDI reference track is placed in Live at the same bars as the clip for A/B listening, and the user is told the set is unsaved",
+        "The final report says the transcription is not yet verified by ear and asks for that check"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Generate the fixtures with evals/files/make_fixtures.py into a temp dir and tell me what riff.wav is playing. Standard 6-string E tuning. I want a tab.",
+      "expected_output": "Runs the fixture generator, runs riff_salience.py with --bpm 120 and the E-standard tuning, reads the per-beat summary and the long-term peaks, reports an A#3 pedal with F#4 -> F4 -> D4 above it and a final A3+D4, writes a spec and cleaned MIDI, compares the tab MIDI against the cleaned MIDI with compare_rolls.py, and produces a .gp5 through the guitar-pro skill.",
+      "files": ["evals/files/make_fixtures.py"],
+      "expectations": [
+        "The reported pedal note is A#3 (not A#2 or A#4) and the upper voice is F#4, F4, D4 in that order, with A3 under D4 in the last bar",
+        "The tab file's MIDI export is checked against the cleaned MIDI with compare_rolls.py and reported as matching",
+        "The tab uses .gp5 for a 6-string (the 8-string .gp routing is not applied)",
+        "No pitch is asserted that the salience output does not support"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The spectrum of my drop-tuned guitar riff has a strong peak at 118 Hz right where my open 4th string (A#2, 116.5 Hz) is. So the riff is in the A#2 octave, right?",
+      "expected_output": "Does not agree by default. Explains that a played open string sits within a few cents of its tuned frequency while a distortion difference tone sits wherever the arithmetic of two other peaks puts it; asks for or computes the cents offset and checks whether 118 Hz equals the difference of two stronger peaks; explains that a real fundamental also lights up the octave above, so the octave is decided by which peak has independent harmonics.",
+      "files": [],
+      "expectations": [
+        "The response refuses to settle the octave from one peak and explains the cents-offset test (about 28 cents sharp is not a tuned open string)",
+        "It explains the difference-tone mechanism of distortion and how to test for it",
+        "It recommends running riff_salience.py and reading the long-term peaks block rather than guessing"
+      ]
+    }
+  ]
+}

@@ -1,2 +1,6 @@
 # Local test environment for this skill (see SKILL.md > Setup).
 .venv/
+# alphaTab install for native .gp export (see SKILL.md > Setup); machine-local.
+scripts/node_modules/
+scripts/package.json
+scripts/package-lock.json
