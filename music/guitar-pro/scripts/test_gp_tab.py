@@ -289,10 +289,25 @@ def main() -> int:
     check("bend set", bs[6].notes[0].effect.bend is not None)
     check("slide set", bool(bs[7].notes[0].effect.slides))
     check("dead note type", bs[8].notes[0].type == gpm.NoteType.dead)
+    check("o is a natural harmonic", isinstance(bs[5].notes[0].effect.harmonic, gpm.NaturalHarmonic))
     p = os.path.join(tmp, "fx.gp5")
     tab.save(p)
     fx = beats_of(Tab.load(p))
     check("effects survive round trip", len(fx) == 9 and fx[0].notes[0].effect.vibrato)
+
+    pinch = Tab(tuning="standard")
+    pinch.riff("8:6.12o 8:6.12P 4:6.5 2:r")
+    pb = beats_of(pinch)
+    check("P is a pinch harmonic", isinstance(pb[1].notes[0].effect.harmonic, gpm.PinchHarmonic))
+    check("P does not turn o into a pinch", isinstance(pb[0].notes[0].effect.harmonic, gpm.NaturalHarmonic))
+    pp = os.path.join(tmp, "pinch.gp5")
+    pinch.save(pp)
+    pb2 = beats_of(Tab.load(pp))
+    check(
+        "pinch vs natural survive gp5 round trip",
+        isinstance(pb2[0].notes[0].effect.harmonic, gpm.NaturalHarmonic)
+        and isinstance(pb2[1].notes[0].effect.harmonic, gpm.PinchHarmonic),
+    )
 
     print("\n[validation]")
     tab = Tab(tuning="standard")
@@ -435,6 +450,9 @@ def main() -> int:
         and bool(rebuilt[7].notes[0].effect.slides),
         emitted,
     )
+    pinch_riff = "8:6.12o 8:6.12P 4:6.5 2:r"
+    pinch_emitted = Tab(tuning="standard").riff(pinch_riff).to_riff()
+    check("to_riff keeps o and P distinct", pinch_emitted == pinch_riff, pinch_emitted)
 
     cli_out = os.path.join(tmp, "cli.gp5")
     rc = gp_tab_cli(
@@ -448,7 +466,9 @@ def main() -> int:
 
     print("\n[native GP7 export -- skipped if Node/alphaTab absent]")
     tab = Tab(title="GP7", artist="Example Artist", tempo=150, tuning="8-string")
-    tab.riff("16:8.0m 16:8.0m 16:8.3 8:8.0 8:7.2 | 4:8.0+7.0 4:r 2:6.5~")
+    tab.riff("16:8.0m 16:8.0m 16:8.3 8:8.0 8:7.2 | 4:8.0+7.0 4:r 8:6.12o 8:6.12P 4:6.5~")
+    # A rehearsal marker (as loaded from an existing .gp5) must come out as a GP7 section.
+    tab.song.measureHeaders[1].marker = gpm.Marker(title="Chorus")
     gp7_path = os.path.join(tmp, "eight.gp")
     try:
         tab.gp7(gp7_path)
@@ -508,6 +528,13 @@ def main() -> int:
             if len(s.findtext("Letter") or "") > 10
         ]
         check("section letters stay short", not long_letters, str(long_letters[:3]))
+        check(
+            "measure marker becomes a GP7 section",
+            "<Section><Letter>Chorus</Letter><Text>Chorus</Text></Section>" in raw.replace("\n", ""),
+            str(re.findall(r"<Section>.*?</Section>", raw, re.S)[:2]),
+        )
+        htypes = [h.text for h in root.iter("HType")]
+        check("pinch and natural harmonics reach the .gp", htypes == ["Natural", "Pinch"], str(htypes))
 
     print("\n" + "=" * 62)
     if FAILURES:

@@ -2,14 +2,16 @@
 """Positive and negative controls for the bundled scripts. Prints SELFTEST PASSED.
 
 1. make_fixtures.py renders a distorted dyad riff with a known score.
-2. riff_salience.py must list every expected note among its top-3 candidates
-   on every sixteenth (positive control), and must NOT list the wrong-octave
-   pedal (A#2) as the top candidate anywhere (octave control).
+2. riff_salience.py must list every expected note among its top candidates
+   on every sixteenth (positive control), must NOT list the wrong-octave
+   pedal (A#2) as the top candidate anywhere (octave control), and with
+   --auto-tune must read the same riff rendered 40 cents sharp (tuning control).
 3. riff_midi.py builds MIDI from the spec; compare_rolls.py must report a
    match against a tremolo rendering of the same spec and a mismatch against
    a spec with one note changed (negative control).
-4. als_clip_region.py must map a synthetic warped clip to the right seconds
-   and reject a wrong expectation (negative control).
+4. als_clip_region.py must map a synthetic warped clip to the right seconds,
+   read an unwarped clip's loop offset as seconds, ignore an alternate take
+   stored under TakeLanes, and reject a wrong expectation (negative control).
 
 Run:  uv run --with-requirements scripts/requirements.txt python scripts/selftest.py
 """
@@ -67,6 +69,27 @@ def main() -> int:
         raise SystemExit(f"FAIL: A#2 (wrong octave) ranked first in slots {octave_wrong[:5]}")
     print(f"salience: {total - len(hard)}/{total} expected (slot, note) pairs in the top candidates; {len(hard)} missed, {len(missing) - len(hard)} attack-slot lags tolerated")
 
+    # 2b. tuning-offset control: the same riff 40 cents sharp must be read correctly
+    #     with --auto-tune, and the estimate must land near +40 (near 0 on the plain fixture)
+    fx2 = os.path.join(tmp, "fx_sharp")
+    run(os.path.join(SKILL, "evals", "files", "make_fixtures.py"), fx2, "--cents=40")
+    sal2 = os.path.join(tmp, "slots_sharp.json")
+    out = run(os.path.join(HERE, "riff_salience.py"), os.path.join(fx2, "riff.wav"), "--bpm", str(expected["bpm"]),
+              "--tuning", "C1,G1,C2,F2,A#2,D#3,G3,C4", "--auto-tune", "--json", sal2)
+    est = json.load(open(sal2))["tune_offset_cents"]
+    if not (28 <= est <= 52):
+        raise SystemExit(f"FAIL: tuning offset estimate {est:+.0f} cents on the +40 cent fixture")
+    slots2 = {r["slot"]: [c["note"] for c in r["candidates"]] for r in json.load(open(sal2))["slots"]}
+    miss2 = [(slot, n) for slot, notes in expected["slots"].items() for n in notes if n not in slots2.get(slot, []) and not (slot.endswith(".1") and n not in ("A#3", "A3"))]
+    if len(miss2) > max(3, total * 3 // 100):
+        raise SystemExit(f"FAIL: with --auto-tune the +40 cent fixture missed {len(miss2)} of {total} notes")
+    out = run(os.path.join(HERE, "riff_salience.py"), os.path.join(fx, "riff.wav"), "--bpm", str(expected["bpm"]),
+              "--tuning", "C1,G1,C2,F2,A#2,D#3,G3,C4", "--auto-tune", "--json", os.path.join(tmp, "slots_plain.json"))
+    est0 = json.load(open(os.path.join(tmp, "slots_plain.json")))["tune_offset_cents"]
+    if abs(est0) > 12:
+        raise SystemExit(f"FAIL: tuning offset estimate {est0:+.0f} cents on the in-tune fixture")
+    print(f"tuning offset: +40 cent fixture estimated {est:+.0f}, in-tune fixture {est0:+.0f}; {total - len(miss2)}/{total} notes recovered sharp")
+
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")
     run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", a_mid)
@@ -108,12 +131,27 @@ def main() -> int:
 <Loop><LoopStart Value="90"/><LoopEnd Value="120"/><StartRelative Value="0"/></Loop>
 <SampleRef><FileRef><Path Value="/tmp/take.wav"/><RelativePath Value="Samples/take.wav"/></FileRef></SampleRef>
 <WarpMarkers><WarpMarker Id="1" SecTime="0" BeatTime="0"/><WarpMarker Id="2" SecTime="100" BeatTime="180"/></WarpMarkers>
-</AudioClip></Events></ArrangerAutomation></Sample></MainSequencer></DeviceChain></AudioTrack></Tracks></LiveSet></Ableton>"""
+</AudioClip>
+<AudioClip Id="6" Time="200"><CurrentStart Value="200"/><CurrentEnd Value="216"/><Name Value="unwarped"/>
+<Disabled Value="false"/><IsWarped Value="false"/><PitchCoarse Value="0"/><PitchFine Value="0"/><SampleVolume Value="1"/>
+<Loop><LoopStart Value="19"/><LoopEnd Value="27"/><StartRelative Value="0"/></Loop>
+<SampleRef><FileRef><Path Value="/tmp/take2.wav"/></FileRef></SampleRef>
+<WarpMarkers><WarpMarker Id="1" SecTime="0" BeatTime="0"/><WarpMarker Id="2" SecTime="1" BeatTime="2"/></WarpMarkers>
+</AudioClip></Events></ArrangerAutomation></Sample></MainSequencer></DeviceChain>
+<TakeLanes><TakeLanes><TakeLane Id="0"><ClipAutomation><Events>
+<AudioClip Id="9" Time="0"><CurrentStart Value="0"/><CurrentEnd Value="400"/><Name Value="alternate take"/>
+<Disabled Value="false"/><IsWarped Value="true"/><Loop><LoopStart Value="0"/><LoopEnd Value="400"/><StartRelative Value="0"/></Loop>
+<SampleRef><FileRef><Path Value="/tmp/take-alt.wav"/></FileRef></SampleRef>
+<WarpMarkers><WarpMarker Id="1" SecTime="0" BeatTime="0"/><WarpMarker Id="2" SecTime="100" BeatTime="200"/></WarpMarkers>
+</AudioClip></Events></ClipAutomation></TakeLane></TakeLanes></TakeLanes></AudioTrack></Tracks></LiveSet></Ableton>"""
     als = os.path.join(tmp, "synthetic.als")
     with gzip.open(als, "wb") as fh:
         fh.write(xml.encode())
     out = run(os.path.join(HERE, "als_clip_region.py"), als, "--track", "real 5", "--check-region", "50.0", "66.667")
     assert "REGION CHECK PASSED" in out
+    assert "clips: 2" in out, "take-lane clip must be ignored, unwarped clip kept: " + out
+    # unwarped clip: 16 arrangement beats = 8 s at 120 BPM, starting at LoopStart 19 s (seconds, not beats)
+    assert "start_s=19.000 end_s=27.000" in out, "unwarped region wrong: " + out
     run(os.path.join(HERE, "als_clip_region.py"), als, "--track", "real 5", "--check-region", "45.0", "60.0", expect_rc=1)
     run(os.path.join(HERE, "als_clip_region.py"), als, "--track", "no such track", expect_rc=2)
     print("als region: warp interpolation and negative controls behave")

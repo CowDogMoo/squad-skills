@@ -106,8 +106,8 @@ Durations are `1, 2, 4, 8, 16, 32, 64`, optionally `.` for dotted or `t` for
 triplet.
 
 Note suffixes stack: `x` dead · `~` vibrato · `h` hammer-on · `p` pull-off ·
-`/` slide · `b` bend · `g` ghost · `o` natural harmonic · `m` palm mute ·
-`l` let ring.
+`/` slide · `b` bend · `g` ghost · `o` natural harmonic · `P` pinch harmonic ·
+`m` palm mute · `l` let ring.
 
 A palm-muted low-string chug pattern in drop tuning:
 

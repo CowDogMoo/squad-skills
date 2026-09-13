@@ -14,7 +14,8 @@ Assumptions, printed as warnings when they matter:
 - 4/4 unless --beats-per-bar is given (bar numbers only; seconds are exact).
 - Beyond the last warp marker the sample continues at the last segment's
   tempo. Before the first marker, at the song tempo.
-- An unwarped clip is treated as playing at 1:1 speed from the song tempo.
+- An unwarped clip's loop positions are in seconds; it plays at 1:1, so its
+  region is that offset plus the arrangement length in seconds.
 - PitchCoarse/PitchFine are reported; a non-zero value means the audible
   pitch differs from the sample's, so transcribe the shifted version.
 """
@@ -63,9 +64,27 @@ def find_tracks(root: ET.Element, needle: str) -> list[ET.Element]:
     return out
 
 
+def arrangement_clips(track: ET.Element):
+    """Audible arrangement clips only. Live 12 also stores alternate takes as
+    AudioClip elements under TakeLanes; they are silent unless promoted, so a
+    naive iter("AudioClip") double-counts them (measured: three whole-take
+    clips summed under a comped bridge)."""
+    parent = {c: p for p in track.iter() for c in p}
+    for c in track.iter("AudioClip"):
+        e = parent.get(c)
+        in_take_lane = False
+        while e is not None and e is not track:
+            if e.tag == "TakeLane":
+                in_take_lane = True
+                break
+            e = parent.get(e)
+        if not in_take_lane:
+            yield c
+
+
 def clip_regions(track: ET.Element, song_tempo: float, beats_per_bar: int) -> list[dict]:
     regions = []
-    for c in track.iter("AudioClip"):
+    for c in arrangement_clips(track):
         start = float(c.get("Time", _val(c, "CurrentStart", 0)))
         end = float(_val(c, "CurrentEnd", start))
         loop_start = float(_val(c, "Loop/LoopStart", 0))
@@ -78,10 +97,16 @@ def clip_regions(track: ET.Element, song_tempo: float, beats_per_bar: int) -> li
             if m.get("BeatTime") is not None and m.get("SecTime") is not None
         ]
         warped = (_val(c, "IsWarped", "true") or "true").lower() == "true"
-        if not warped:
-            markers = []
-        s0 = beat_to_sec(play_from, markers, song_tempo)
-        s1 = beat_to_sec(play_from + length_beats, markers, song_tempo)
+        if warped:
+            s0 = beat_to_sec(play_from, markers, song_tempo)
+            s1 = beat_to_sec(play_from + length_beats, markers, song_tempo)
+        else:
+            # An unwarped clip stores LoopStart/StartRelative in SECONDS of the
+            # sample, and plays at 1:1, so its region is that offset plus the
+            # arrangement length in seconds. (Measured: treating the value as
+            # beats halved every unwarped region at 120 BPM.)
+            s0 = play_from
+            s1 = play_from + length_beats * 60.0 / song_tempo
         fr = c.find("SampleRef/FileRef")
         regions.append(
             {
