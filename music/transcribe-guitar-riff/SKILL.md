@@ -89,6 +89,12 @@ Read three things, in this order:
    harmonic of the lower octave) and from the cents column, not from which
    octave is loudest.
 
+If the strongest long-term peaks all sit 20-50 cents off the grid in the
+same direction, the guitar was not at A440. Re-run with `--auto-tune` (or
+`--tune-offset N` when the cents are known); the script shifts the note grid,
+prints the offset it applied, and stores it as `tune_offset_cents` in the
+JSON. Without it a sharp take loses most of its notes to the 20-cent filter.
+
 Open the PNG (Read it) when the table is ambiguous; a sustained pedal and a
 moving upper line are obvious by eye. `references/analysis-notes.md`
 explains the method and the failure modes; read it if a result looks wrong.

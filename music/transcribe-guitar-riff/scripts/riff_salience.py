@@ -66,9 +66,13 @@ def drop_octave_duplicates(peaks, s, freqs, ratio=0.5, tol_cents=40):
     return keep
 
 
-def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True):
+def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True, tune_cents=0.0):
+    shift = 2 ** (-tune_cents / 1200.0)  # a guitar N cents sharp: divide measured Hz by 2^(N/1200) to land on the grid
     hop = 512
-    fmin = librosa.note_to_hz("C1")
+    # Put the CQT bins on the guitar's actual grid: with the lowest bin at C1
+    # raised by the offset, every fretted note falls on a bin centre instead of
+    # straddling two, so peaks keep their full height.
+    fmin = librosa.note_to_hz("C1") / shift
     bpo = 36
     n_bins = 6 * bpo
     C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=n_bins, bins_per_octave=bpo))
@@ -94,7 +98,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
             # so dropping the +-33-cent bins removes two thirds of the junk
             # and none of the played notes (assuming the guitar is within
             # ~20 cents of A440 - pass --all-peaks otherwise).
-            peaks = [j for j in peaks if abs(cents_off(freqs[j])) <= 20]
+            peaks = [j for j in peaks if abs(cents_off(freqs[j] * shift)) <= 20]
         if collapse_octaves:
             peaks = drop_octave_duplicates(peaks, s, freqs)
         peaks.sort(key=lambda j: -s[j])
@@ -105,7 +109,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
         sub = i % (grid // bars_per_meter) + 1
         cands = []
         for j in peaks:
-            hz = float(freqs[j])
+            hz = float(freqs[j]) * shift
             midi = float(librosa.hz_to_midi(hz))
             cands.append(
                 {
@@ -153,6 +157,25 @@ def long_term_peaks(y, sr, fmin_hz=25, fmax_hz=800, floor_db=-35):
     return out, flagged
 
 
+def estimate_tune_offset(y, sr, max_abs_cents=50):
+    """Global tuning offset (cents sharp of A440) from the strongest long-term
+    spectral peaks: the circular median of their cents-off-grid values. A
+    tuned guitar gives ~0; a take recorded 45 cents sharp gives ~45."""
+    peaks, _ = long_term_peaks(y, sr, fmin_hz=60, fmax_hz=1200, floor_db=-30)
+    if not peaks:
+        return 0.0
+    cents = np.array([cents_off(hz) for hz, _ in peaks[:12]])
+    # circular statistics on a 100-cent circle so +49 and -49 do not average to 0
+    ang = cents / 100.0 * 2 * np.pi
+    mean_ang = np.arctan2(np.sin(ang).mean(), np.cos(ang).mean())
+    est = mean_ang / (2 * np.pi) * 100.0
+    # refine with the median of peaks within 25 cents of the circular mean
+    close = [c for c in cents if abs(((c - est + 50) % 100) - 50) <= 25]
+    if close:
+        est = float(np.median([est + (((c - est + 50) % 100) - 50) for c in close]))
+    return float(max(-max_abs_cents, min(max_abs_cents, est)))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("wav")
@@ -166,6 +189,8 @@ def main(argv=None) -> int:
     ap.add_argument("--fmax", type=float, default=600.0, help="highest fundamental to consider, Hz")
     ap.add_argument("--top", type=int, default=4, help="candidates per slot; a dyad plus its octave images needs 4")
     ap.add_argument("--all-peaks", action="store_true", help="keep candidates more than 20 cents off equal temperament (guitar not at A440)")
+    ap.add_argument("--tune-offset", type=float, default=None, help="cents the guitar is sharp of A440 (negative = flat); shifts the note grid")
+    ap.add_argument("--auto-tune", action="store_true", help="estimate --tune-offset from the long-term spectrum and apply it")
     ap.add_argument("--collapse-octaves", action="store_true", help="drop a candidate when a peak one octave below has half its salience (hurts on heavy distortion; off by default)")
     ap.add_argument("--png", help="write a salience spectrogram with bar/beat lines")
     ap.add_argument("--json", help="write per-slot candidates as JSON")
@@ -179,7 +204,12 @@ def main(argv=None) -> int:
         bpm = float(np.atleast_1d(est)[0])
         print(f"estimated tempo: {bpm:.2f} BPM (pass --bpm to fix it; grid alignment depends on it)")
     tuning = parse_tuning(args.tuning)
-    rows = analyze(y, sr, bpm, args.grid, args.beats_per_bar, args.offset, args.fmin, args.fmax, args.top, args.bar_offset, tuning, collapse_octaves=args.collapse_octaves, on_grid_only=not args.all_peaks)
+    tune = args.tune_offset if args.tune_offset is not None else 0.0
+    if args.auto_tune and args.tune_offset is None:
+        tune = estimate_tune_offset(y, sr)
+    if args.auto_tune or args.tune_offset is not None:
+        print(f"tuning offset applied: {tune:+.0f} cents ({'estimated' if args.auto_tune and args.tune_offset is None else 'given'}); note names below are corrected by it")
+    rows = analyze(y, sr, bpm, args.grid, args.beats_per_bar, args.offset, args.fmin, args.fmax, args.top, args.bar_offset, tuning, collapse_octaves=args.collapse_octaves, on_grid_only=not args.all_peaks, tune_cents=tune)
 
     print(f"# {args.wav}  {len(y)/sr:.2f}s  bpm={bpm:g}  grid={args.grid}/bar  tuning={args.tuning}")
     print("slot       t(s)    top fundamentals: note cents dB [string:fret]")
@@ -214,7 +244,7 @@ def main(argv=None) -> int:
 
     if args.json:
         with open(args.json, "w") as fh:
-            json.dump({"bpm": bpm, "grid": args.grid, "slots": rows, "long_term_peaks": peaks}, fh, indent=1)
+            json.dump({"bpm": bpm, "grid": args.grid, "tune_offset_cents": tune, "slots": rows, "long_term_peaks": peaks}, fh, indent=1)
     if args.png:
         import matplotlib
 
@@ -225,8 +255,11 @@ def main(argv=None) -> int:
         fmin = librosa.note_to_hz("C1")
         bpo = 36
         nb = 6 * bpo
-        C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=nb, bins_per_octave=bpo))
-        fr = librosa.cqt_frequencies(nb, fmin=fmin, bins_per_octave=bpo)
+        # Same grid shift as analyze(): bins sit on the guitar's actual pitches,
+        # and specshow labels them with the corrected (A440) note names.
+        shift = 2 ** (-tune / 1200.0)
+        C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin / shift, n_bins=nb, bins_per_octave=bpo))
+        fr = librosa.cqt_frequencies(nb, fmin=fmin / shift, bins_per_octave=bpo)
         sal = librosa.salience(C, freqs=fr, harmonics=[1, 2, 3, 4], weights=[1, 0.7, 0.5, 0.3], fill_value=0)
         D = librosa.amplitude_to_db(sal, ref=np.max)
         fig, ax = plt.subplots(figsize=(26, 10), dpi=90)
@@ -237,7 +270,7 @@ def main(argv=None) -> int:
             ax.axvline(args.offset + b * beat_s, color="cyan" if b % args.beats_per_bar == 0 else "white", alpha=0.6 if b % args.beats_per_bar == 0 else 0.25, lw=1)
             if b % args.beats_per_bar == 0:
                 ax.text(args.offset + b * beat_s + 0.02, librosa.note_to_hz("B5"), f"bar {args.bar_offset + b // args.beats_per_bar}", color="cyan", fontsize=11)
-        ax.set_title(f"{args.wav} - harmonic salience (CQT), {bpm:g} BPM")
+        ax.set_title(f"{args.wav} - harmonic salience (CQT), {bpm:g} BPM" + (f", tuning {tune:+.0f} cents corrected" if tune else ""))
         fig.tight_layout()
         fig.savefig(args.png)
         print(f"wrote {args.png}")

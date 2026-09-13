@@ -148,13 +148,13 @@ PERCUSSION_CHANNEL = 9
 #   4:r            quarter rest
 #
 # Note suffixes stack:  x dead   ~ vibrato   h hammer-on   p pull-off
-#                       / slide  b bend      g ghost       o harmonic
-#                       m palm-mute          l let-ring
+#                       / slide  b bend      g ghost       o natural harmonic
+#                       P pinch harmonic     m palm-mute   l let-ring
 #
 # Measures are separated by '|'. Whitespace elsewhere is free.
 
 _DURATION_RE = re.compile(r"^(\d+)(\.?)(t?)$")
-_NOTE_TOKEN_RE = re.compile(r"^(\d+)\.(\d+)([xX~hpb/gomls]*)$")
+_NOTE_TOKEN_RE = re.compile(r"^(\d+)\.(\d+)([xX~hpb/gomlsP]*)$")
 
 _EFFECT_FLAGS = {
     "x": "dead",
@@ -167,6 +167,7 @@ _EFFECT_FLAGS = {
     "s": "slide",
     "g": "ghost",
     "o": "harmonic",
+    "P": "pinch",
     "m": "palmMute",
     "l": "letRing",
 }
@@ -487,6 +488,8 @@ class Tab:
                 eff.letRing = True
             elif name == "harmonic":
                 eff.harmonic = gpm.NaturalHarmonic()
+            elif name == "pinch":
+                eff.harmonic = gpm.PinchHarmonic()
             elif name == "slide":
                 eff.slides = [gpm.SlideType.shiftSlideTo]
             elif name == "bend":
@@ -624,6 +627,7 @@ class Tab:
                                 "ghost": bool(eff.ghostNote),
                                 "dead": note.type == gpm.NoteType.dead,
                                 "harmonic": eff.harmonic is not None,
+                                "pinch": isinstance(eff.harmonic, gpm.PinchHarmonic),
                                 "slide": bool(eff.slides),
                             }
                         )
@@ -637,15 +641,19 @@ class Tab:
                             "notes": notes,
                         }
                     )
-                bars.append(
-                    {
-                        "ts": [
-                            measure.timeSignature.numerator,
-                            measure.timeSignature.denominator.value,
-                        ],
-                        "beats": beats,
-                    }
-                )
+                bar_spec = {
+                    "ts": [
+                        measure.timeSignature.numerator,
+                        measure.timeSignature.denominator.value,
+                    ],
+                    "beats": beats,
+                }
+                # A rehearsal marker on the measure header becomes a GP7 section
+                # name; gp7_export.mjs reads it from the first track's bars.
+                marker = getattr(measure.header, "marker", None)
+                if marker is not None and getattr(marker, "title", ""):
+                    bar_spec["section"] = marker.title
+                bars.append(bar_spec)
             spec["tracks"].append(
                 {
                     "name": trk.name,
@@ -1152,7 +1160,7 @@ class Tab:
                         if n.effect.ghostNote:
                             suffix += "g"
                         if n.effect.harmonic is not None:
-                            suffix += "o"
+                            suffix += "P" if isinstance(n.effect.harmonic, gpm.PinchHarmonic) else "o"
                         if n.effect.bend is not None:
                             suffix += "b"
                         if n.effect.slides:

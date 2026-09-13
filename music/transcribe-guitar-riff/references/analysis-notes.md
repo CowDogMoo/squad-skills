@@ -86,6 +86,15 @@ corroboration; the cleaned reading is authored from the salience table.
   piecewise-linear map. The set on disk can lag the open session (unsaved
   edits); the region is still right if the clip itself was not moved, and
   `get_arrangement_info` from the MCP shows the live bars to compare.
+- **Take lanes are silent.** Live 12 keeps alternate takes as `AudioClip`
+  elements under `TakeLanes`; only clips under
+  `DeviceChain/MainSequencer/Sample/ArrangerAutomation/Events` sound. The
+  parser skips take lanes (measured on a real set: three whole-take clips
+  summed under a comped bridge, six pinch-harmonic takes stacked on one bar).
+- **Unwarped clips count in seconds.** `Loop/LoopStart` and `StartRelative`
+  of an unwarped clip are sample seconds, not beats; treating them as beats
+  halved every unwarped region at 120 BPM and made overdubs look like they
+  started mid-phrase. Warped clips go through the warp markers as before.
 - **Cut, do not render.** A render goes through EQ, compression, widening,
   and limiting on the track. The raw sample region is the honest input for
   pitch work, and cutting it is bit-exact (verify with `ffmpeg -f md5`).

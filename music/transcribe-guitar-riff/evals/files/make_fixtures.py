@@ -14,6 +14,8 @@ candidates on every slot (positive control), and compare_rolls.py must
 reject a one-note-different spec (negative control). scripts/selftest.py
 runs both.
 
+Pass --cents=40 to render the whole riff 40 cents sharp (tuning-offset control).
+
 Deps: numpy soundfile librosa
   uv run --with numpy --with soundfile --with librosa make_fixtures.py <out-dir>
 """
@@ -66,8 +68,9 @@ def pluck(f0: float, dur: float, sr: int = SR) -> np.ndarray:
     return tone * env * RNG.uniform(0.85, 1.0)
 
 
-def render(spec, sr: int = SR) -> np.ndarray:
+def render(spec, sr: int = SR, cents: float = 0.0) -> np.ndarray:
     spb = 60.0 / BPM
+    detune = 2 ** (cents / 1200.0)
     n_bars = max(b for b, *_ in spec)
     total = int(n_bars * BEATS_PER_BAR * spb * sr) + sr // 2
     y = np.zeros(total)
@@ -79,7 +82,7 @@ def render(spec, sr: int = SR) -> np.ndarray:
         while t < t1 - 1e-9:
             jitter = RNG.uniform(-0.004, 0.004)  # human timing, seconds
             for n in notes:
-                p = pluck(float(librosa.note_to_hz(n)), 0.4)
+                p = pluck(float(librosa.note_to_hz(n)) * detune, 0.4)
                 i0 = max(0, int(round((t + jitter) * sr)))
                 y[i0 : i0 + len(p)] += p[: max(0, total - i0)]
             t += six
@@ -119,20 +122,22 @@ def expected_slots(spec):
     return out
 
 
-def main(out_dir: str) -> int:
+def main(out_dir: str, cents: float = 0.0) -> int:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    y = render(SPEC)
+    y = render(SPEC, cents=cents)
     sf.write(out / "riff.wav", y, SR, subtype="PCM_24")
     with open(out / "riff.spec", "w") as fh:
         fh.write("# bar start end notes   (ground truth for riff.wav)\n")
         for bar, b0, b1, notes in SPEC:
             fh.write(f"{bar} {b0} {b1} {' '.join(notes)}\n")
     with open(out / "expected.json", "w") as fh:
-        json.dump({"bpm": BPM, "slots": expected_slots(SPEC)}, fh, indent=1)
+        json.dump({"bpm": BPM, "cents_sharp": cents, "slots": expected_slots(SPEC)}, fh, indent=1)
     print(f"wrote {out/'riff.wav'} ({len(y)/SR:.2f}s), riff.spec, expected.json")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "fixtures"))
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    cents = next((float(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--cents=")), 0.0)
+    sys.exit(main(args[0] if args else "fixtures", cents))
