@@ -10,6 +10,7 @@ here maps to a specific way that happens.
 
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -54,6 +55,32 @@ def check(label: str, condition: bool, detail: str = "") -> None:
 def beats_of(tab: Tab, track: int = 0, measure: int = 0):
     m = tab.song.tracks[track].measures[measure]
     return m.voices[0].beats if m.voices else []
+
+
+def resolve_ref(ref: str, skill_dir: str, repo_root: str) -> str:
+    """Where a `scripts/...` reference in prose should point.
+
+    A skill may legitimately name a sibling skill's script by repository path
+    (transcribe-guitar-riff sends the reader to tab-vs-recording), so a bare
+    join against the local scripts directory reports a false miss.
+    """
+    ref = ref.lstrip("./").lstrip("/")
+    if ref.startswith("scripts/"):
+        return os.path.join(skill_dir, ref)
+    if "/scripts/" in ref:
+        return os.path.join(repo_root, ref)
+    return os.path.join(skill_dir, "scripts", os.path.basename(ref))
+
+
+def marker(name: str, failures_before: int) -> None:
+    """Print a section's success token only if that section added no failure.
+
+    Each token is the oracle of one gate, so it must be unprintable when the
+    section it names did not pass -- a suite-wide exit code cannot say which
+    outcome broke.
+    """
+    if len(FAILURES) == failures_before:
+        print(f"  {name}")
 
 
 def main() -> int:
@@ -536,6 +563,157 @@ def main() -> int:
         htypes = [h.text for h in root.iter("HType")]
         check("pinch and natural harmonics reach the .gp", htypes == ["Natural", "Pinch"], str(htypes))
 
+    # ---------------------------------------------------------------- ties
+    # A tie means the previous note on the string keeps ringing. It reached the
+    # file from the first version of this feature, but to_riff() dropped it, so
+    # reading a tab in and writing it back re-picked every tied note -- exactly
+    # the stutter the suffix exists to prevent, reintroduced by the round trip.
+    print("\n[round-trip controls]")
+    before = len(FAILURES)
+    tied = Tab(tuning="drop-d", tempo=120)
+    tied.riff("4:6.5 4:6.5- 4:6.5- 4:6.3")
+    tie_path = os.path.join(tmp, "tie.gp5")
+    tied.save(tie_path)
+    written = [n.type.name for b in beats_of(Tab.load(tie_path)) for n in b.notes]
+    check("a tie reaches the .gp5 as NoteType.tie",
+          written == ["normal", "tie", "tie", "normal"], str(written))
+    round_tripped = Tab.load(tie_path).to_riff()
+    check("to_riff keeps the tie suffix",
+          round_tripped == "4:6.5 4:6.5- 4:6.5- 4:6.3", round_tripped)
+    # Negative control: a tab with no tie must not grow one, or the check above
+    # would pass just as happily on a to_riff that stamped "-" on everything.
+    plain = Tab(tuning="drop-d", tempo=120)
+    plain.riff("4:6.5 4:6.5 4:6.3 4:6.3")
+    plain_path = os.path.join(tmp, "plain.gp5")
+    plain.save(plain_path)
+    plain_riff = Tab.load(plain_path).to_riff()
+    check("an untied tab stays untied through to_riff", "-" not in plain_riff, plain_riff)
+    # Re-parsing what to_riff produced must rebuild the same note types.
+    rebuilt = Tab(tuning="drop-d", tempo=120)
+    rebuilt.riff(round_tripped)
+    rebuilt_path = os.path.join(tmp, "tie_rebuilt.gp5")
+    rebuilt.save(rebuilt_path)
+    rebuilt_types = [n.type.name for b in beats_of(Tab.load(rebuilt_path)) for n in b.notes]
+    check("to_riff output rebuilds the same ties", rebuilt_types == written, str(rebuilt_types))
+
+    # ---------------------------------------------------------- tempo maps
+    # set_tempo_at() wrote the change correctly from the start; Tab.load() never
+    # read one back, so .gp5 -> .gp silently flattened a multi-tempo song. The
+    # .gp5 -> .gp5 path hid it: the mix-table change rides along in the model
+    # whether or not anything parsed it.
+    multi = Tab(tuning="drop-d", tempo=162)
+    multi.riff(" | ".join(["4:6.0 4:6.0 4:6.0 4:6.0"] * 4))
+    multi.set_tempo_at(3, 120)
+    check("tempo_map carries bar 1 and the change",
+          multi.tempo_map == {1: 162.0, 3: 120.0}, str(multi.tempo_map))
+    multi_path = os.path.join(tmp, "tempo.gp5")
+    multi.save(multi_path)
+
+    def gp5_tempo_changes(path):
+        song = Tab.load(path).song
+        return [
+            (i + 1, m.voices[0].beats[0].effect.mixTableChange.tempo.value)
+            for i, m in enumerate(song.tracks[0].measures)
+            if m.voices
+            and m.voices[0].beats
+            and m.voices[0].beats[0].effect.mixTableChange is not None
+            and m.voices[0].beats[0].effect.mixTableChange.tempo is not None
+        ]
+
+    check("the .gp5 mix table carries the change",
+          gp5_tempo_changes(multi_path) == [(3, 120)], str(gp5_tempo_changes(multi_path)))
+    reloaded = Tab.load(multi_path)
+    check("Tab.load recovers the tempo map",
+          reloaded.tempo_map == {1: 162.0, 3: 120.0}, str(reloaded.tempo_map))
+    # Negative control: a single-tempo file must not gain a phantom change.
+    flat_path = os.path.join(tmp, "flat.gp5")
+    Tab(tuning="drop-d", tempo=100).riff("4:6.0 4:6.0 4:6.0 4:6.0").save(flat_path)
+    check("a single-tempo file reports one tempo",
+          Tab.load(flat_path).tempo_map == {1: 100.0}, str(Tab.load(flat_path).tempo_map))
+    resaved = os.path.join(tmp, "tempo_resaved.gp5")
+    reloaded.save(resaved)
+    check("a loaded tab re-saves its tempo map",
+          gp5_tempo_changes(resaved) == [(3, 120)], str(gp5_tempo_changes(resaved)))
+    marker("ROUNDTRIP CONTROLS PASSED", before)
+
+    # ------------------------------------------------------------ gp7_tool
+    print("\n[gp7_tool.mjs -- skipped if Node/alphaTab absent]")
+    before = len(FAILURES)
+    tool = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gp7_tool.mjs")
+    gp_for_tool = os.path.join(tmp, "tool.gp")
+    try:
+        reloaded.gp7(gp_for_tool)
+    except RuntimeError as exc:
+        print(f"  skip  gp7_tool.mjs ({str(exc).splitlines()[0][:60]})")
+    else:
+        def run_tool(*args):
+            proc = subprocess.run(
+                ["node", tool, *args], capture_output=True, text=True, check=False
+            )
+            return proc.returncode, proc.stdout + proc.stderr
+
+        rc, out = run_tool("info", gp_for_tool)
+        check("info runs", rc == 0, out[:120])
+        # The load path that used to drop the tempo map ends here: the .gp is
+        # built from Tab.load()'s tempo_map, so this is the end-to-end proof.
+        check("info shows the recovered tempo map",
+              "bar 1 = 162" in out and "bar 3 = 120" in out, out[:200])
+        rc, out = run_tool("ascii", gp_for_tool, "--bars", "1-2")
+        check("ascii runs", rc == 0 and "bar 1" in out, out[:120])
+        rc, out = run_tool("midi", gp_for_tool, os.path.join(tmp, "tool.mid"))
+        check("midi runs and carries the tempo map",
+              rc == 0 and "162" in out and "120" in out, out[:160])
+        copy = os.path.join(tmp, "tool_copy.gp")
+        rc, out = run_tool("export", gp_for_tool, copy)
+        check("export runs", rc == 0, out[:120])
+        rc, out = run_tool("diff", gp_for_tool, copy)
+        check("export round-trip is lossless", rc == 0 and "IDENTICAL" in out, out[:200])
+        # Negative control: diff must fail on a file that really is different,
+        # or "IDENTICAL" above would prove nothing about the round trip.
+        other = os.path.join(tmp, "tool_other.gp")
+        different = Tab(tuning="drop-d", tempo=162)
+        different.riff(" | ".join(["4:6.7 4:6.7 4:6.7 4:6.7"] * 4))
+        different.gp7(other)
+        rc, out = run_tool("diff", gp_for_tool, other)
+        check("diff rejects a genuinely different file",
+              rc == 1 and "IDENTICAL" not in out, f"rc={rc} {out[:120]}")
+        rc, out = run_tool("clean-voices", gp_for_tool, os.path.join(tmp, "tool_clean.gp"))
+        check("clean-voices runs", rc == 0, out[:120])
+        laid = os.path.join(tmp, "tool_layout.gp")
+        rc, out = run_tool("layout", gp_for_tool, laid)
+        check("layout runs and reports its systems", rc == 0 and "systems for" in out, out[:160])
+        rc, out = run_tool("diff", gp_for_tool, laid)
+        check("layout changes no musical attribute", rc == 0 and "IDENTICAL" in out, out[:160])
+        marker("GP7 TOOL CONTROLS PASSED", before)
+
+    # ---------------------------------------------------------- skill docs
+    # A SKILL.md that names a script which does not exist sends the reader into
+    # a dead end, and a script no SKILL.md names never gets run at all. Both
+    # shipped in this skill's history, so both are checked here.
+    print("\n[skill docs]")
+    before = len(FAILURES)
+    skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    scripts_dir = os.path.join(skill_dir, "scripts")
+    prose = ""
+    for root_dir, _dirs, files in os.walk(skill_dir):
+        if "node_modules" in root_dir or "__pycache__" in root_dir or ".venv" in root_dir:
+            continue
+        for fname in files:
+            if fname.endswith(".md"):
+                with open(os.path.join(root_dir, fname), encoding="utf-8") as fh:
+                    prose += fh.read()
+    repo = os.path.dirname(os.path.dirname(skill_dir))
+    named = set(re.findall(r"[\w./-]*scripts/[A-Za-z0-9_]+\.(?:py|mjs)", prose))
+    missing = sorted(r for r in named if not os.path.exists(resolve_ref(r, skill_dir, repo)))
+    check("every script the docs name exists", not missing, str(missing))
+    on_disk = {
+        f for f in os.listdir(scripts_dir)
+        if f.endswith((".py", ".mjs")) and not f.startswith("test_")
+    }
+    orphans = sorted(f for f in on_disk if f not in prose)
+    check("no script ships unreferenced", not orphans, str(orphans))
+    marker("GP SKILL DOCS PASSED", before)
+
     print("\n" + "=" * 62)
     if FAILURES:
         print(f"{PASSES} passed, {len(FAILURES)} FAILED")
@@ -543,6 +721,7 @@ def main() -> int:
             print("  -", f)
         return 1
     print(f"all {PASSES} checks passed")
+    print("ALL GP_TAB CHECKS PASSED")
     return 0
 
 

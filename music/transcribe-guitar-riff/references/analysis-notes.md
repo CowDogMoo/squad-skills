@@ -37,6 +37,101 @@ The per-16th table is the evidence. The per-beat summary is a reading aid:
 notes that sit in the top two of at least half the beat's slots. A dyad
 shows up as two stable notes per beat; a single line as one.
 
+## The band-limited-search trap (read this first)
+
+The worst failure this pipeline has produced was not a close call. A tab
+shipped with its entire heavy section an octave low and a second section two
+octaves low, and every check passed.
+
+The mechanism, exactly:
+
+1. An early reading put a riff on the 8th string, F1/F#1.
+2. A "confirmation" pass ran a harmonic-comb tracker over **38-100 Hz** and
+   reported F1/F#1. That was written up as independent corroboration.
+3. It was not independent of anything. The search band excluded every answer
+   except a low one. The comb had no way to return F#2 (92.5 Hz was inside the
+   band, but its own 3rd and 5th partials - the evidence that decides the
+   octave - sat above 100 Hz and were never examined).
+4. The real fundamental was F#2, the loudest peak in the spectrum, one cent
+   flat of concert pitch. Basic Pitch, asked independently, put the riff's
+   modal note at MIDI 42. The tab said MIDI 29.
+5. Nothing downstream caught it: chroma-top-3 is octave-blind by construction,
+   onset backing does not look at pitch at all, and the falsification control
+   (transpose a semitone) is passed just as happily by a reading that is a
+   perfect octave out.
+
+**Rules that follow.** Run `octave_check.py` over a wide band before choosing
+any `--fmin/--fmax`. Treat a band as a hypothesis that must already be
+supported. Never let a band-limited result corroborate the register it was
+configured to find. Cross-check with Basic Pitch's note histogram, which is
+free and independent. And when adding an accuracy metric, ask what a
+perfectly-octave-shifted tab would score on it - if the answer is "the same",
+the metric cannot see the most common serious transcription error.
+
+## Measure pitch in the fundamental band, never in a harmonic band
+
+The trap above has a quieter second form that cost a whole round on a later job.
+Asked whether a riff written on D1 was really D1, a template scored the written
+note's fundamental *and its second harmonic* over 70-100 Hz and came back
+preferring F#, a semitone off the right answer. The 91.6 Hz peak driving that
+result was not twice anything in the part being tested - it was the other
+guitar, which happened to overlap that band. Looking instead at 34-50 Hz, where
+nothing else in the mix plays, gave 44.112 Hz = F1 +18 cents outright, with the
+written D1's 36.71 a full 318 cents away.
+
+So: **identify a note from the band its own fundamental lives in, chosen because
+nothing else plays there.** Harmonic bands are crowded by definition - every
+instrument above you has fundamentals where you have partials. If the
+fundamental is genuinely unmeasurable, say so rather than substituting a
+harmonic and not mentioning it.
+
+Two habits make this cheap:
+
+- **Calibrate the recording's pitch first, on notes already settled.** A peak at
+  90.8 Hz is F#2 thirty cents flat or F2 seventy cents sharp, and only the
+  reference pitch says which. Take a 65536-point FFT with parabolic peak
+  interpolation over a passage whose notes are known, and check the offset is
+  small before trusting any absolute call. On the job above the intro's four
+  verified notes came out at +3.9, -4.1, +1.2 and -4.5 cents, which is what
+  licensed every later reading.
+- **Know what your metric can and cannot resolve.** Chroma similarity against
+  the recording scored every candidate shift from -1 to +6; +2 and +3 tied at
+  0.66 and +2 was marginally ahead on DTW cost. Chroma settled "about a minor
+  third up" and nothing finer. Reporting it as though it had picked +3 would
+  have been a fabricated precision. Use the coarse metric to bound the answer
+  and a direct measurement to pin it.
+
+## The easy-to-pitch note is the tell
+
+When a transcription is wholesale wrong about a key, look for the note in it
+that was easy to transcribe. A fast palm-muted chug on the bottom strings is the
+hardest thing on a distorted record to pitch; a long ringing note is the easiest.
+A transcriber that gets the chug wrong and the sustain right leaves a signature:
+one note that does not fit the key it wrote.
+
+On the job above, a riff was written as a D chug with a ringing A# over it. A# is
+the b6 over D and the 4th over F. That single note said the music was in F before
+any spectrum was computed, and the audio then agreed. It also said *how much* to
+move - the chug, not the sustain - which no global transpose would have got
+right.
+
+## Structure beats per-slot accuracy
+
+A related failure from the same job: bars the audio repeats four times were
+transcribed one at a time, producing sixteen different bars. Every note was
+individually defensible; the result was unplayable, and a guitarist who had
+played a good tab of the song called it trash on sight.
+
+Per-note metrics cannot see this. Two tabs with identical per-note scores can
+differ by "is a riff" versus "is not a riff". `riff_cycle.py` exists for this:
+find the repeating unit from the audio, fold every repetition together, read it
+once, stamp it. Folding also buys about sqrt(N) signal-to-noise, so the cycle
+reading is better than any single bar's reading as well as being musical.
+
+When the fold reports that many cycle positions disagree across their own
+repetitions, that is the material telling you per-slot tracking has run out of
+resolution. Report it and get a reference tab; do not keep processing.
+
 ## Deciding the octave
 
 Every fundamental f also lights up 2f (f's even harmonics are 2f's

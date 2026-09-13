@@ -54,8 +54,12 @@ for (let i = 0; i < barCount; i++) {
   const ts = spec.tracks[0].bars[i]?.ts ?? spec.tracks[0].bars[0]?.ts ?? [4, 4];
   mb.timeSignatureNumerator = ts[0];
   mb.timeSignatureDenominator = ts[1];
-  if (i === 0) {
-    mb.tempoAutomations = [M.Automation.buildTempoAutomation(false, 0, tempo, 2)];
+  // A tempo automation on master bar i changes the tempo from bar i+1 onward.
+  // Writing only bar 0 silently flattens a multi-tempo song to one tempo.
+  const changeHere = (spec.tempoMap ?? []).find((t) => t.bar === i + 1);
+  if (i === 0 || changeHere) {
+    const bpm = changeHere ? changeHere.bpm : tempo;
+    mb.tempoAutomations = [M.Automation.buildTempoAutomation(false, 0, bpm, 2)];
   }
   const sectionText = spec.tracks[0].bars[i]?.section;
   if (sectionText) {
