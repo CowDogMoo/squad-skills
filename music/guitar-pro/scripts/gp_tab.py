@@ -150,11 +150,13 @@ PERCUSSION_CHANNEL = 9
 # Note suffixes stack:  x dead   ~ vibrato   h hammer-on   p pull-off
 #                       / slide  b bend      g ghost       o natural harmonic
 #                       P pinch harmonic     m palm-mute   l let-ring
+#                       - tie to the previous note on that string (it rings on,
+#                         it is NOT re-picked)
 #
 # Measures are separated by '|'. Whitespace elsewhere is free.
 
 _DURATION_RE = re.compile(r"^(\d+)(\.?)(t?)$")
-_NOTE_TOKEN_RE = re.compile(r"^(\d+)\.(\d+)([xX~hpb/gomlsP]*)$")
+_NOTE_TOKEN_RE = re.compile(r"^(\d+)\.(\d+)([xX~hpb/gomlsP-]*)$")
 
 _EFFECT_FLAGS = {
     "x": "dead",
@@ -170,6 +172,7 @@ _EFFECT_FLAGS = {
     "P": "pinch",
     "m": "palmMute",
     "l": "letRing",
+    "-": "tie",
 }
 
 
@@ -265,6 +268,7 @@ class Tab:
         time_signature: tuple[int, int] = (4, 4),
         _song: gpm.Song | None = None,
     ):
+        self._tempo_map: dict[int, float] = {}
         if _song is not None:
             self.song = _song
             # A loaded song carries its meter in its measure headers, not in
@@ -280,6 +284,7 @@ class Tab:
                     first.timeSignature.denominator.value,
                 )
             )
+            self._tempo_map = self._read_tempo_map()
             return
 
         self.song = gpm.Song()
@@ -466,7 +471,16 @@ class Tab:
             # NoteType defaults to `rest`, which writes a note that silently
             # does not sound. Setting it explicitly is the single most
             # important line in this file.
-            note.type = gpm.NoteType.dead if "dead" in effects else gpm.NoteType.normal
+            # A tie means the previous note on this string keeps ringing through
+            # this beat. Writing it as a normal note re-picks it instead, which
+            # is audible and reads as a stutter - the exact defect that made an
+            # earlier version of this project's tab unplayable.
+            if "tie" in effects:
+                note.type = gpm.NoteType.tie
+            elif "dead" in effects:
+                note.type = gpm.NoteType.dead
+            else:
+                note.type = gpm.NoteType.normal
             self._apply_effects(note, effects)
             beat.notes.append(note)
 
@@ -529,6 +543,70 @@ class Tab:
         self.song.tempo = int(bpm)
         return self
 
+    def set_tempo_at(self, bar: int, bpm: float) -> "Tab":
+        """Change tempo from `bar` (1-based) onward.
+
+        A song with one tempo is the exception, not the rule: this one runs its
+        intro at a different tempo from its body, and writing the whole tab at
+        the body's tempo puts every intro bar in the wrong place. Guitar Pro
+        carries this as an automation on the master bar, so the change belongs
+        in the file rather than in a README sentence.
+        """
+        if bar < 1:
+            raise ValueError("bar is 1-based")
+        self._tempo_map[int(bar)] = float(bpm)
+        if int(bar) == 1:
+            self.song.tempo = int(round(bpm))
+        return self
+
+    @property
+    def tempo_map(self) -> dict:
+        """{bar: bpm}, always including bar 1."""
+        out = {1: float(self.song.tempo)}
+        out.update(self._tempo_map)
+        return dict(sorted(out.items()))
+
+    def _read_tempo_map(self) -> dict[int, float]:
+        """Recover tempo changes already in a loaded song.
+
+        Without this a loaded tab reports one tempo no matter what is in the
+        file, and `.gp5` -> `.gp` silently flattens a multi-tempo song, because
+        `gp7()` builds its automations from `tempo_map`. The `.gp5` -> `.gp5`
+        path never showed the bug: the mix-table change rides along in the
+        model whether or not anything read it.
+        """
+        found: dict[int, float] = {}
+        for trk in self.song.tracks:
+            for index, measure in enumerate(trk.measures):
+                bar = index + 1
+                if bar == 1 or bar in found:
+                    continue
+                for voice in measure.voices:
+                    if not voice.beats:
+                        continue
+                    change = voice.beats[0].effect.mixTableChange
+                    if change is not None and change.tempo is not None:
+                        found[bar] = float(change.tempo.value)
+                        break
+        return dict(sorted(found.items()))
+
+    def _apply_tempo_map_to_measures(self) -> None:
+        """Put each tempo change on the first beat of its measure as a mix-table
+        change, which is how .gp5 encodes it."""
+        for bar, bpm in self._tempo_map.items():
+            if bar == 1:
+                continue
+            for trk in self.song.tracks:
+                if bar > len(trk.measures):
+                    continue
+                measure = trk.measures[bar - 1]
+                voice = measure.voices[0] if measure.voices else None
+                if not voice or not voice.beats:
+                    continue
+                change = gpm.MixTableChange()
+                change.tempo = gpm.MixTableItem(value=int(round(bpm)), duration=0, allTracks=True)
+                voice.beats[0].effect.mixTableChange = change
+
     # -- output ------------------------------------------------------------
 
     # The .gp3/.gp4/.gp5 binary format packs which strings a beat uses into a
@@ -545,6 +623,7 @@ class Tab:
         the binary format can hold, rather than writing a corrupt file.
         """
         ext = os.path.splitext(path)[1].lower()
+        self._apply_tempo_map_to_measures()
         self._warn_about_measure_lengths()
         if ext in (".musicxml", ".xml"):
             return self.musicxml(path)
@@ -603,6 +682,7 @@ class Tab:
             "artist": self.song.artist,
             "album": self.song.album,
             "tempo": self.song.tempo,
+            "tempoMap": [{"bar": b, "bpm": v} for b, v in self.tempo_map.items()],
             "tracks": [],
         }
         for index, trk in enumerate(self.song.tracks):
@@ -1148,7 +1228,17 @@ class Tab:
                 else:
                     parts = []
                     for n in live:
-                        suffix = "x" if n.type == gpm.NoteType.dead else ""
+                        # A tie has to come back out, or reading a tab in and
+                        # writing it back turns every ringing note into a
+                        # re-picked one -- the stutter this suffix exists to
+                        # stop, reintroduced by the round trip that was
+                        # supposed to be lossless.
+                        if n.type == gpm.NoteType.tie:
+                            suffix = "-"
+                        elif n.type == gpm.NoteType.dead:
+                            suffix = "x"
+                        else:
+                            suffix = ""
                         if n.effect.vibrato:
                             suffix += "~"
                         if n.effect.hammer:

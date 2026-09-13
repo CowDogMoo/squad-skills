@@ -166,9 +166,45 @@ answer to "what tuning is this in?" `to_riff()` closes the loop: read an
 existing tab, transform the notation as text, write it back out — no hand
 transcription.
 
-Guitar Pro 6/7+ files (`.gpx`, `.gp`) are a different container that PyGuitarPro
-cannot open. If the user has one, tell them to use **File → Export → Guitar Pro 5**
-in Guitar Pro first; `Tab.load()` says the same thing if you try.
+### Guitar Pro 6/7+ files (`.gpx`, `.gp`)
+
+PyGuitarPro cannot open these, so `Tab.load()` will refuse. **Do not ask the user
+to downgrade to GP5** — `scripts/gp7_tool.mjs` reads and writes them directly via
+alphaTab:
+
+```bash
+node scripts/gp7_tool.mjs info  song.gp                      # tuning, tempo map, range, pitch classes
+node scripts/gp7_tool.mjs ascii song.gp --track rhythm --bars 17-36
+node scripts/gp7_tool.mjs midi  song.gp song.mid             # type-1, carries the tempo map
+node scripts/gp7_tool.mjs diff  before.gp after.gp           # every musical attribute; exit 1 if any differ
+node scripts/gp7_tool.mjs clean-voices in.gp out.gp          # drop note-less voices (Songsterr ships 3 per bar)
+node scripts/gp7_tool.mjs layout in.gp out.gp                # tab-only, systems packed by density
+node scripts/gp7_tool.mjs export song.gp copy.gp             # round-trip
+```
+
+The round-trip is lossless — measured on a 105-bar 3-track file, all 3203
+fingerprinted attributes identical, including tempo automations, tuplets, ties,
+palm mutes, harmonics and slides. That makes **edit-in-place** the right way to
+change someone's existing tab: load it, change only the notes in question, export.
+Rebuilding their tab from your own reading throws away everything they got right.
+
+`diff` is the check that makes such an edit safe to hand over. It compares every
+**musical** attribute, so it catches both what you meant to change and what you
+did not, and it exits non-zero when anything differs — usable directly as a
+gate. Layout is deliberately outside that comparison: a file that has been
+through `layout` still reports identical, which is what lets you re-lay a score
+without the gate going off.
+
+**String numbering.** alphaTab numbers strings 1..N from the **low** string, while
+the `tunings` array is **high** string first, so note.string maps to
+`tunings[tunings.length - note.string]`. Getting this backwards silently mirrors
+the whole tab and still saves without error, so assert a known note before
+trusting a bulk edit.
+
+**Harmonics do not transpose.** A natural harmonic's pitch comes from the node,
+not the fret, so adding 3 to the fret of a `<5>` harmonic names a node that does
+not exist rather than a note a minor third higher. Skip `note.harmonicType` in any
+transposition.
 
 ## Command line
 
@@ -194,6 +230,39 @@ plus MIDI**:
 3. A `.mid` alongside it, for dropping into a DAW.
 
 Send files with the file-delivery tool rather than only describing them.
+
+## Lay the score out before you hand it over
+
+A tab nobody can read is not a finished tab, and this is the failure the author
+never sees - the notes are right, so every check passes, and the page is still a
+smear. It was reported on a real job as "A HUGE CLUSTER FUCK", against a file
+whose notes were provably correct.
+
+Two settings do almost all of it, and both survive a GP7 export round-trip:
+
+```bash
+node scripts/gp7_tool.mjs layout song.gp song-laid-out.gp
+```
+
+- **Hide the standard-notation staff on fretted tracks.** Every track otherwise
+  costs two staves. Three tracks became six staves per system. Percussion keeps
+  its notation - it has no tablature to fall back on, and `showTablature` is the
+  flag to test.
+- **Pack systems by density, not by a constant.** Guitar Pro puts a fixed number
+  of bars on every system no matter what is in them. On a song with a sparse
+  intro and a shredding solo that is fatal: three bars of 31 thirty-second notes
+  on one line runs the fret numbers together with no gaps between them. Count
+  **beat columns** per bar - a three-note power chord is one column, since
+  columns are what compete for horizontal space - then fill each system to a
+  budget (~24 columns) capped at ~4 bars. A single bar over budget still gets its
+  own system, because a bar never splits.
+
+On the job above this turned 105 bars into 56 systems: every solo bar alone on
+its line, the sparse intro still four to a line.
+
+So when the deliverable is a file somebody will read off a music stand, treat
+layout as part of the work, and check it the way you check the notes - assert
+that the densest passage got the room, not that the average bar did.
 
 ## Verify before you deliver
 
