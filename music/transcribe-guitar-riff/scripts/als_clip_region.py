@@ -9,13 +9,17 @@ the raw sample with ffmpeg; it is the "isolated track" without rendering.
     python als_clip_region.py SET.als --track "REAL 5"
     python als_clip_region.py SET.als --track "REAL 5" --json
     python als_clip_region.py SET.als --track "REAL 5" --check-region 136.0 151.0
+    python als_clip_region.py SET.als --track "REAL 5" --tempo 120
 
 Assumptions, printed as warnings when they matter:
 - 4/4 unless --beats-per-bar is given (bar numbers only; seconds are exact).
 - Beyond the last warp marker the sample continues at the last segment's
   tempo. Before the first marker, at the song tempo.
 - An unwarped clip's loop positions are in seconds; it plays at 1:1, so its
-  region is that offset plus the arrangement length in seconds.
+  region is that offset plus the arrangement length in seconds. That
+  conversion uses the song tempo, so a saved tempo that no longer matches the
+  open session silently scales every unwarped region: check the printed tempo
+  against Live and override it with --tempo when they disagree.
 - PitchCoarse/PitchFine are reported; a non-zero value means the audible
   pitch differs from the sample's, so transcribe the shifted version.
 """
@@ -82,6 +86,21 @@ def arrangement_clips(track: ET.Element):
             yield c
 
 
+def song_tempo(root: ET.Element, default: float = 120.0) -> float:
+    """The transport tempo, read from the main/master track rather than the first
+    Tempo element in the document (devices carry their own Tempo/Manual)."""
+    for main in ("MainTrack", "MasterTrack"):
+        node = root.find(f".//{main}")
+        if node is None:
+            continue
+        for tempo in node.iter("Tempo"):
+            value = _val(tempo, "Manual")
+            if value is not None:
+                return float(value)
+    value = _val(root, ".//Tempo/Manual")
+    return float(value) if value is not None else default
+
+
 def clip_regions(track: ET.Element, song_tempo: float, beats_per_bar: int) -> list[dict]:
     regions = []
     for c in arrangement_clips(track):
@@ -138,8 +157,18 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("als")
     ap.add_argument("--track", required=True, help="case-insensitive substring of the track name")
+    ap.add_argument(
+        "--track-index",
+        type=int,
+        help="when several tracks match --track, pick this one (1-based, in set order)",
+    )
     ap.add_argument("--beats-per-bar", type=int, default=4)
     ap.add_argument("--json", action="store_true", help="print machine-readable output")
+    ap.add_argument(
+        "--tempo",
+        type=float,
+        help="override the set's saved tempo (use Live's live tempo when the saved one is stale)",
+    )
     ap.add_argument(
         "--check-region",
         nargs=2,
@@ -150,15 +179,28 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     root = load_set(args.als)
-    tempo = float(_val(root, ".//Tempo/Manual", 120) or 120)
+    tempo = args.tempo if args.tempo else song_tempo(root)
     tracks = find_tracks(root, args.track)
     if not tracks:
         print(f"ERROR: no audio track name contains {args.track!r}", file=sys.stderr)
         return 2
-    if len(tracks) > 1:
-        names = [_val(t, "Name/EffectiveName", "") for t in tracks]
-        print(f"WARNING: {len(tracks)} tracks match; using the first: {names}", file=sys.stderr)
-    track = tracks[0]
+    if args.track_index is not None:
+        if not 1 <= args.track_index <= len(tracks):
+            print(
+                f"ERROR: --track-index {args.track_index} out of range; {len(tracks)} track(s) match",
+                file=sys.stderr,
+            )
+            return 2
+        track = tracks[args.track_index - 1]
+    else:
+        if len(tracks) > 1:
+            names = [_val(t, "Name/EffectiveName", "") for t in tracks]
+            print(
+                f"WARNING: {len(tracks)} tracks match; using the first: {names}. "
+                "Pass --track-index to choose.",
+                file=sys.stderr,
+            )
+        track = tracks[0]
     regions = clip_regions(track, tempo, args.beats_per_bar)
     result = {"als": args.als, "tempo": tempo, "track": _val(track, "Name/EffectiveName", ""), "clips": regions}
 
