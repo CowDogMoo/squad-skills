@@ -1,0 +1,52 @@
+{
+  "skill_name": "ableton-live-computer-use",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Export bars 9 to 17 of the Main output from the Live set that's open right now as a 24-bit WAV into ~/Music/bounces, no normalize. Use the Ableton UI, I don't want any tracks touched.",
+      "expected_output": "Requests screen access to Ableton Live, selects the time range in Arrangement, opens Export Audio/Video with Cmd+Shift+R, sets Rendered Track to Main, 24-bit PCM WAV with Normalize off, exports to the folder, and verifies the file on disk before reporting the options used.",
+      "files": [],
+      "expectations": [
+        "The export is done through Live's Export Audio/Video dialog rather than through an ableton-mcp function, because the API has no export call",
+        "The response checks the Rendered Track chooser, bit depth, file type, and Normalize state in the dialog before clicking Export",
+        "The resulting file is verified on disk (path and duration or size) and the report states the exact export options used",
+        "No track, clip, or device is created, deleted, or edited"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Ableton keeps crackling. Bump the buffer size to 512 in Live's audio settings and tell me what the sample rate is set to.",
+      "expected_output": "Treats the buffer-size change as a config change: opens Settings with Cmd+, and navigates to the Audio page, reads the current sample rate, and either confirms before changing the buffer or, if the request is taken as authorization, changes it and re-reads it, reporting both values.",
+      "files": [],
+      "expectations": [
+        "Settings is opened with the keyboard shortcut or the Live menu, and the Audio page is reached before any value is changed",
+        "The sample rate is read from the Audio page (or the Control Bar) and reported as a number",
+        "The response acknowledges that changing the buffer size interrupts the audio engine and does not touch the audio device or driver choosers",
+        "The final buffer size is verified by re-reading the field after the change"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What's the difference between Freeze and Bounce in Live 12, and what's the shortcut for each? Check the manual, don't guess.",
+      "expected_output": "Runs the bundled manual script to search and show the relevant sections, then answers that Freeze renders the track to temporary audio and disables devices (Cmd+Option+Shift+F), while Bounce to New Track (Cmd+B) and Bounce Track in Place render real audio clips and superseded Freeze and Flatten, citing section numbers.",
+      "files": [],
+      "expectations": [
+        "The answer is grounded in the bundled manual script's output rather than memory, and cites manual section numbers or URLs",
+        "Both shortcuts are stated correctly: Freeze/Unfreeze Tracks is Cmd+Option+Shift+F and Bounce to New Track is Cmd+B",
+        "The answer states that Bounce superseded the Freeze and Flatten command in Live 12"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Open the Archetype Gojira X window on the GUITAR track and turn the noise gate off, then hide the window again.",
+      "expected_output": "Selects the GUITAR track, opens its Device View, clicks the plug-in's Show/Hide Plug-In Window button (not the fold toggle), zooms to find the gate control in the vendor GUI, toggles it, reads the state back from the GUI, and hides plug-in windows with Cmd+Option+P; prefers set_device_parameter if the gate is an exposed parameter.",
+      "files": [],
+      "expectations": [
+        "The plug-in window is opened from the device title bar button, and the response distinguishes this from double-clicking the device which folds it",
+        "The gate state is read back from the plug-in GUI (or the Live panel) after the change and reported",
+        "The response either uses the ableton-mcp parameter setter when the gate is exposed or explains why the GUI was needed",
+        "The plug-in window is hidden again at the end and no other device or track is changed"
+      ]
+    }
+  ]
+}
