@@ -105,9 +105,13 @@ For each candidate URL:
 2. **Confirm the page is the recipe** (title matches, no "Page Not Found", redirect didn't land on the homepage).
 3. **Extract the exact star rating** from the page text. Look for patterns like `4.97 / 5`, `★★★★★ 4.9`, `Rated 5 stars`. Most recipe-card plugins (WPRM, Tasty) emit a visible rating block.
 4. **Extract the exact review count.** Look for `"(312 reviews)"`, `"from 50 votes"`, `"Rated 5 stars by 7 readers"`. The label varies (reviews / ratings / votes / readers) — preserve whatever the site uses.
-5. **Confirm total time** is roughly weeknight-friendly (~≤45 min active+passive, excluding overnight marinades).
+5. **Extract the exact total time as a number of minutes** — the same way as the rating, from the page rather than from an impression. The recipe card states it (`Total Time: 35 minutes`); JSON-LD carries it as `totalTime: "PT35M"`, and where the card gives only prep and cook, add them. Write it down as an integer.
 
-If you cannot find either the rating or the count on the page, DROP the recipe. Do not estimate, do not infer from "looks popular." A recipe without a verifiable rating doesn't ship.
+   Then hold it against the weeknight rule: **under 45 minutes ships. 45–60 ships flagged** — say `— 50 min, needs approval` on the line, because those nights cost somebody a yes. **Over 60 minutes is DROPPED**, as is a recipe whose total time you cannot find at all, unless the caller asked for something longer. Overnight marinades and other unattended waits do not count toward the total; say so on the line when you excluded one.
+
+If you cannot find the rating, the count, or the total time on the page, DROP the recipe. Do not estimate, do not infer from "looks popular," and do not carry over a time from the search result snippet — the snippet is frequently the site's *active* time with an hour of roasting left out. A recipe without a verifiable rating doesn't ship, and neither does one whose length is a guess.
+
+**Why the time is extracted rather than eyeballed:** the planner downstream derives the `quick` / `standard` / `longer` tags and the whole week's shape from a cook time, and until 2026-09-13 nothing between the live page and the mealplan ever checked one against the household's weeknight rule. A 75-minute quiche reached a Tuesday. `propose-week.mjs` now refuses a week containing a dinner past the band, so a batch that hands it an unverified time hands it a week it will reject.
 
 ### 5. Verify the link returns 200
 
