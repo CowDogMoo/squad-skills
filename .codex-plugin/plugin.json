@@ -1,6 +1,6 @@
 {
   "name": "squad-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Model-agnostic, host-portable skills for the squad ecosystem: comment scrubbing, LLM-tell detection, coverage orchestration, doc-comment discovery loops, and test-writer discipline.",
   "author": {
     "name": "Jayson Grace",
