@@ -28,6 +28,10 @@ The user invocation may include:
 - A season (`"spring"`, `"summer"`, `"fall"`, `"winter"`) — honor it.
 - A count (default 8–10).
 - Specific constraints ("vegetarian only", "no seafood", "under 30 min").
+- **Excluded ingredients** ("never shrimp or chickpeas, hummus is fine") and
+  **macro targets** ("at least 60% of macros from protein by weight"). These
+  are hard filters, checked against each page in step 4 — see "Ingredient and
+  macro constraints" below.
 - A **slot brief**: a list of what the result must be and a list of what it must
   avoid, usually because it is replacing one dish in a plan that already exists.
   A brief means the count is 1 and the constraints are not negotiable — see
@@ -81,10 +85,10 @@ Aim for variety across:
 - **Style**: grill, sheet pan, skillet, pasta, salad-as-meal, tacos
 - **Cuisine**: Mediterranean, Mexican, Asian, BBQ/American, Italian
 
-**Role mix.** A generic "≥2 of each" batch cannot feed a household week that
-asks for more vegetarian than anything else. When the batch is for
-`plan-weekly-dinners`, or the caller names a role mix, hit these floors in the
-final 10 rather than an even spread:
+**Role mix.** A generic "≥2 of each" batch cannot feed a household week with a
+lopsided composition. **When the caller names a role mix, it replaces the
+table below** — `plan-weekly-dinners` states its own. Otherwise hit these
+default floors in the final 10 rather than an even spread:
 
 | Role | Floor in a batch of 10 | Why |
 |---|---|---|
@@ -108,6 +112,8 @@ For each candidate URL:
 5. **Extract the exact total time as a number of minutes** — the same way as the rating, from the page rather than from an impression. The recipe card states it (`Total Time: 35 minutes`); JSON-LD carries it as `totalTime: "PT35M"`, and where the card gives only prep and cook, add them. Write it down as an integer.
 
    Then hold it against the weeknight rule: **under 45 minutes ships. 45–60 ships flagged** — say `— 50 min, needs approval` on the line, because those nights cost somebody a yes. **Over 60 minutes is DROPPED**, as is a recipe whose total time you cannot find at all, unless the caller asked for something longer. Overnight marinades and other unattended waits do not count toward the total; say so on the line when you excluded one.
+
+6. **When the caller set an ingredient exclusion or a macro target, check it on the page.** Read the full ingredient list and the nutrition facts (the recipe card's nutrition block, or JSON-LD `nutrition`: `proteinContent`, `carbohydrateContent`, `fatContent`). Drop the recipe if an excluded ingredient appears anywhere in it, or if the macros miss the target. A page with no nutrition facts cannot meet a macro target, so it is dropped too. Put the measured figure on the output line (`— 64% protein`).
 
 If you cannot find the rating, the count, or the total time on the page, DROP the recipe. Do not estimate, do not infer from "looks popular," and do not carry over a time from the search result snippet — the snippet is frequently the site's *active* time with an hour of roasting left out. A recipe without a verifiable rating doesn't ship, and neither does one whose length is a guess.
 
@@ -182,6 +188,31 @@ What does change:
   another full run.
 - **History still applies.** A slot is not a licence to re-serve something the
   caller has already seen.
+
+## Ingredient and macro constraints
+
+A caller can hand you two kinds of hard filter that a search query cannot
+enforce on its own:
+
+- **Excluded ingredients.** Match on the title and every ingredient line,
+  including forms of the ingredient (dried shrimp is shrimp; garbanzo beans
+  and gram flour are chickpeas). When the caller names an exception ("hummus
+  is fine"), a line that names the exception is allowed.
+- **Macro targets.** Unless the caller says otherwise, a share of "the macros"
+  is **by weight**: protein grams / (protein + carbs + fat grams). A ratio
+  does not care whether the page reports per serving or for the whole recipe,
+  so there is no need to normalize servings. Compute it from the page's own
+  numbers, never from a guess about the dish.
+
+Search for dishes that can plausibly meet the filter rather than filtering a
+generic batch afterwards. For a high protein share that means lean protein
+leading the plate (chicken breast, turkey, pork tenderloin, lean beef, white
+fish, tofu, tempeh, eggs, cottage cheese, Greek yogurt) with vegetables
+rather than rice, pasta or bread as the bulk; beans and lentils alone sit
+around 25–30% and rarely pass. Search terms like `high protein`, `low carb`
+or `macro-friendly` on the known-good domains find these pages faster. If the
+filter leaves fewer verified recipes than asked for, return fewer and say
+which filter cut them.
 
 ## What to skip
 
