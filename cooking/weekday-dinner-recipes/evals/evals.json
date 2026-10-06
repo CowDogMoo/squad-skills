@@ -38,6 +38,18 @@
         "A pick from seriouseats.com, if any, is flagged as caution with the list's note quoted",
         "Every returned URL was looked up with <skill-dir>/scripts/recipe-sources.mjs --lookup before being returned"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "5 weeknight dinners, never shrimp, salmon or chickpeas (hummus is fine), and at least 60% of the macros from protein",
+      "expected_output": "Up to 5 verified recipes, none containing shrimp, prawns, salmon or chickpeas in any form except hummus, each with a protein share of 60% or more computed by weight from the page's own nutrition facts and shown on its line; fewer than 5 returned with the cutting filter named if the constraints leave fewer.",
+      "files": [],
+      "expectations": [
+        "No returned recipe has shrimp, prawns, salmon, chickpeas, garbanzo beans or gram flour in its title or ingredients; a hummus line is allowed",
+        "Every returned line shows a protein share computed as protein grams / (protein + carbs + fat grams) from the page's nutrition facts, and every share is 60% or more",
+        "No recipe whose page publishes no nutrition facts is returned",
+        "If fewer than 5 recipes pass, the response says which filter cut them rather than padding the batch"
+      ]
     }
   ]
 }
