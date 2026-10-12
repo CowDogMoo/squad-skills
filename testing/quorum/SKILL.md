@@ -85,18 +85,42 @@ obeyed. run-seats pools 4, times out at 300s, and saves every raw envelope
 under `<run>/raw/`.
 
 **Seat CLI drivers.** run-seats is not tied to one vendor CLI. It uses
-`claude` when that binary is on `PATH`, or whichever `QUORUM_SEAT_CLI` names:
+whichever driver `QUORUM_SEAT_CLI` names, else the one `seat-driver.json`
+names (below), else `claude` when that binary is on `PATH`:
 
 | Driver | Configuration | Notes |
 |---|---|---|
 | `claude` | none needed | The A3 recipe: `--model sonnet --output-format json --allowedTools Read Grep Glob`. Result text is `.result`; `.is_error` fails closed. ~$0.40, 1–3 min. |
-| `custom` | `QUORUM_SEAT_BIN`, `QUORUM_SEAT_ARGS` (JSON argv with `{prompt}`, `{fixture_dir}`, `{model}` placeholders), `QUORUM_SEAT_RESULT_FIELD` (default `result`), optional `QUORUM_SEAT_STATUS_FIELD` / `QUORUM_SEAT_STATUS_OK` (default `SUCCESS`), optional `QUORUM_SEAT_SCRUB_ENV` | Any CLI that prints one JSON envelope on stdout; a setup banner before it is tolerated. Keep this configuration in a private shell file, never in this repo. Making the seat read-only and blind to the calling conversation is the operator's job for a CLI the harness does not know. |
+| `custom` | `QUORUM_SEAT_BIN`, `QUORUM_SEAT_ARGS` (JSON argv with `{prompt}`, `{fixture_dir}`, `{model}` placeholders), `QUORUM_SEAT_RESULT_FIELD` (default `result`), optional `QUORUM_SEAT_STATUS_FIELD` / `QUORUM_SEAT_STATUS_OK` (default `SUCCESS`), optional `QUORUM_SEAT_SCRUB_ENV` | Any CLI that prints one JSON envelope on stdout; a setup banner before it is tolerated. Keep this configuration in `seat-driver.json` or a private shell file, never in this repo. Making the seat read-only and blind to the calling conversation is the operator's job for a CLI the harness does not know. |
 
 `QUORUM_SEAT_BIN` overrides the binary path (it requires `QUORUM_SEAT_CLI`, so
 the harness never guesses which driver a binary belongs to) and
-`QUORUM_SEAT_MODEL` overrides the model. If no driver can run, run-seats exits
-1 with a named error rather than letting the seat read as a mysterious absence
-at judge time.
+`QUORUM_SEAT_MODEL` overrides the model.
+
+Shells that skip rc files (background jobs, agent subshells) lose exported
+`QUORUM_SEAT_*` variables, so the same settings can live in
+`$QUORUM_STATE_DIR/seat-driver.json` (default
+`~/.claude/quorum-state/seat-driver.json`): a flat JSON object of `QUORUM_SEAT_*`
+names to string values, where `QUORUM_SEAT_ARGS` may also be a JSON array.
+
+```json
+{"QUORUM_SEAT_CLI": "custom", "QUORUM_SEAT_BIN": "/opt/voter/bin/voter",
+ "QUORUM_SEAT_ARGS": ["ask", "{prompt}", "--json", "--dir", "{fixture_dir}"]}
+```
+
+The file is read only when `QUORUM_SEAT_CLI` is unset, and a non-blank
+environment variable beats the file for that key. Any other key or a non-string
+value is a named startup error. run-seats prints where the driver came from
+(`seat CLI: custom (/opt/voter/bin/voter) [from …/seat-driver.json]`), so a
+leftover file never silently picks the voter.
+
+Before any seat runs, the binary must exist. A `claude` binary must also answer
+`--version` with non-empty, non-ballot output and must not be a script with the
+ballot keys written into it. That is a tripwire for leftover test stubs and
+naive fakes, not authentication: a deliberate fake gets past it. `custom`
+binaries get only the existence check, since their wrappers are legitimately
+scripts. If no driver can run, run-seats exits 1 with a named error rather than
+letting the seat read as a mysterious absence at judge time.
 
 > The benchmark in the header (0.00 false-complete / 0.00 false-incomplete over
 > 56 runs) was measured on the `claude` seat. A `custom` seat is contract-
