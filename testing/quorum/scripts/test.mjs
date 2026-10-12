@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, judgeRun, ProtocolError, validateBallot } from './judge.mjs';
 import { checkPromptIndependence, COMPLETION_QUESTION, renderPrompt } from './render-prompts.mjs';
-import { customDriverFrom, extractBallot, extractEnvelopeText, resolveDriver, SEAT_DRIVERS, stripFence } from './run-seats.mjs';
+import { customDriverFrom, extractBallot, extractEnvelopeText, resolveDriver, SEAT_DRIVERS, stripFence, verifyDriverBin } from './run-seats.mjs';
 
 const HARNESS = dirname(fileURLToPath(import.meta.url));
 const TESTDATA = join(HARNESS, 'testdata');
@@ -283,20 +283,214 @@ test('resolveDriver honours QUORUM_SEAT_CLI, bin and model overrides', () => {
   assert.throws(() => resolveDriver({ QUORUM_SEAT_BIN: '/bin/sh' }), /QUORUM_SEAT_BIN is set but QUORUM_SEAT_CLI is not/);
 });
 
-test('resolveDriver auto-detects claude when its binary is on PATH', () => {
+test('resolveDriver auto-detects claude when its binary is on PATH, without running it', () => {
   const fakeBinDir = join(scratch, 'fake-bin');
   mkdirSync(fakeBinDir, { recursive: true });
-  writeFileSync(join(fakeBinDir, 'claude'), '#!/bin/sh\n', { mode: 0o755 });
+  const ran = join(scratch, 'fake-bin-ran');
+  writeFileSync(join(fakeBinDir, 'claude'), `#!/bin/sh\ntouch '${ran}'\necho "2.1.236 (Claude Code)"\n`, { mode: 0o755 });
   const savedPath = process.env.PATH;
-  process.env.PATH = fakeBinDir;
+  process.env.PATH = `${fakeBinDir}:${savedPath}`;
   try {
     const picked = resolveDriver({});
     assert.equal(picked.driver.label, 'claude');
     assert.equal(picked.bin, 'claude');
     assert.equal(picked.model, 'sonnet');
+    assert.equal(picked.source, 'auto-detect');
+    assert.ok(!existsSync(ran), 'resolveDriver must not spawn the binary; main() checks it once');
   } finally {
     process.env.PATH = savedPath;
   }
+});
+
+test('verifyDriverBin trips on leftover or naive claude stubs', () => {
+  const stubDir = join(scratch, 'stub-bin');
+  mkdirSync(stubDir, { recursive: true });
+  const stub = (name, body) => {
+    const path = join(stubDir, name);
+    writeFileSync(path, body, { mode: 0o755 });
+    return path;
+  };
+
+  const genuine = stub('claude-genuine', '#!/bin/sh\necho "2.1.236 (Claude Code)"\n');
+  assert.equal(verifyDriverBin(SEAT_DRIVERS.claude, genuine), genuine);
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, join(stubDir, 'missing')), /seat binary not found/);
+
+  // Script with the ballot keys written into it.
+  const staticStub = stub('claude-static-stub',
+    '#!/usr/bin/env node\nconsole.log(JSON.stringify({ result: JSON.stringify({ seat_id: "skeptic", verdict: "complete" }) }));\n');
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, staticStub), /refusing voter stub.*hardcoded ballot schema keys/);
+
+  // --version answering with a JSON envelope (key split so the static check
+  // does not fire first).
+  const keyA = 'res' + 'ult';
+  const envelopeStub = stub('claude-envelope-stub', `#!/bin/sh\necho '{"${keyA}": "fake ballot"}'\n`);
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, envelopeStub), /refusing claude binary.*JSON ballot envelope/);
+
+  const emptyStub = stub('claude-empty', '#!/bin/sh\nexit 0\n');
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, emptyStub), /refusing broken or fake claude binary.*empty stdout/);
+
+  const failingStub = stub('claude-failing', '#!/bin/sh\nexit 3\n');
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, failingStub), /--version failed \(exited 3\)/);
+
+  // Regression: a signal-killed probe has status null and no .error; it used
+  // to crash with a TypeError instead of the named refusal.
+  const killedStub = stub('claude-killed', '#!/bin/sh\nkill -9 $$\n');
+  assert.throws(() => verifyDriverBin(SEAT_DRIVERS.claude, killedStub), /--version failed \(killed by SIGKILL\)/);
+});
+
+test('verifyDriverBin only checks existence for custom drivers', () => {
+  const custom = customDriverFrom({ QUORUM_SEAT_ARGS: '["{prompt}"]' });
+  // Regression: a legitimate wrapper that merely mentions the ballot keys was
+  // refused as a spoofed stub.
+  const wrapper = join(scratch, 'custom-wrapper.sh');
+  writeFileSync(wrapper, '#!/bin/sh\n# Forwards to the real voter; its ballot carries seat_id and verdict.\nexit 1\n', { mode: 0o755 });
+  assert.equal(verifyDriverBin(custom, wrapper), wrapper);
+  assert.throws(() => verifyDriverBin(custom, join(scratch, 'no-such-voter')), /seat binary not found/);
+});
+
+function writeSeatDriver(name, config) {
+  const stateDir = join(scratch, name);
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'seat-driver.json'), typeof config === 'string' ? config : JSON.stringify(config));
+  return stateDir;
+}
+
+test('resolveDriver reads seat-driver.json from stateDir; env wins per key', () => {
+  const stateDir = writeSeatDriver('driver-state', {
+    QUORUM_SEAT_CLI: 'custom',
+    QUORUM_SEAT_BIN: '/opt/persistent-voter',
+    QUORUM_SEAT_ARGS: '["-p", "{prompt}", "--add-dir", "{fixture_dir}"]',
+    QUORUM_SEAT_RESULT_FIELD: 'response',
+    QUORUM_SEAT_MODEL: 'file-model',
+  });
+  const configPath = join(stateDir, 'seat-driver.json');
+
+  const picked = resolveDriver({}, { stateDir });
+  assert.equal(picked.driver.label, 'custom');
+  assert.equal(picked.bin, '/opt/persistent-voter');
+  assert.equal(picked.driver.resultField, 'response');
+  assert.equal(picked.model, 'file-model');
+  assert.equal(picked.source, configPath);
+
+  // A non-blank env value beats the file for that key; a blank one does not.
+  const mixed = resolveDriver({ QUORUM_SEAT_MODEL: 'env-model', QUORUM_SEAT_BIN: ' ' }, { stateDir });
+  assert.equal(mixed.model, 'env-model');
+  assert.equal(mixed.bin, '/opt/persistent-voter');
+
+  // QUORUM_SEAT_CLI in env skips the file entirely.
+  const explicit = resolveDriver({ QUORUM_SEAT_CLI: 'claude', QUORUM_SEAT_BIN: '/opt/explicit-claude' }, { stateDir });
+  assert.equal(explicit.driver.label, 'claude');
+  assert.equal(explicit.bin, '/opt/explicit-claude');
+  assert.equal(explicit.model, 'sonnet');
+  assert.equal(explicit.source, 'QUORUM_SEAT_CLI');
+
+  // Without a stateDir the file is never read, whatever the env holds.
+  assert.throws(() => resolveDriver({ QUORUM_STATE_DIR: stateDir, QUORUM_SEAT_BIN: '/x' }), /QUORUM_SEAT_BIN is set but QUORUM_SEAT_CLI is not/);
+
+  // QUORUM_SEAT_ARGS may be a native JSON array.
+  const arrayArgs = resolveDriver({}, { stateDir: writeSeatDriver('driver-state-array', {
+    QUORUM_SEAT_CLI: 'custom', QUORUM_SEAT_BIN: '/opt/v', QUORUM_SEAT_ARGS: ['ask', '{prompt}'],
+  }) });
+  assert.deepEqual(arrayArgs.driver.buildArgs('vote', '/f', ''), ['ask', 'vote']);
+
+  // No file: falls through to the usual resolution.
+  const none = resolveDriver({ QUORUM_SEAT_CLI: 'claude' }, { stateDir: join(scratch, 'no-state-here') });
+  assert.equal(none.source, 'QUORUM_SEAT_CLI');
+});
+
+test('a malformed seat-driver.json fails with a named error', () => {
+  const cases = [
+    ['bad-json', '{not json', /invalid JSON in .*seat-driver\.json/],
+    ['bad-array', '[]', /must contain a JSON object/],
+    ['bad-key', { PATH: '/evil', QUORUM_SEAT_CLI: 'claude' }, /unexpected key "PATH"/],
+    ['bad-value', { QUORUM_SEAT_CLI: 'custom', QUORUM_SEAT_BIN: 7 }, /QUORUM_SEAT_BIN must be a string$/],
+    ['bad-scrub', { QUORUM_SEAT_SCRUB_ENV: ['A', 'B'] }, /QUORUM_SEAT_SCRUB_ENV must be a string$/],
+    ['bad-args', { QUORUM_SEAT_ARGS: { a: 1 } }, /QUORUM_SEAT_ARGS must be a string or an array of strings/],
+  ];
+  for (const [name, config, pattern] of cases) {
+    const stateDir = writeSeatDriver(`driver-${name}`, config);
+    assert.throws(() => resolveDriver({}, { stateDir }), pattern, name);
+  }
+});
+
+// A fake claude for main()-level tests. It logs each invocation's first arg
+// and, past --version, prints a valid ballot envelope kept in a sibling file,
+// so the script itself carries no ballot keys and is not refused as a stub.
+function writeFakeClaude(dir, log) {
+  mkdirSync(dir, { recursive: true });
+  const ballot = { seat_id: 'alpha', jurisdiction: 'global', verdict: 'complete', unmet: [], evidence: ['e'], confidence: 1 };
+  const envelope = join(dir, 'envelope.json');
+  writeFileSync(envelope, JSON.stringify({ result: JSON.stringify(ballot) }));
+  writeFileSync(join(dir, 'claude'), [
+    '#!/bin/sh',
+    `echo "$1" >> '${log}'`,
+    'if [ "$1" = "--version" ]; then echo "2.1.236 (Claude Code)"; exit 0; fi',
+    `cat '${envelope}'`,
+    '',
+  ].join('\n'), { mode: 0o755 });
+}
+
+function mkSeatPrompts(name) {
+  const promptDir = join(scratch, name, 'prompts');
+  mkdirSync(promptDir, { recursive: true });
+  writeFileSync(join(promptDir, '_run.json'), canonicalJson({ fixture_dir: join(TESTDATA, 'fixture-mini') }));
+  writeFileSync(join(promptDir, 'alpha.prompt.md'), 'vote please\n');
+  return { promptDir, ballotsDir: join(scratch, name, 'ballots') };
+}
+
+const SEAT_ENV_CLEARED = {
+  QUORUM_SEAT_CLI: '', QUORUM_SEAT_BIN: '', QUORUM_SEAT_MODEL: '', QUORUM_SEAT_ARGS: '',
+  QUORUM_SEAT_RESULT_FIELD: '', QUORUM_SEAT_STATUS_FIELD: '', QUORUM_SEAT_STATUS_OK: '', QUORUM_SEAT_SCRUB_ENV: '',
+};
+
+test('run-seats checks the claude binary once, spawns it, and names the source', () => {
+  const binDir = join(scratch, 'main-claude-bin');
+  const log = join(scratch, 'main-claude.log');
+  writeFakeClaude(binDir, log);
+  const { promptDir, ballotsDir } = mkSeatPrompts('main-claude');
+  const res = runNode([RUN_SEATS, promptDir, ballotsDir], {
+    ...SEAT_ENV_CLEARED,
+    QUORUM_STATE_DIR: join(scratch, 'main-claude-empty-state'),
+    PATH: `${binDir}:${process.env.PATH}`,
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(res.stdout.includes(`seat CLI: claude (${join(binDir, 'claude')}) model=sonnet [from auto-detect]`), res.stdout);
+  assert.ok(existsSync(join(ballotsDir, 'alpha.json')), 'ballot not written');
+  // Regression: --version used to be probed twice on auto-detect.
+  assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n'), ['--version', '-p']);
+});
+
+test('run-seats exits 1 on a refused claude stub and writes no ballot', () => {
+  const binDir = join(scratch, 'main-stub-bin');
+  mkdirSync(binDir, { recursive: true });
+  writeFileSync(join(binDir, 'claude'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const { promptDir, ballotsDir } = mkSeatPrompts('main-stub');
+  const res = runNode([RUN_SEATS, promptDir, ballotsDir], {
+    ...SEAT_ENV_CLEARED,
+    QUORUM_STATE_DIR: join(scratch, 'main-stub-empty-state'),
+    PATH: `${binDir}:${process.env.PATH}`,
+  });
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /refusing broken or fake claude binary.*empty stdout/);
+  assert.ok(!existsSync(join(ballotsDir, 'alpha.json')), 'a refused seat must not produce a ballot');
+});
+
+test('run-seats loads ~/.claude/quorum-state/seat-driver.json by default and says so', () => {
+  const home = join(scratch, 'fake-home');
+  const binDir = join(scratch, 'main-custom-bin');
+  writeFakeClaude(binDir, join(scratch, 'main-custom.log'));
+  const stateDir = join(home, '.claude', 'quorum-state');
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'seat-driver.json'), JSON.stringify({
+    QUORUM_SEAT_CLI: 'custom',
+    QUORUM_SEAT_BIN: join(binDir, 'claude'),
+    QUORUM_SEAT_ARGS: ['-p', '{prompt}'],
+  }));
+  const { promptDir, ballotsDir } = mkSeatPrompts('main-custom');
+  const res = runNode([RUN_SEATS, promptDir, ballotsDir], { ...SEAT_ENV_CLEARED, HOME: home, QUORUM_STATE_DIR: '' });
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(res.stdout.includes(`[from ${join(stateDir, 'seat-driver.json')}]`), res.stdout);
+  assert.equal(JSON.parse(readFileSync(join(ballotsDir, 'alpha.json'), 'utf8')).verdict, 'complete');
 });
 
 test('custom driver is built from env and rejects a broken configuration', () => {

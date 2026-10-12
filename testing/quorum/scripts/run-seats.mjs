@@ -9,9 +9,14 @@
 // (always, even partial/timeout output) to <ballots-out-dir>/../raw/<seat_id>.json.
 //
 // Voter invocation is driver-based, so the gate is not tied to one vendor CLI.
-// Select with QUORUM_SEAT_CLI=claude|custom; when unset, claude is used if its
-// binary is on PATH. QUORUM_SEAT_BIN overrides the binary path (requires
-// QUORUM_SEAT_CLI) and QUORUM_SEAT_MODEL overrides the model.
+// Select with QUORUM_SEAT_CLI=claude|custom; when unset, the QUORUM_SEAT_*
+// settings in $QUORUM_STATE_DIR/seat-driver.json (default
+// ~/.claude/quorum-state/seat-driver.json) apply, and failing that claude is
+// used if its binary is on PATH. Per key, the environment beats the file.
+// QUORUM_SEAT_BIN overrides the binary path (requires QUORUM_SEAT_CLI) and
+// QUORUM_SEAT_MODEL overrides the model. Before any seat runs the chosen
+// binary must exist; a claude binary must also answer --version and not look
+// like a hand-written ballot stub (a tripwire for leftovers, not proof).
 //
 // claude driver (the A3-proven shell recipe
 //   env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat promptfile)" \
@@ -54,11 +59,11 @@
 // (exercising the full extraction/validation path), otherwise the seat is
 // treated as absent.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { realpathSync } from 'node:fs';
 
 // True when this module is the script node was invoked with, comparing
 // realpaths so a symlinked install still runs its CLI main().
@@ -82,6 +87,7 @@ export const SEAT_DRIVERS = {
     defaultModel: 'sonnet',
     resultField: 'result',
     autoDetect: true,
+    probeVersion: true,
     buildArgs(promptText, fixtureDir, model) {
       return [
         '-p', promptText,
@@ -135,6 +141,7 @@ export function customDriverFrom(env) {
     defaultModel: '',
     resultField,
     autoDetect: false,
+    probeVersion: false,
     buildArgs(promptText, fixtureDir, model) {
       const values = { '{prompt}': promptText, '{fixture_dir}': fixtureDir, '{model}': model };
       const args = [];
@@ -163,40 +170,145 @@ export function customDriverFrom(env) {
   };
 }
 
-function binExists(bin) {
-  if (bin.includes('/') || bin.includes('\\')) return existsSync(bin);
-  const dirs = (process.env.PATH || '').split(delimiter).filter(Boolean);
-  return dirs.some((dir) => existsSync(join(dir, bin)));
+export function resolveBinPath(bin, pathEnv = process.env.PATH || '') {
+  if (bin.includes('/') || bin.includes('\\')) return existsSync(bin) ? bin : null;
+  const dirs = pathEnv.split(delimiter).filter(Boolean);
+  for (const dir of dirs) {
+    const candidate = join(dir, bin);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
 }
 
-// Pick the driver: explicit QUORUM_SEAT_CLI wins, otherwise the first
-// auto-detectable driver whose binary is actually present. Never silently fall
-// through to a missing binary — an unrunnable seat would read as a mysterious
-// absence at judge time. A bin override without a named driver is rejected
-// rather than guessed, because the override would bind to whichever driver
-// happens to come first.
-export function resolveDriver(env = process.env) {
+// Check that the seat binary exists and, for a driver with probeVersion, that
+// it is not an obvious stand-in: a script with the ballot keys written into
+// it, or a binary whose --version fails, is empty, or prints a JSON ballot
+// envelope. This is a tripwire for leftover test stubs and naive fakes, not
+// authentication: a stub that builds its keys at runtime and answers
+// --version passes, and the agent running the gate could write ballot files
+// directly anyway. Custom drivers get only the existence check, because their
+// wrappers are legitimately scripts and may well mention the ballot keys.
+// Returns the resolved path so the seat spawns exactly the checked binary.
+export function verifyDriverBin(driver, bin, pathEnv = process.env.PATH || '') {
+  const resolved = resolveBinPath(bin, pathEnv);
+  if (!resolved) {
+    throw new Error(`seat binary not found: ${bin}`);
+  }
+  if (!driver.probeVersion) return resolved;
+  let text = '';
+  try {
+    const st = statSync(resolved);
+    if (st.isFile() && st.size > 0 && st.size < 1024 * 1024) text = readFileSync(resolved, 'utf8');
+  } catch {
+    // Unreadable is not evidence of a stub; the --version probe still runs.
+  }
+  if (text.startsWith('#!') && text.includes('seat_id') && text.includes('verdict')) {
+    throw new Error(
+      `refusing voter stub at ${resolved}: script contains hardcoded ballot schema keys ("seat_id"/"verdict")`,
+    );
+  }
+  const res = spawnSync(resolved, ['--version'], { timeout: 5000, encoding: 'utf8' });
+  if (res.error || res.status !== 0) {
+    // A signal-killed child has status null and no error, only .signal.
+    const why = res.error ? res.error.message : res.status !== null ? `exited ${res.status}` : `killed by ${res.signal}`;
+    throw new Error(`refusing broken or fake ${driver.label} binary at ${resolved}: --version failed (${why})`);
+  }
+  const stdout = (res.stdout || '').trim();
+  if (!stdout) {
+    throw new Error(
+      `refusing broken or fake ${driver.label} binary at ${resolved}: --version produced empty stdout`,
+    );
+  }
+  const maybeEnv = extractEnvelopeText(stdout);
+  const parsed = maybeEnv ? asJsonObject(maybeEnv) : null;
+  if (parsed && ('result' in parsed || 'response' in parsed || 'verdict' in parsed || 'seat_id' in parsed)) {
+    throw new Error(
+      `refusing ${driver.label} binary at ${resolved}: --version returned a JSON ballot envelope instead of version info`,
+    );
+  }
+  return resolved;
+}
+
+// The quorum state directory; same default as log-verdict.mjs, which keeps
+// its own copy so each script stays standalone.
+export function stateDirFrom(env = process.env) {
+  return env.QUORUM_STATE_DIR || join(homedir(), '.claude/quorum-state');
+}
+
+// Read $stateDir/seat-driver.json: a flat JSON object of QUORUM_SEAT_* names
+// to string values (QUORUM_SEAT_ARGS may also be a JSON array of strings).
+// Returns null when the file does not exist; throws a named error on anything
+// malformed so a bad file fails at startup, not as a TypeError mid-resolve.
+export function readSeatDriverConfig(stateDir) {
+  const configPath = join(stateDir, 'seat-driver.json');
+  if (!existsSync(configPath)) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch (err) {
+    throw new Error(`invalid JSON in ${configPath}: ${err.message}`);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`${configPath} must contain a JSON object`);
+  }
+  const settings = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!key.startsWith('QUORUM_SEAT_')) {
+      throw new Error(`${configPath}: unexpected key ${JSON.stringify(key)}; only QUORUM_SEAT_* settings belong here`);
+    }
+    if (key === 'QUORUM_SEAT_ARGS' && Array.isArray(value)) {
+      settings[key] = JSON.stringify(value); // customDriverFrom validates the elements
+    } else if (typeof value === 'string') {
+      settings[key] = value;
+    } else {
+      throw new Error(`${configPath}: ${key} must be a string${key === 'QUORUM_SEAT_ARGS' ? ' or an array of strings' : ''}`);
+    }
+  }
+  return { configPath, settings };
+}
+
+// Pick the driver. Precedence: QUORUM_SEAT_CLI in env, then seat-driver.json
+// in opts.stateDir (read only when the caller passes one, so library callers
+// and tests never pick up the operator's file by accident), then the first
+// auto-detectable driver whose binary is on PATH. Per key, a non-blank env
+// value beats the file. `source` says where the driver choice came from so the
+// run can print it. Binary checks are main()'s job (verifyDriverBin), so this
+// stays free of side effects.
+export function resolveDriver(rawEnv = process.env, { stateDir } = {}) {
+  let env = rawEnv;
+  let source = 'QUORUM_SEAT_CLI';
+  if (!(rawEnv.QUORUM_SEAT_CLI || '').trim() && stateDir) {
+    const config = readSeatDriverConfig(stateDir);
+    if (config) {
+      env = { ...rawEnv };
+      for (const [key, value] of Object.entries(config.settings)) {
+        if (!(rawEnv[key] || '').trim()) env[key] = value;
+      }
+      source = config.configPath;
+    }
+  }
   const requested = (env.QUORUM_SEAT_CLI || '').trim();
   const model = (env.QUORUM_SEAT_MODEL || '').trim();
   const overrideBin = (env.QUORUM_SEAT_BIN || '').trim();
+  const pathEnv = env.PATH !== undefined ? env.PATH : (process.env.PATH || '');
   const names = [...Object.keys(SEAT_DRIVERS), 'custom'];
   if (requested) {
     if (requested === 'custom') {
       if (!overrideBin) throw new Error('QUORUM_SEAT_CLI=custom requires QUORUM_SEAT_BIN');
-      return { driver: customDriverFrom(env), bin: overrideBin, model };
+      return { driver: customDriverFrom(env), bin: overrideBin, model, source };
     }
     const driver = SEAT_DRIVERS[requested];
     if (!driver) {
       throw new Error(`unknown QUORUM_SEAT_CLI ${JSON.stringify(requested)}; expected one of: ${names.join(', ')}`);
     }
-    return { driver, bin: overrideBin || driver.defaultBin, model: model || driver.defaultModel };
+    return { driver, bin: overrideBin || driver.defaultBin, model: model || driver.defaultModel, source };
   }
   if (overrideBin) {
     throw new Error(`QUORUM_SEAT_BIN is set but QUORUM_SEAT_CLI is not; name the driver (${names.join('|')}) the binary belongs to`);
   }
   for (const driver of Object.values(SEAT_DRIVERS)) {
-    if (driver.autoDetect && binExists(driver.defaultBin)) {
-      return { driver, bin: driver.defaultBin, model: model || driver.defaultModel };
+    if (driver.autoDetect && resolveBinPath(driver.defaultBin, pathEnv)) {
+      return { driver, bin: driver.defaultBin, model: model || driver.defaultModel, source: 'auto-detect' };
     }
   }
   throw new Error(
@@ -382,13 +494,15 @@ async function main(argv) {
   let bin = driver.defaultBin;
   let model = driver.defaultModel;
   if (!dryRun) {
+    let source;
     try {
-      ({ driver, bin, model } = resolveDriver());
+      ({ driver, bin, model, source } = resolveDriver(process.env, { stateDir: stateDirFrom(process.env) }));
+      bin = verifyDriverBin(driver, bin);
     } catch (err) {
       console.error(err.message);
       process.exit(1);
     }
-    console.log(`seat CLI: ${driver.label} (${bin})${model ? ` model=${model}` : ''}`);
+    console.log(`seat CLI: ${driver.label} (${bin})${model ? ` model=${model}` : ''} [from ${source}]`);
   } else {
     console.log(`dry-run: skipping CLI; would invoke per seat: ${bin} ${driver.buildArgs('<prompt>', fixtureDir, model).join(' ')}`);
   }
