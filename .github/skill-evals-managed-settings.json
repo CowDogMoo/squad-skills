@@ -1,0 +1,38 @@
+{
+  "allowManagedHooksOnly": true,
+  "allowManagedMcpServersOnly": true,
+  "allowedMcpServers": [],
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [],
+      "allowManagedDomainsOnly": true,
+      "strictAllowlist": true
+    },
+    "credentials": {
+      "envVars": [
+        { "name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny" },
+        { "name": "GITHUB_TOKEN", "mode": "deny" },
+        { "name": "ACTIONS_RUNTIME_TOKEN", "mode": "deny" },
+        { "name": "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "mode": "deny" }
+      ]
+    }
+  },
+  "permissions": {
+    "deny": [
+      "Read(//proc/**)",
+      "Read(//sys/**)",
+      "Read(//home/runner/work/_temp/**)",
+      "Read(//home/runner/runners/**)",
+      "Read(//home/runner/.claude/**)",
+      "Read(//home/runner/.claude.json)",
+      "Edit(//etc/**)",
+      "Edit(//opt/**)",
+      "Edit(//home/runner/**)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

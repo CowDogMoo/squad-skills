@@ -1,0 +1,271 @@
+---
+name: Skill Evals
+
+# Runs each allowlisted skill's evals/evals.json with Claude Code headless
+# (`claude plugin eval`), on main only. It never runs on pull request content:
+# the only triggers are a manual dispatch and an optional weekly schedule, the
+# token lives only in the skill-evals environment (deployment branch: main;
+# required reviewer: the repository owner), and Validate Skills fails any
+# change that gives this workflow another trigger. Regressions therefore show
+# up after merge, not on the pull request.
+#
+# Auth uses the Claude subscription, never an API key. Mint a token for this
+# repository alone with `claude setup-token` and save it as the environment
+# secret CLAUDE_CODE_OAUTH_TOKEN under Settings > Environments > skill-evals.
+# Never add it as a repository or organization secret. Without it the eval
+# job fails with these instructions.
+#
+# Run it: `gh workflow run skill-evals.yaml --ref main` (every allowlisted
+# skill), `-f skill=<name>` for one skill, or `-f canary_only=true` for the
+# sandbox self-test alone. Then approve the eval job's deployment to
+# skill-evals. Which skills run is set by .github/skill-evals.json; skills
+# that need live services are skipped with their reason in the plan log.
+#
+# How the token is kept away from skill content:
+#   prepare (no secret) checks out main, stages each skill as data into a
+#     plugin the harness builds itself (no symlinks; no plugin.json, hooks,
+#     MCP servers, or monitors), and downloads every tool the eval job needs:
+#     bubblewrap and socat .debs, a Python venv, and Claude Code.
+#   eval (token, after approval) blocks egress to everything but
+#     api.anthropic.com with harden-runner, installs that bundle offline,
+#     writes managed settings (sandboxed Bash with no network and the token
+#     denied, Read denied on /proc and /sys, no hooks, no MCP), then removes
+#     sudo and container access before the token is used. Harden-runner's own
+#     disable-sudo-and-containers would remove sudo when the job starts, before
+#     the sandbox could be installed, so this job does the same thing itself
+#     after setup and checks that it held.
+#   A sandbox self-test runs first and gates the skills: the token must be
+#     absent in Bash, no /proc environ may hold it, and the network and sudo
+#     must be closed. Model output goes to files, never to the log; a leak
+#     check searches them for the token, its encodings, and slices of it before
+#     the judge prints anything or the results are uploaded.
+#
+# Pass or fail: every case runs `runs` times and is judged on the mean of its
+# run scores against the threshold in .github/skill-evals.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: Skill to evaluate (empty runs every allowlisted skill)
+        required: false
+        default: ""
+      runs:
+        description: Runs per case, 1 to 10 (each case is judged on the mean)
+        required: false
+        default: "3"
+      threshold:
+        description: Threshold for every case (empty uses .github/skill-evals.json)
+        required: false
+        default: ""
+      canary_only:
+        description: Run only the sandbox self-test
+        type: boolean
+        required: false
+        default: false
+  # Off by default. A scheduled run still waits for the owner to approve the
+  # skill-evals deployment. To turn it on, uncomment:
+  # schedule:
+  #   - cron: "0 6 * * 1"
+
+permissions: {}
+
+concurrency:
+  group: skill-evals
+  cancel-in-progress: false
+
+env:
+  CLAUDE_CODE_VERSION: "2.1.296"
+  BUNDLE: /opt/skill-evals
+
+jobs:
+  prepare:
+    name: Plan and stage
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Refuse anything but main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "${REF}" != "refs/heads/main" ]; then
+            echo "::error::Skill evals run only from main (got ${REF}). Dispatch with --ref main."
+            exit 1
+          fi
+
+      - name: Checkout git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Choose skills to evaluate
+        id: plan
+        env:
+          SKILL: ${{ inputs.skill }}
+          CANARY_ONLY: ${{ inputs.canary_only }}
+        run: |
+          args=()
+          if [ "${CANARY_ONLY}" = "true" ]; then
+            args+=(--canary-only)
+          elif [ -n "${SKILL}" ]; then
+            args+=(--skill "${SKILL}")
+          fi
+          /usr/bin/python3 -I .github/scripts/skill_evals.py plan "${args[@]}"
+
+      - name: Stage skills and the harness
+        env:
+          SKILLS: ${{ steps.plan.outputs.skills }}
+        run: |
+          sudo install -d -o "$(id -u)" -g "$(id -g)" "${BUNDLE}"
+          /usr/bin/python3 -I .github/scripts/skill_evals.py bundle --dest "${BUNDLE}" --skills "${SKILLS}"
+
+      - name: Download the eval job's toolchain
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q --download-only bubblewrap socat
+          mkdir -p "${BUNDLE}/debs"
+          find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp {} "${BUNDLE}/debs/" \;
+          ls "${BUNDLE}/debs"
+
+          /usr/bin/python3 -m venv "${BUNDLE}/py"
+          if [ -s "${BUNDLE}/requirements.txt" ]; then
+            "${BUNDLE}/py/bin/pip" install -q --disable-pip-version-check -r "${BUNDLE}/requirements.txt"
+          fi
+
+          npm install -g -q --prefix "${BUNDLE}/claude" "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          "${BUNDLE}/claude/bin/claude" --version
+
+          tar -czf "${RUNNER_TEMP}/skill-evals-bundle.tgz" -C "$(dirname "${BUNDLE}")" "$(basename "${BUNDLE}")"
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: skill-evals-bundle
+          path: ${{ runner.temp }}/skill-evals-bundle.tgz
+          retention-days: 1
+          if-no-files-found: error
+
+  eval:
+    name: Evals
+    needs: prepare
+    runs-on: ubuntu-24.04
+    environment: skill-evals
+    permissions:
+      contents: read
+    timeout-minutes: 350
+    steps:
+      # First, so its block applies from job start. GitHub's artifact
+      # endpoints are allowed implicitly; nothing else is.
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.anthropic.com:443
+
+      - name: Require the subscription token
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN}" ]; then
+            echo "::error title=CLAUDE_CODE_OAUTH_TOKEN is not set::The skill-evals environment has no CLAUDE_CODE_OAUTH_TOKEN secret. Run \`claude setup-token\` to mint a token used only by this repository, then add it under Settings > Environments > skill-evals > Environment secrets as CLAUDE_CODE_OAUTH_TOKEN. Never add it as a repository or organization secret."
+            exit 1
+          fi
+
+      - name: Download the bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: skill-evals-bundle
+          path: ${{ runner.temp }}/bundle
+
+      # Everything that needs root happens here, before the token is used.
+      # The bundle is unpacked root-owned so nothing the agent runs can change
+      # the harness, the staged skills, or the toolchain.
+      - name: Install the sandbox and managed settings
+        run: |
+          set -euo pipefail
+          sudo tar --no-same-owner -xzf "${RUNNER_TEMP}/bundle/skill-evals-bundle.tgz" -C "$(dirname "${BUNDLE}")"
+          sudo chown -R root:root "${BUNDLE}"
+          debs=("${BUNDLE}"/debs/*.deb)
+          if [ -e "${debs[0]}" ]; then
+            sudo dpkg -i "${debs[@]}"
+          fi
+          command -v bwrap socat
+
+          # Ubuntu 24.04 blocks the user namespaces bubblewrap needs; allow
+          # them for bwrap alone rather than system-wide.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+            sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          EOF
+            sudo systemctl reload apparmor
+          fi
+
+          sudo install -D -m 0644 "${BUNDLE}/harness/skill-evals-managed-settings.json" /etc/claude-code/managed-settings.json
+          "${BUNDLE}/claude/bin/claude" --version
+
+      - name: Remove sudo and container access
+        run: |
+          set -euo pipefail
+          for sock in /var/run/docker.sock /run/containerd/containerd.sock; do
+            if [ -e "${sock}" ]; then
+              sudo chmod 000 "${sock}"
+            fi
+          done
+          sudo truncate -s 0 /etc/sudoers.d/runner
+          if sudo -n true 2>/dev/null; then
+            echo "::error::sudo still works after removing it; refusing to use the token"
+            exit 1
+          fi
+          if docker info >/dev/null 2>&1; then
+            echo "::error::docker still works after removing it; refusing to use the token"
+            exit 1
+          fi
+          echo "✓ sudo and container access removed"
+
+      - name: Run evals
+        id: run
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          RUNS: ${{ inputs.runs || '3' }}
+        run: /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" run --bundle "${BUNDLE}" --out "${RUNNER_TEMP}/skill-evals-out" --runs "${RUNS}"
+
+      - name: Leak check
+        id: leak
+        if: ${{ always() && steps.run.outcome != 'skipped' }}
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" leak-check --env CLAUDE_CODE_OAUTH_TOKEN "${RUNNER_TEMP}/skill-evals-out"
+
+      - name: Judge
+        if: ${{ always() && steps.leak.outcome == 'success' }}
+        env:
+          THRESHOLD: ${{ inputs.threshold }}
+        run: |
+          args=()
+          if [ -n "${THRESHOLD}" ]; then
+            args+=(--threshold "${THRESHOLD}")
+          fi
+          /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" judge --bundle "${BUNDLE}" --out "${RUNNER_TEMP}/skill-evals-out" "${args[@]}"
+
+      - name: Upload eval reports
+        if: ${{ always() && steps.leak.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: skill-evals-results
+          path: ${{ runner.temp }}/skill-evals-out
+          retention-days: 7
+          if-no-files-found: ignore
