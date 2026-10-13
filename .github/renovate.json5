@@ -46,5 +46,23 @@
       automerge: true,
       automergeType: 'branch',
     },
+    {
+      // Last so it wins over the automerge rules above and the
+      // :automergeDigest/:automergeBranch presets. Anything under .github/
+      // decides what CI runs, including the skill-evals job that holds the
+      // Claude token, so a human reviews every such update before it lands.
+      description: 'Never auto-merge GitHub Actions or anything under .github/',
+      matchFileNames: [
+        '.github/**',
+      ],
+      automerge: false,
+    },
+    {
+      description: 'Never auto-merge GitHub Actions updates, wherever the action is used',
+      matchManagers: [
+        'github-actions',
+      ],
+      automerge: false,
+    },
   ],
 }

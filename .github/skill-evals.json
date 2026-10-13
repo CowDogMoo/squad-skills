@@ -1,0 +1,55 @@
+{
+  "model": "claude-sonnet-5-5",
+  "judge_model": "claude-sonnet-5-5",
+  "threshold": 0.5,
+  "max_cost_usd": 10,
+  "ci_runnable": {
+    "comment-scrub-playbook": { "allow_tools": ["Bash", "Edit", "Write"] },
+    "detect-llm-tells": {},
+    "doc-comments-discovery-and-fix-loop": {
+      "allow_tools": ["Bash", "Edit", "Write"]
+    },
+    "enqueue-coverage-targets": {
+      "allow_tools": ["Bash", "Edit", "Write"],
+      "python_packages": ["pytest", "coverage", "pytest-cov"]
+    },
+    "quorum": { "allow_tools": ["Bash", "Write"] },
+    "score-coverage-and-report-gaps": {
+      "allow_tools": ["Bash", "Edit", "Write"],
+      "python_packages": ["pytest", "coverage", "pytest-cov"]
+    },
+    "test-writer-honesty": {
+      "allow_tools": ["Bash", "Edit", "Write"],
+      "python_packages": ["pytest", "coverage", "pytest-cov"]
+    },
+    "guitar-pro": {
+      "allow_tools": ["Bash", "Write"],
+      "python_requirements": "scripts/requirements.txt"
+    },
+    "tab-vs-recording": {
+      "allow_tools": ["Bash", "Write"],
+      "python_packages": [
+        "numpy",
+        "scipy",
+        "soundfile",
+        "librosa",
+        "mir_eval",
+        "pretty_midi"
+      ]
+    },
+    "transcribe-guitar-riff": {
+      "allow_tools": ["Bash", "Write"],
+      "python_requirements": "scripts/requirements.txt",
+      "timeout_seconds": 900
+    },
+    "detect-dinner-freezer-protein": {}
+  },
+  "ci_skipped": {
+    "extract-recipe-grocery-list": "its evals fetch live recipe pages, and the eval job blocks every host but api.anthropic.com",
+    "ableton-live-computer-use": "drives a running Ableton Live through screen control",
+    "quad-cortex-capture-measurement": "needs a Quad Cortex, an audio interface, and a DAW",
+    "quad-cortex-plugin-capture": "needs a Quad Cortex, Cortex Control, and an audio interface",
+    "quad-cortex-preset-editing": "drives the Cortex Control desktop app through screen control",
+    "thall-amp-neural-capture": "needs a Quad Cortex and the amp-sim plugin it captures"
+  }
+}

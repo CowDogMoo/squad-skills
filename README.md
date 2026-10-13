@@ -320,7 +320,19 @@ valid answer phrased differently still passes. Fixtures the prompts
 refer to live in `evals/files/` and are relative to the skill root.
 Skills that depend on live hardware or the network (Quad Cortex,
 recipe fetching) keep their evals but expect the runner to have that
-access; the CI check only validates the file's structure.
+access; pull request CI only validates the file's structure.
+
+### Evals in CI
+
+The `Skill Evals` workflow runs the evals of the skills allowlisted in
+`.github/skill-evals.json` with `claude plugin eval`, on `main` only:
+it starts by hand (`gh workflow run skill-evals.yaml --ref main`, with
+`-f skill=<name>` for one skill), never on pull request content, and
+each run waits for the owner to approve the `skill-evals` environment,
+which holds the Claude token. Skills that need live hardware, a desktop
+app, or the network are listed under `ci_skipped` with the reason. The
+header of `.github/workflows/skill-evals.yaml` describes how the job
+keeps the token away from skill content.
 
 ## Contributing
 
