@@ -1,0 +1,18 @@
+---
+# Runs without secrets or write access, including for fork pull requests.
+# Its completion starts meta-labeler.yaml, which applies the labels.
+name: "Labeler Trigger"
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "synchronize", "reopened"]
+
+permissions: {}
+
+jobs:
+  trigger:
+    name: Labeler Trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hand off to the Labeler workflow
+        run: echo "Labels are applied by the Labeler workflow once this run completes."
