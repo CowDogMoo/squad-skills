@@ -536,7 +536,12 @@ def child_env(bundle: Path) -> dict[str, str]:
         [str(bundle / "py" / "bin"), str(bundle / "claude" / "bin"), os.environ.get("PATH", "")]
     )
     env["TMPDIR"] = "/tmp"
-    env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"] = "1"
+    # No CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: on Claude Code 2.1.296 it breaks
+    # plugin eval's Bash sandbox, and every command fails with "bwrap: Can't
+    # create file at .../.eval-artifacts: Read-only file system". The managed
+    # settings' credentials deny keeps the token out of Bash instead, and the
+    # canary proves it on every run. Staging refuses hooks and MCP servers,
+    # the scrub's other targets. Revisit when a newer Claude Code fixes it.
     env["DISABLE_AUTOUPDATER"] = "1"
     env["DISABLE_TELEMETRY"] = "1"
     env["DISABLE_ERROR_REPORTING"] = "1"
@@ -575,8 +580,9 @@ def cmd_run(args) -> int:
     bundle, out = Path(args.bundle), Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     names = json.loads((bundle / "harness" / "skills.json").read_text(encoding="utf-8"))
-    # The canary runs first and gates the rest: if the sandbox, the scrub, or
-    # the network block is not holding, no skill content runs with the token.
+    # The canary runs first and gates the rest: if the sandbox, the credentials
+    # deny, or the network block is not holding, no skill content runs with the
+    # token.
     run_one(bundle, out, CANARY, 1)
     if not canary_passed(out):
         print("::error::The sandbox self-test failed, so no skill evals ran. The judge step shows which probe failed.")
