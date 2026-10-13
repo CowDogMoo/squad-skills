@@ -1,28 +1,44 @@
 ---
+# Labels pull requests, including ones from forks, without pull_request_target.
+# workflow_run runs in the base repository with main's labeler config and never
+# checks out or runs pull request code; the changed files come from the API.
 name: "Labeler"
 on:
-  pull_request_target:
-    branches: ["main"]
-    types: ["opened", "synchronize"]
+  workflow_run:
+    workflows: ["Labeler Trigger"]
+    types: ["completed"]
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   labeler:
     name: Labeler
+    if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - name: Generate Token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        id: app-token
-        with:
-          app-id: "${{ secrets.BOT_APP_ID }}"
-          private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
+      - name: Find pull request
+        id: pr
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          HEAD_OWNER: "${{ github.event.workflow_run.head_repository.owner.login }}"
+          HEAD_BRANCH: "${{ github.event.workflow_run.head_branch }}"
+          HEAD_SHA: "${{ github.event.workflow_run.head_sha }}"
+        run: |
+          number="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f state=open -f head="${HEAD_OWNER}:${HEAD_BRANCH}" |
+            jq -r --arg sha "${HEAD_SHA}" \
+              'map(select(.head.sha == $sha)) | first | .number // empty')"
+          if [ -z "${number}" ]; then
+            echo "No open pull request has head ${HEAD_SHA}; nothing to label."
+          fi
+          echo "number=${number}" >> "${GITHUB_OUTPUT}"
 
       - name: Labeler
+        if: steps.pr.outputs.number != ''
         uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
         with:
           configuration-path: .github/labeler.yaml
-          repo-token: "${{ steps.app-token.outputs.token }}"
+          pr-number: "${{ steps.pr.outputs.number }}"
