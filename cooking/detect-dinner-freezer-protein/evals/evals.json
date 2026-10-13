@@ -1,0 +1,35 @@
+{
+  "skill_name": "detect-dinner-freezer-protein",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "What protein do I need to take out of the freezer this morning for tonight's bang bang salmon?",
+      "expected_output": "The normalized keyword 'salmon' identified from the dish name.",
+      "files": [],
+      "expectations": [
+        "The returned protein keyword is 'salmon'",
+        "The result is lowercase with no surrounding quotes or whitespace"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Do I need to defrost anything for tofu stir fry tonight?",
+      "expected_output": "A null protein result with a reason indicating the dish is vegetarian and needs no freezer thawing.",
+      "files": [],
+      "expectations": [
+        "The returned protein is null (no protein to thaw)",
+        "A reason is provided identifying the dish as vegetarian / meatless"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What comes out of the freezer for harissa meatball dinner tonight?",
+      "expected_output": "The generic keyword 'meatballs' resolved from the dish name without needing a recipe URL.",
+      "files": [],
+      "expectations": [
+        "The returned protein keyword is 'meatballs' (plural form)",
+        "The output's reported source is name-derived (generic), not a URL fetch"
+      ]
+    }
+  ]
+}
