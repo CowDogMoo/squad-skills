@@ -31,26 +31,10 @@
   },
   packageRules: [
     {
-      description: 'Auto merge GitHub Actions updates',
-      matchManagers: [
-        'github-actions',
-      ],
-      matchDatasources: [
-        'github-tags',
-      ],
-      matchUpdateTypes: [
-        'major',
-        'minor',
-        'patch',
-      ],
-      automerge: true,
-      automergeType: 'branch',
-    },
-    {
-      // Last so it wins over the automerge rules above and the
-      // :automergeDigest/:automergeBranch presets. Anything under .github/
-      // decides what CI runs, including the skill-evals job that holds the
-      // Claude token, so a human reviews every such update before it lands.
+      // Wins over the :automergeDigest/:automergeBranch presets. Anything
+      // under .github/ decides what CI runs, including the skill-evals job
+      // that holds the Claude token, so a human reviews every such update
+      // before it lands.
       description: 'Never auto-merge GitHub Actions or anything under .github/',
       matchFileNames: [
         '.github/**',
@@ -63,6 +47,53 @@
         'github-actions',
       ],
       automerge: false,
+    },
+    {
+      // The one exception to the two rules above, so it must stay after them.
+      // Actions published by GitHub itself (actions/checkout, actions/setup-*,
+      // ...) land on their own for patch, minor, and digest updates once
+      // required CI passes. Third-party actions, runner images, language
+      // versions such as setup-python's python-version, and majors still wait
+      // for the owner. matchDatasources keeps python-version out: its package
+      // is actions/python-versions but it comes from github-releases.
+      // automergeType 'pr' because CI only runs on pull requests, and Renovate
+      // merges itself rather than through GitHub auto-merge so a
+      // pull-request-only ruleset bypass for the Renovate app can apply.
+      description: 'Auto-merge patch, minor, and digest updates of GitHub-owned actions',
+      matchManagers: [
+        'github-actions',
+      ],
+      matchDepTypes: [
+        'action',
+      ],
+      matchDatasources: [
+        'github-tags',
+      ],
+      matchPackageNames: [
+        'actions/**',
+      ],
+      matchUpdateTypes: [
+        'patch',
+        'minor',
+        'digest',
+      ],
+      automerge: true,
+      automergeType: 'pr',
+      platformAutomerge: false,
+    },
+    {
+      // skill-evals pins its runner because the sandbox it builds (bubblewrap
+      // and socat .debs, a venv on the system python3) is tied to that image,
+      // and the pin can only be proven by an eval run on main. Hold runner
+      // image majors until the owner approves them on the dashboard.
+      description: 'Hold runner OS major updates for dashboard approval',
+      matchDatasources: [
+        'github-runners',
+      ],
+      matchUpdateTypes: [
+        'major',
+      ],
+      dependencyDashboardApproval: true,
     },
   ],
 }
