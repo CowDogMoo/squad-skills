@@ -1,37 +1,11 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
-    'config:recommended',
-    ':disableRateLimiting',
-    ':dependencyDashboard',
-    ':semanticCommits',
-    ':enablePreCommit',
-    ':automergeDigest',
-    ':automergeBranch',
-    'helpers:pinGitHubActionDigests',
+    'github>CowDogMoo/renovate-config',
   ],
-  dependencyDashboardLabels: [
-    'renovate-dashboard',
-  ],
-  dependencyDashboardTitle: 'Renovate Dashboard',
-  suppressNotifications: [
-    'prIgnoreNotification',
-  ],
-  rebaseWhen: 'conflicted',
-  commitBodyTable: true,
-  labels: [
-    'renovate',
-  ],
-  platformAutomerge: true,
-  'pre-commit': {
-    enabled: true,
-  },
-  'github-actions': {
-    enabled: true,
-  },
   packageRules: [
     {
-      // Wins over the :automergeDigest/:automergeBranch presets. Anything
+      // Wins over the shared preset's minor/patch/digest automerge. Anything
       // under .github/ decides what CI runs, including the skill-evals job
       // that holds the Claude token, so a human reviews every such update
       // before it lands.
