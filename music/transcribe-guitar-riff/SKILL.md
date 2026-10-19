@@ -35,7 +35,10 @@ directory (`${CLAUDE_SKILL_DIR}` or `$SQUAD_SKILL_DIR`).
 ## Step 1 - isolate the source without rendering
 
 1. Find the track and its arrangement clips with `get_arrangement_info`.
-   Note the bars the clip occupies.
+   Note the bars the clip occupies. If the user's notes give a time
+   ("the lick at 1:11"), convert it to an arrangement beat first
+   (seconds x BPM / 60) and look at every clip that plays there - on one job
+   1:11 landed exactly on a short clip that had been written off as FX.
 2. Map the clip to sample seconds from the saved set:
 
    ```bash
@@ -47,6 +50,23 @@ directory (`${CLAUDE_SKILL_DIR}` or `$SQUAD_SKILL_DIR`).
    `ffmpeg` cut line. Warnings flag pitch-shifted clips and unusual warping.
    If the open session has unsaved edits, compare its bars with the file's;
    the region is still right unless the clip itself moved.
+
+   **Read the set before you read the audio.** The arrangement carries
+   musical facts the audio alone will not give you:
+
+   - **Disabled clips and muted tracks are part of the part.** A loop with its
+     second half switched off in one bar meant the riff stops there; transcribing
+     the raw take would have played straight through it.
+   - **Frozen tracks still hold their raw clips.** In the `.als` the
+     `MainSequencer` events are the source clips and the `FreezeSequencer`
+     events are the render. `als_clip_region.py` lists both; read the raw
+     (often `Samples/Processed/Consolidate/`) clips, not the freeze render.
+   - **Warp markers that sit on a sixteenth grid usually mark note onsets** -
+     the player put them there. Print them per clip; they are a free onset
+     list to check yours against.
+   - **Never dismiss a clip as noise or FX without a pitch pass.** On one job a
+     two-beat clip on a bounced group track was called a "noise sweep" and
+     dropped; it was the lead lick the user asked about.
 3. Cut the region from the raw sample (bit-exact; do not bounce through the
    track's EQ/compressor/limiter):
 
@@ -94,6 +114,30 @@ it was configured to find, stop and re-run this step.
 Cross-check it with a second, independent opinion before proceeding - the
 cheapest is Basic Pitch's note distribution (see below); if its modal MIDI
 numbers sit an octave from yours, yours is wrong.
+
+**Bounced and heavily processed sources resist this step.** On a bounced lead
+group (amp, compression, effects baked in) `octave_check.py` returned LOW
+AGREEMENT, and pYIN's own floor decided the answer: `fmin` 150 Hz read the lick
+an octave low, `fmin` 300 Hz read it right. Neither run is evidence for the
+octave it was allowed to see. Basic Pitch settled it (D#5/B4/G4, matching the
+player's position). Install it once, in its own venv (about two minutes; it
+pulls TensorFlow):
+
+```bash
+python3.11 -m venv bpvenv && . bpvenv/bin/activate
+pip install "basic-pitch[onnx]==0.4.0"
+```
+
+```python
+from basic_pitch.inference import predict
+from basic_pitch import ICASSP_2022_MODEL_PATH
+_, midi, notes = predict("clip.wav", ICASSP_2022_MODEL_PATH,
+                         minimum_note_length=20, minimum_frequency=150)  # leads
+# notes: (start_s, end_s, midi, amplitude, bends) - read the register off these
+```
+
+It reports fewer notes than are played (short legato notes drop out), so use
+it for the octave and the strongest notes, not as the transcription.
 
 **Calibrate the recording's pitch before you call any note by name**, with
 `scripts/fundamental.py`:
@@ -221,6 +265,12 @@ Open the PNG (Read it) when the table is ambiguous; a sustained pedal and a
 moving upper line are obvious by eye. `references/analysis-notes.md`
 explains the method and the failure modes; read it if a result looks wrong.
 
+Do not count attacks off a waveform plot of a low part: below ~60 Hz every
+cycle is a spike, so a single chug looks like a burst of attacks. Take onsets
+from a high-passed (> 1.5 kHz) RMS or onset envelope, and check the level at a
+clip's first frames before calling a first note - pYIN reported a note over
+half a beat of silence at the start of a clip.
+
 Optional second opinion: basic-pitch (polyphonic MIDI in one command; needs
 its own Python 3.11 venv, see the reference). Use it to corroborate, not to
 author.
@@ -324,10 +374,42 @@ octave out. `compare_tab.py` would have said so in one command. Basic Pitch's
 note histogram is also the cheapest octave cross-check there is: if its modal
 MIDI numbers are an octave from your tab's, believe Basic Pitch.
 
+**Then look at it, and score it against shifted copies of itself.** Two
+checks did more than any other on real jobs, and both are now scripts:
+
+```bash
+python scripts/overlay_tab.py "OUT/clip (mono).wav" --start S --bpm 120 --bar 36 --bars 1 \
+  --spec OUT/old.spec --spec OUT/new.spec --compare --label before --label after \
+  --tuning B0,E1,A1,E2,A2,D3,G3,B3,E4 --fmin C4 --octaves 2 --png OUT/overlay.png
+python scripts/shift_score.py "OUT/clip (mono).wav" --start S --bpm 120 --bar 36 --bars 1 \
+  --spec OUT/new.spec --require-beats OUT/old.spec --fmin 300 --band 280 5000
+```
+
+- `overlay_tab.py` draws every written note as a line on a constant-Q
+  spectrogram of the clip, on a 32nd grid. A right note sits on a bright trace;
+  a wrong one floats in the dark. It is a required step and a deliverable: it is
+  the one piece of evidence the user can check without trusting a metric.
+- `shift_score.py` tracks pitch frame by frame (pYIN, frame 1024, hop 64 - hop 32
+  left a distorted lead almost all unvoiced) and counts the frames where the
+  tab's sounding pitch matches, next to the same notes shifted -1/+1 semitone
+  and -1/+1 octave. A real match clears every control by a wide margin (77-88%
+  against 1-21% on two jobs). Score the whole timeline frame by frame; scoring
+  each note on the middle of its own window misjudged a 32nd-note lick and
+  ranked the wrong version higher. `--require-beats` exits non-zero unless the
+  new tab beats the known-bad one - the gate the guardrail below asks for.
+
 If the user has a reference tab (Songsterr, a published transcription, an
-earlier version they have actually played), get it and compare bar by bar
-against BOTH readings with the audio as arbiter. A player who has played the
-song is better evidence than any metric here.
+earlier version they have actually played, a tab in their own notes), get it
+and compare bar by bar against BOTH readings with the audio as arbiter.
+
+**A tab the player wrote is a hypothesis about the recording, not a measurement
+of it.** It is the best evidence there is for which version they *mean* to play,
+and no evidence at all for which version is *on the recording*. On one job the
+player's own doc had a lick as `19 20h 17 18h 15 16h 13 14h 12`; all three
+recorded takes played `19 20h 19p 18 ~ 16 13 12` (88% frame agreement against
+61% for the doc version). When you are asked what was recorded, the recording
+decides: write what is there, and report the difference note by note so the
+player can say which one they want in the tab.
 
 ## Step 8 - report
 
@@ -338,7 +420,10 @@ tab and its `.mid`, and a README with:
 - where the audio came from (set, track, clip bars, sample seconds);
 - a bar-by-beat table of the reading and the intervals it forms;
 - the fretting in the user's tuning, with the alternative position;
-- the octave evidence (cents offsets, difference tones, upper voice);
+- the octave evidence (cents offsets, difference tones, upper voice, Basic
+  Pitch's register);
+- the overlay PNG and the `shift_score.py` table, old tab vs new;
+- every place the transcription departs from a tab the player wrote;
 - the sentence **"Not yet verified by ear against the audio."** until the
   user has done that, and what to A/B in the DAW.
 
@@ -349,6 +434,10 @@ fix the spec and regenerate MIDI, tab, and README together.
 
 - Never present a pitch the table does not support; if the summary says
   `?`, say the beat is unresolved and show the candidates.
+- Never drop a clip from a section as noise, FX or a riser without running a
+  pitch pass on it first.
+- Never copy notes from the player's written tab into a transcription the
+  audio does not support; show the difference instead.
 - Never bounce the track through its effect chain and call that "isolated".
 - Never write the DAW's set to disk on the user's behalf; leave saving to
   them and say so.

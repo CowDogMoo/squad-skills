@@ -206,6 +206,42 @@ not the fret, so adding 3 to the fret of a `<5>` harmonic names a node that does
 not exist rather than a note a minor third higher. Skip `note.harmonicType` in any
 transposition.
 
+#### No Node? Read the GPIF in Python
+
+When alphaTab is not installed (a shell on the user's own machine, a fresh
+sandbox), `scripts/gpif.py` reads a `.gp` with the standard library only:
+
+```bash
+python scripts/gpif.py song.gp                       # tracks, tunings (low -> high), bar count
+python scripts/gpif.py song.gp --track 1 --bars 33-36  # beats: position, duration, s/f/pitch, flags
+python scripts/gpif.py song.gp --track 0 --bars 80 --json
+```
+
+It walks the id-referenced tables (MasterBar -> Bar per track -> Voices ->
+Beats -> Rhythm/Notes), applies dots and tuplets to durations, and prints string
+numbers the way Guitar Pro shows them (1 = highest) - GPIF stores String 0 as
+the LOWEST string, and the script has already converted. It is read-only.
+
+#### Editing someone's `.gp` in place
+
+Before any edit, copy the file to a `previous/` folder beside it. Change only
+the notes in question, then run `gp7_tool.mjs diff previous/song.gp song.gp`
+(or compare `gpif.py --json` dumps bar by bar) and confirm the only bars that
+differ are the ones you meant to touch - fingering edits should leave every
+bar's pitches and rhythm identical. Say in the report which bars changed.
+
+#### Guitar Pro 8 on the user's machine
+
+- **Check for unsaved edits before you close or reopen a file.** The user may
+  have typed a fix into the open tab; File > Close raises a save prompt, and
+  answering it for them either loses their edit or overwrites your file. Ask,
+  or read what they changed first.
+- **The Open dialog belongs to another process.** Background clicks cannot
+  reach it; it needs full-screen control, then Cmd+Shift+G (Go to Folder) and
+  the full path. Open Recent is ambiguous when two copies share a name.
+- **Reopening resets playback speed to 100%.** If the user had it at 50%, tell
+  them to set it again.
+
 ## Command line
 
 Useful for one-liners and for checking your work without writing a script:
