@@ -1,12 +1,25 @@
 #!/usr/bin/env node
 // run-seats.mjs — invoke one voter per rendered prompt and collect ballots.
 //
-// Usage: node run-seats.mjs <prompt-dir> <ballots-out-dir> [--dry-run]
+// Usage: node run-seats.mjs <prompt-dir> <ballots-out-dir> [--dry-run] [--from-raw] [--missing-only] [--seat <seat_id> ...]
 //   <prompt-dir>/<seat_id>.prompt.md   rendered prompts (render-prompts.mjs)
 //   <prompt-dir>/_run.json             {fixture_dir} — the staged fixture the
 //                                      voter is granted via --add-dir/cwd
 // Writes ballots to <ballots-out-dir>/<seat_id>.json and every raw envelope
 // (always, even partial/timeout output) to <ballots-out-dir>/../raw/<seat_id>.json.
+//
+// Subagent mode (--from-raw): when seats are spawned in parallel via host
+// subagents (e.g. Agent / Task tools) rather than a shell CLI, save each
+// subagent's verbatim final response to
+// <ballots-out-dir>/../raw/<seat_id>.txt (or .json) and run with --from-raw.
+// This validates each raw response against the ballot schema and writes only
+// schema-valid ballots to <ballots-out-dir>/<seat_id>.json.
+//
+// Selective re-ask flags:
+//   --seat <seat_id>   run/extract only the named seat(s) (repeatable)
+//   --missing-only     skip seats that already have a schema-valid ballot in
+//                      <ballots-out-dir>/<seat_id>.json (enforces "never re-run
+//                      a validly parsed ballot" on multi-seat panels)
 //
 // Voter invocation is driver-based, so the gate is not tied to one vendor CLI.
 // Select with QUORUM_SEAT_CLI=claude|custom; when unset, the QUORUM_SEAT_*
@@ -383,6 +396,37 @@ export function extractBallot(envelopeText, expectedSeatId, driver = SEAT_DRIVER
   return { ok: true, ballot };
 }
 
+// Parse a raw subagent response (direct bare/fenced ballot JSON or a CLI
+// JSON envelope) and validate it against the ballot schema.
+export function extractRawBallot(rawText, expectedSeatId, driver = SEAT_DRIVERS.claude) {
+  const text = String(rawText ?? '').trim();
+  if (text === '') {
+    return { ok: false, reason: 'raw output is empty' };
+  }
+  const unfenced = stripFence(text);
+  const direct = asJsonObject(unfenced);
+  if (direct !== null) {
+    const hasEnvelopeResult = typeof driver?.resultFrom === 'function' && typeof driver.resultFrom(direct) === 'string';
+    const hasEnvelopeFailure = typeof driver?.failureFrom === 'function' && driver.failureFrom(direct) !== null;
+    if (!hasEnvelopeResult && !hasEnvelopeFailure) {
+      const { valid, errors } = validateBallot(direct, expectedSeatId);
+      if (!valid) {
+        return { ok: false, reason: `ballot schema-invalid: ${errors.join('; ')}` };
+      }
+      return { ok: true, ballot: direct };
+    }
+  }
+  return extractBallot(text, expectedSeatId, driver);
+}
+
+export function hasValidBallot(ballotsDir, seatId) {
+  const ballotPath = join(ballotsDir, `${seatId}.json`);
+  if (!existsSync(ballotPath)) return false;
+  const parsed = asJsonObject(readFileSync(ballotPath, 'utf8'));
+  if (parsed === null) return false;
+  return validateBallot(parsed, seatId).valid;
+}
+
 function invokeSeat(promptText, fixtureDir, driver, bin, model) {
   return new Promise((resolvePromise) => {
     const env = { ...process.env };
@@ -412,7 +456,29 @@ function invokeSeat(promptText, fixtureDir, driver, bin, model) {
   });
 }
 
-async function runSeat({ seatId, promptPath, promptDir, fixtureDir, ballotsDir, rawDir, dryRun, driver, bin, model }) {
+async function runSeat({ seatId, promptPath, promptDir, fixtureDir, ballotsDir, rawDir, dryRun, fromRaw, driver, bin, model }) {
+  if (fromRaw) {
+    const rawTxt = join(rawDir, `${seatId}.txt`);
+    const rawJson = join(rawDir, `${seatId}.json`);
+    let rawContent = null;
+    let sourceLabel = '';
+    if (existsSync(rawTxt)) {
+      rawContent = readFileSync(rawTxt, 'utf8');
+      sourceLabel = 'from-raw (.txt)';
+    } else if (existsSync(rawJson)) {
+      rawContent = readFileSync(rawJson, 'utf8');
+      sourceLabel = 'from-raw (.json)';
+    } else {
+      return { seatId, outcome: 'absent: no raw output in raw/ [from-raw]' };
+    }
+    const extracted = extractRawBallot(rawContent, seatId, driver);
+    if (!extracted.ok) {
+      return { seatId, outcome: `absent: ${extracted.reason} [${sourceLabel}]` };
+    }
+    writeFileSync(join(ballotsDir, `${seatId}.json`), canonicalJson(extracted.ballot));
+    return { seatId, outcome: `ballot: ${extracted.ballot.verdict} [${sourceLabel}]` };
+  }
+
   let envelopeText = null;
   let note = '';
   if (dryRun) {
@@ -462,12 +528,51 @@ async function runPool(tasks, width) {
   return results;
 }
 
+function parseCliArgs(argv) {
+  const positional = [];
+  const requestedSeats = [];
+  let dryRun = false;
+  let fromRaw = false;
+  let missingOnly = false;
+  const args = argv.slice(2);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--dry-run') {
+      dryRun = true;
+    } else if (arg === '--from-raw') {
+      fromRaw = true;
+    } else if (arg === '--missing-only') {
+      missingOnly = true;
+    } else if (arg === '--seat') {
+      const val = args[i + 1];
+      if (!val || val.startsWith('--')) {
+        throw new Error('--seat requires a <seat_id> argument');
+      }
+      requestedSeats.push(val);
+      i += 1;
+    } else if (arg.startsWith('--seat=')) {
+      const val = arg.slice('--seat='.length);
+      if (!val) throw new Error('--seat requires a non-empty <seat_id>');
+      requestedSeats.push(val);
+    } else {
+      positional.push(arg);
+    }
+  }
+  return { positional, requestedSeats, dryRun, fromRaw, missingOnly };
+}
+
 async function main(argv) {
-  const positional = argv.slice(2).filter((a) => a !== '--dry-run');
-  const dryRun = argv.includes('--dry-run');
+  let parsed;
+  try {
+    parsed = parseCliArgs(argv);
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+  const { positional, requestedSeats, dryRun, fromRaw, missingOnly } = parsed;
   const [promptDirArg, ballotsOutArg] = positional;
   if (!promptDirArg || !ballotsOutArg) {
-    console.error('usage: node run-seats.mjs <prompt-dir> <ballots-out-dir> [--dry-run]');
+    console.error('usage: node run-seats.mjs <prompt-dir> <ballots-out-dir> [--dry-run] [--from-raw] [--missing-only] [--seat <seat_id> ...]');
     process.exit(1);
   }
   const promptDir = resolve(promptDirArg);
@@ -482,18 +587,40 @@ async function main(argv) {
   mkdirSync(ballotsDir, { recursive: true });
   mkdirSync(rawDir, { recursive: true });
 
-  const promptFiles = readdirSync(promptDir)
+  const allPromptFiles = readdirSync(promptDir)
     .filter((name) => name.endsWith(PROMPT_SUFFIX))
     .sort();
-  if (promptFiles.length === 0) {
+  if (allPromptFiles.length === 0) {
     console.error(`no ${PROMPT_SUFFIX} files in ${promptDir}`);
     process.exit(1);
   }
-  // Dry-run never spawns a CLI, so it must not require one to be installed.
+
+  let selectedPromptFiles = allPromptFiles;
+  if (requestedSeats.length > 0) {
+    const available = new Set(allPromptFiles.map((n) => basename(n, PROMPT_SUFFIX)));
+    for (const seatId of requestedSeats) {
+      if (!available.has(seatId)) {
+        console.error(`unknown seat "${seatId}": no ${seatId}${PROMPT_SUFFIX} in ${promptDir}`);
+        process.exit(1);
+      }
+    }
+    const filterSet = new Set(requestedSeats);
+    selectedPromptFiles = allPromptFiles.filter((n) => filterSet.has(basename(n, PROMPT_SUFFIX)));
+  }
+
+  if (missingOnly) {
+    selectedPromptFiles = selectedPromptFiles.filter((n) => !hasValidBallot(ballotsDir, basename(n, PROMPT_SUFFIX)));
+    if (selectedPromptFiles.length === 0) {
+      console.log('all selected seats already have valid ballots; nothing to run');
+      return;
+    }
+  }
+
+  // Dry-run and from-raw never spawn a CLI, so they must not require one to be installed.
   let driver = SEAT_DRIVERS.claude;
   let bin = driver.defaultBin;
   let model = driver.defaultModel;
-  if (!dryRun) {
+  if (!dryRun && !fromRaw) {
     let source;
     try {
       ({ driver, bin, model, source } = resolveDriver(process.env, { stateDir: stateDirFrom(process.env) }));
@@ -503,10 +630,15 @@ async function main(argv) {
       process.exit(1);
     }
     console.log(`seat CLI: ${driver.label} (${bin})${model ? ` model=${model}` : ''} [from ${source}]`);
+  } else if (fromRaw) {
+    if ((process.env.QUORUM_SEAT_CLI || '').trim() === 'custom' && (process.env.QUORUM_SEAT_ARGS || '').trim()) {
+      driver = customDriverFrom(process.env);
+    }
+    console.log(`from-raw: extracting ballots from ${rawDir}`);
   } else {
     console.log(`dry-run: skipping CLI; would invoke per seat: ${bin} ${driver.buildArgs('<prompt>', fixtureDir, model).join(' ')}`);
   }
-  const tasks = promptFiles.map((name) => () =>
+  const tasks = selectedPromptFiles.map((name) => () =>
     runSeat({
       seatId: basename(name, PROMPT_SUFFIX),
       promptPath: join(promptDir, name),
@@ -515,6 +647,7 @@ async function main(argv) {
       ballotsDir,
       rawDir,
       dryRun,
+      fromRaw,
       driver,
       bin,
       model,

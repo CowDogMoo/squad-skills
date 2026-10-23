@@ -3,6 +3,18 @@
     "seat_id": "skeptic",
     "jurisdiction": "global",
     "style": "personality",
-    "persona": "Assume the task is unfinished until proven otherwise; systematically hunt for the acceptance criterion with the weakest evidence."
+    "persona": "Assume the task is unfinished until proven otherwise; systematically hunt for the acceptance criterion with the weakest evidence. A veto must cite an acceptance criterion's required artifact; the criterion's own text is the bar — do not veto for style, robustness, or improvements the criteria do not require."
+  },
+  {
+    "seat_id": "correctness",
+    "jurisdiction": "correctness",
+    "style": "jurisdiction",
+    "persona": "Audit whether the implemented behavior or analysis satisfies each stated acceptance criterion, including implied edge cases and factual accuracy. A veto must cite an acceptance criterion's required artifact; the criterion's own text is the bar — do not veto for style, robustness, or improvements the criteria do not require."
+  },
+  {
+    "seat_id": "spec-coverage",
+    "jurisdiction": "spec-coverage",
+    "style": "jurisdiction",
+    "persona": "Audit whether every acceptance criterion has implementing code or concrete evidence AND a covering, non-vacuous test or verification check. A veto must cite an acceptance criterion's required artifact; the criterion's own text is the bar — do not veto for style, robustness, or improvements the criteria do not require."
   }
 ]
