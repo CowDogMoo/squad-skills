@@ -15,8 +15,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, judgeRun, ProtocolError, validateBallot } from './judge.mjs';
-import { checkPromptIndependence, COMPLETION_QUESTION, renderPrompt } from './render-prompts.mjs';
-import { customDriverFrom, extractBallot, extractEnvelopeText, resolveDriver, SEAT_DRIVERS, stripFence, verifyDriverBin } from './run-seats.mjs';
+import { checkPromptIndependence, COMPLETION_QUESTION, renderPrompt, validateSeats } from './render-prompts.mjs';
+import { customDriverFrom, extractBallot, extractEnvelopeText, extractRawBallot, hasValidBallot, resolveDriver, SEAT_DRIVERS, stripFence, verifyDriverBin } from './run-seats.mjs';
 
 const HARNESS = dirname(fileURLToPath(import.meta.url));
 const TESTDATA = join(HARNESS, 'testdata');
@@ -733,6 +733,87 @@ test('CLI entry guard survives a symlinked install path', () => {
   assert.equal(res.status, 0, res.stderr);
   assert.ok(res.stdout.includes('verdict: NOT_COMPLETE'), `no verdict on stdout: ${JSON.stringify(res.stdout)}`);
   assert.ok(existsSync(join(dir, 'verdict.json')), 'judge invoked via symlink wrote no verdict.json');
+});
+
+test('all 3-seat presets validate, enforce veto-scope rule, and render independent prompts', () => {
+  const presetsDir = join(HARNESS, 'presets');
+  const fixtureDir = join(TESTDATA, 'fixture-mini');
+  const presetNames = [
+    'completion-default.seats.json',
+    'tradeoff-evaluation.seats.json',
+    'finding-validation.seats.json',
+  ];
+  for (const name of presetNames) {
+    const presetPath = join(presetsDir, name);
+    const seats = JSON.parse(readFileSync(presetPath, 'utf8'));
+    validateSeats(seats);
+    assert.equal(seats.length, 3, `${name} must define a 3-seat subagent panel`);
+    for (const seat of seats) {
+      assert.ok(
+        seat.persona.includes("A veto must cite an acceptance criterion's required artifact"),
+        `${name} seat ${seat.seat_id} missing veto-scope rule`,
+      );
+    }
+    const outDir = join(scratch, `preset-${name}`);
+    const res = runNode([RENDER, fixtureDir, presetPath, outDir]);
+    assert.equal(res.status, 0, `${name} render failed: ${res.stderr}`);
+    for (const seat of seats) {
+      const prompt = readFileSync(join(outDir, `${seat.seat_id}.prompt.md`), 'utf8');
+      assert.deepEqual(checkPromptIndependence(prompt, seat.seat_id, seats), [], `${name} prompt independence failed for ${seat.seat_id}`);
+    }
+  }
+});
+
+test('extractRawBallot accepts bare/fenced subagent JSON and CLI envelopes, rejects prose', () => {
+  const ballot = { seat_id: 'skeptic', jurisdiction: 'global', verdict: 'complete', unmet: [], evidence: ['ok'], confidence: 0.9 };
+  assert.equal(extractRawBallot(JSON.stringify(ballot), 'skeptic').ok, true);
+  assert.equal(extractRawBallot('```json\n' + JSON.stringify(ballot) + '\n```', 'skeptic').ok, true);
+  assert.equal(extractRawBallot(JSON.stringify({ result: JSON.stringify(ballot) }), 'skeptic').ok, true);
+  assert.equal(extractRawBallot(JSON.stringify(ballot), 'correctness').ok, false);
+  assert.equal(extractRawBallot('I checked everything and it is complete.', 'skeptic').ok, false);
+  assert.equal(extractRawBallot('', 'skeptic').ok, false);
+});
+
+test('run-seats --from-raw, --seat, and --missing-only support parallel subagents and selective re-ask', () => {
+  const promptDir = join(scratch, 'subagent-prompts');
+  const runDir = join(scratch, 'subagent-run');
+  const ballotsDir = join(runDir, 'ballots');
+  const rawDir = join(runDir, 'raw');
+  const fixtureDir = join(TESTDATA, 'fixture-mini');
+  const presetPath = join(HARNESS, 'presets', 'completion-default.seats.json');
+  assert.equal(runNode([RENDER, fixtureDir, presetPath, promptDir]).status, 0);
+  mkdirSync(rawDir, { recursive: true });
+
+  const skepticBallot = { seat_id: 'skeptic', jurisdiction: 'global', verdict: 'complete', unmet: [], evidence: ['main.go:1'], confidence: 0.9 };
+  const correctnessBallot = { seat_id: 'correctness', jurisdiction: 'correctness', verdict: 'complete', unmet: [], evidence: ['main_test.go:1'], confidence: 0.95 };
+  writeFileSync(join(rawDir, 'skeptic.txt'), '```json\n' + JSON.stringify(skepticBallot, null, 2) + '\n```\n');
+  writeFileSync(join(rawDir, 'correctness.txt'), JSON.stringify(correctnessBallot));
+  writeFileSync(join(rawDir, 'spec-coverage.txt'), 'Looks complete to me, all tests pass!');
+
+  // First pass: --from-raw with PATH cleared proves no CLI binary is required.
+  const first = runNode([RUN_SEATS, promptDir, ballotsDir, '--from-raw'], { PATH: '' });
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(hasValidBallot(ballotsDir, 'skeptic'), true);
+  assert.equal(hasValidBallot(ballotsDir, 'correctness'), true);
+  assert.equal(hasValidBallot(ballotsDir, 'spec-coverage'), false);
+
+  // Unknown --seat fails with exit 1.
+  const badSeat = runNode([RUN_SEATS, promptDir, ballotsDir, '--from-raw', '--seat', 'nonexistent'], { PATH: '' });
+  assert.equal(badSeat.status, 1);
+
+  // Selective re-ask: update raw/spec-coverage.txt and run --from-raw --missing-only.
+  const specBallot = { seat_id: 'spec-coverage', jurisdiction: 'spec-coverage', verdict: 'complete', unmet: [], evidence: ['main_test.go:10'], confidence: 0.9 };
+  writeFileSync(join(rawDir, 'spec-coverage.txt'), JSON.stringify(specBallot));
+  const reask = runNode([RUN_SEATS, promptDir, ballotsDir, '--from-raw', '--missing-only'], { PATH: '' });
+  assert.equal(reask.status, 0, reask.stderr);
+  assert.ok(reask.stdout.includes('spec-coverage: ballot: complete'), reask.stdout);
+  assert.ok(!reask.stdout.includes('skeptic:'), 'already-valid skeptic ballot must not be re-processed');
+  assert.equal(hasValidBallot(ballotsDir, 'spec-coverage'), true);
+
+  // When all seats have valid ballots, --missing-only is a no-op and exits 0.
+  const noop = runNode([RUN_SEATS, promptDir, ballotsDir, '--missing-only'], { PATH: '' });
+  assert.equal(noop.status, 0, noop.stderr);
+  assert.ok(noop.stdout.includes('all selected seats already have valid ballots'), noop.stdout);
 });
 
 let failed = 0;

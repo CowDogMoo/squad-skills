@@ -22,16 +22,18 @@
     {
       "id": 2,
       "prompt": "The user asked only 'is it done?' about the small Go task staged at scripts/testdata/fixture-mini (TASK.md, main.go, main_test.go). Set up and run the completion gate per quorum.",
-      "expected_output": "A fresh run dir with numbered, falsifiable acceptance criteria in TASK.md; the deterministic gates seat runs first and short-circuits on failure; exactly one skeptic model seat is configured, since the user did not ask for a panel.",
+      "expected_output": "A fresh run dir with numbered, falsifiable acceptance criteria in TASK.md; the deterministic gates seat runs first and short-circuits on failure; the default 3-seat subagent panel (skeptic, correctness, spec-coverage from scripts/presets/completion-default.seats.json) is rendered and spawned as parallel read-only subagents rather than evaluated in a single session.",
       "files": [
+        "scripts/presets/completion-default.seats.json",
         "scripts/testdata/fixture-mini/TASK.md",
         "scripts/testdata/fixture-mini/main.go",
         "scripts/testdata/fixture-mini/main_test.go"
       ],
       "expectations": [
         "Acceptance criteria are numbered and falsifiable, not vague quality language",
-        "The deterministic gates seat runs before any model seat and short-circuits the skeptic on failure",
-        "seats.json contains exactly one skeptic seat because no multi-seat panel was requested"
+        "The deterministic gates seat runs before any model seat and short-circuits the model panel on failure",
+        "seats.json uses the default 3-seat panel (skeptic, correctness, spec-coverage) with the veto-scope rule on every seat",
+        "Each voter seat is spawned as an independent read-only subagent in parallel rather than evaluated inside a single session"
       ]
     },
     {
