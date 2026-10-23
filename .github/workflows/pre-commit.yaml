@@ -22,7 +22,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.14.8"
-  GO_VERSION: "1.27.2"
+  GO_VERSION: "1.27.3"
   SHFMT_VERSION: "v3.10.0"
   PRETTIER_VERSION: "3.3.3"
 
