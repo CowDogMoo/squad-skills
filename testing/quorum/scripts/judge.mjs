@@ -18,10 +18,12 @@
 // criterion string (first citing seat wins).
 //
 // Exit 0 when a verdict is written. Exit 2 (no verdict) only for protocol
-// corruption: missing/unparsable/invalid panel.json, duplicate seat_id,
-// or an unknown file in ballots/.
+// corruption: missing/unparsable/invalid panel.json, duplicate seat_id, a
+// panel with no required seat, an unknown file in ballots/, or (when
+// <run-dir>/prompts/ exists) a rendered seat that panel.json omits or marks
+// optional.
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
@@ -36,6 +38,7 @@ function isMainScript(argvPath, moduleUrl) {
 export class ProtocolError extends Error {}
 
 const VERDICTS = ['complete', 'incomplete', 'abstain'];
+const PROMPT_SUFFIX = '.prompt.md';
 
 // Recursively sort object keys so serialization is order-independent.
 export function canonicalize(value) {
@@ -149,7 +152,32 @@ function loadPanel(runDir) {
     }
     seen.add(seat.seat_id);
   }
+  // With no required seat the unanimity loop is vacuously true, so an empty
+  // gate would pass. Refuse it rather than let it read as COMPLETE.
+  if (!panel.some((seat) => seat.required !== false)) {
+    throw new ProtocolError('panel.json has no required seat; a unanimity gate needs at least one');
+  }
   return { panel, seatIds: seen };
+}
+
+// A seat whose prompt was rendered was meant to vote. Dropping it from
+// panel.json (or marking it optional) after it stayed absent or vetoed would
+// silently flip the verdict, so the panel must judge every rendered seat.
+function checkRenderedSeats(runDir, panel) {
+  const promptsDir = join(runDir, 'prompts');
+  if (!existsSync(promptsDir) || !statSync(promptsDir).isDirectory()) return;
+  const bySeat = new Map(panel.map((seat) => [seat.seat_id, seat]));
+  for (const name of readdirSync(promptsDir).sort()) {
+    if (!name.endsWith(PROMPT_SUFFIX)) continue;
+    const seatId = name.slice(0, -PROMPT_SUFFIX.length);
+    const seat = bySeat.get(seatId);
+    if (!seat) {
+      throw new ProtocolError(`panel.json omits rendered seat "${seatId}" (prompts/${name})`);
+    }
+    if (seat.required === false) {
+      throw new ProtocolError(`panel.json marks rendered seat "${seatId}" optional`);
+    }
+  }
 }
 
 function checkBallotDir(ballotsDir, seatIds) {
@@ -216,6 +244,7 @@ function judgeSeat(seat, ballotsDir) {
 // object (does not write). Throws ProtocolError on protocol corruption.
 export function judgeRun(runDir) {
   const { panel, seatIds } = loadPanel(runDir);
+  checkRenderedSeats(runDir, panel);
   const ballotsDir = join(runDir, 'ballots');
   checkBallotDir(ballotsDir, seatIds);
 
