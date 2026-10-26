@@ -22,7 +22,7 @@
     {
       "id": 2,
       "prompt": "The user asked only 'is it done?' about the small Go task staged at scripts/testdata/fixture-mini (TASK.md, main.go, main_test.go). Set up and run the completion gate per quorum.",
-      "expected_output": "A fresh run dir with numbered, falsifiable acceptance criteria in TASK.md; the deterministic gates seat runs first and short-circuits on failure; the default 3-seat subagent panel (skeptic, correctness, spec-coverage from scripts/presets/completion-default.seats.json) is rendered and spawned as parallel read-only subagents rather than evaluated in a single session.",
+      "expected_output": "A fresh run dir with numbered, falsifiable acceptance criteria in TASK.md; the deterministic gates seat runs first and short-circuits on failure; the default single skeptic seat (scripts/presets/completion-default.seats.json) is rendered and run as one independent read-only subagent rather than judged in the parent session, and no multi-seat panel is seated because the user did not ask for one.",
       "files": [
         "scripts/presets/completion-default.seats.json",
         "scripts/testdata/fixture-mini/TASK.md",
@@ -31,9 +31,9 @@
       ],
       "expectations": [
         "Acceptance criteria are numbered and falsifiable, not vague quality language",
-        "The deterministic gates seat runs before any model seat and short-circuits the model panel on failure",
-        "seats.json uses the default 3-seat panel (skeptic, correctness, spec-coverage) with the veto-scope rule on every seat",
-        "Each voter seat is spawned as an independent read-only subagent in parallel rather than evaluated inside a single session"
+        "The deterministic gates seat runs before any model seat and short-circuits the model seat on failure",
+        "seats.json is the one-seat default (skeptic only), not a multi-seat panel preset",
+        "The skeptic seat runs as an independent read-only subagent rather than being judged inside the parent session"
       ]
     },
     {
@@ -50,6 +50,24 @@
         "The malformed seat is re-asked exactly once with the same prompt, not retried repeatedly",
         "No ballot is hand-authored or repaired on the seat's behalf",
         "After a failed re-ask the seat stays absent and the verdict fails closed to NOT_COMPLETE"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "The user asked: 'run quorum on the Go task in scripts/testdata/fixture-mini with a full 3-seat panel'. Set up the model seats per quorum.",
+      "expected_output": "The opt-in panel preset scripts/presets/completion-panel.seats.json (skeptic, correctness, spec-coverage) is used because the user explicitly asked for a panel; every seat carries the veto-scope rule; the three seats are spawned as independent read-only subagents in parallel; the user is told the panel is unmeasured and costs more than the single-seat default; panel.json lists gates plus all three seats.",
+      "files": [
+        "scripts/presets/completion-panel.seats.json",
+        "scripts/testdata/fixture-mini/TASK.md",
+        "scripts/testdata/fixture-mini/main.go",
+        "scripts/testdata/fixture-mini/main_test.go"
+      ],
+      "expectations": [
+        "seats.json is the completion-panel preset (skeptic, correctness, spec-coverage) because the user explicitly requested a panel",
+        "Every panel seat persona carries the veto-scope rule",
+        "The three seats are spawned as separate subagents in parallel, not bundled into one subagent or judged in the parent session",
+        "The user is told the panel is unmeasured and costs more than the single-seat default",
+        "panel.json lists gates plus every rendered seat, all required"
       ]
     }
   ]

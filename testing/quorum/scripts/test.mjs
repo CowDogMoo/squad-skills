@@ -8,7 +8,7 @@
 // passed; otherwise prints the failing case and exits 1.
 
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -209,12 +209,12 @@ test('protocol corruption: a panel with no required seat cannot pass vacuously',
 });
 
 test('protocol corruption: panel.json may not drop or demote a rendered seat', () => {
-  const seats = JSON.parse(readFileSync(join(HARNESS, 'presets', 'completion-default.seats.json'), 'utf8'));
+  const seats = JSON.parse(readFileSync(join(HARNESS, 'presets', 'completion-panel.seats.json'), 'utf8'));
   const complete = (s) => ({ seat_id: s.seat_id, jurisdiction: s.jurisdiction, verdict: 'complete', unmet: [], evidence: ['x'] });
   const full = seats.map((s) => ({ jurisdiction: s.jurisdiction, seat_id: s.seat_id }));
   const withPrompts = (name, panel) => {
     const dir = mkRun(name, panel);
-    assert.equal(runNode([RENDER, join(TESTDATA, 'fixture-mini'), join(HARNESS, 'presets', 'completion-default.seats.json'), join(dir, 'prompts')]).status, 0);
+    assert.equal(runNode([RENDER, join(TESTDATA, 'fixture-mini'), join(HARNESS, 'presets', 'completion-panel.seats.json'), join(dir, 'prompts')]).status, 0);
     return dir;
   };
 
@@ -787,24 +787,34 @@ test('CLI entry guard survives a symlinked install path', () => {
   assert.ok(existsSync(join(dir, 'verdict.json')), 'judge invoked via symlink wrote no verdict.json');
 });
 
-test('all 3-seat presets validate, enforce veto-scope rule, and render independent prompts', () => {
+test('presets: one-seat skeptic defaults, opt-in 3-seat panels with the veto-scope rule', () => {
   const presetsDir = join(HARNESS, 'presets');
   const fixtureDir = join(TESTDATA, 'fixture-mini');
-  const presetNames = [
+  const names = readdirSync(presetsDir).filter((n) => n.endsWith('.seats.json')).sort();
+  assert.deepEqual(names, [
     'completion-default.seats.json',
-    'tradeoff-evaluation.seats.json',
+    'completion-panel.seats.json',
+    'finding-validation-panel.seats.json',
     'finding-validation.seats.json',
-  ];
-  for (const name of presetNames) {
+    'tradeoff-evaluation-panel.seats.json',
+    'tradeoff-evaluation.seats.json',
+  ]);
+  for (const name of names) {
     const presetPath = join(presetsDir, name);
     const seats = JSON.parse(readFileSync(presetPath, 'utf8'));
     validateSeats(seats);
-    assert.equal(seats.length, 3, `${name} must define a 3-seat subagent panel`);
-    for (const seat of seats) {
-      assert.ok(
-        seat.persona.includes("A veto must cite an acceptance criterion's required artifact"),
-        `${name} seat ${seat.seat_id} missing veto-scope rule`,
-      );
+    if (name.endsWith('-panel.seats.json')) {
+      assert.equal(seats.length, 3, `${name} must define a 3-seat panel`);
+      for (const seat of seats) {
+        assert.ok(
+          seat.persona.includes("A veto must cite an acceptance criterion's required artifact"),
+          `${name} seat ${seat.seat_id} missing veto-scope rule`,
+        );
+      }
+    } else {
+      assert.equal(seats.length, 1, `${name} must default to a single seat`);
+      assert.equal(seats[0].jurisdiction, 'global', `${name} default seat must be the global skeptic`);
+      assert.equal(seats[0].style, 'personality');
     }
     const outDir = join(scratch, `preset-${name}`);
     const res = runNode([RENDER, fixtureDir, presetPath, outDir]);
@@ -814,6 +824,14 @@ test('all 3-seat presets validate, enforce veto-scope rule, and render independe
       assert.deepEqual(checkPromptIndependence(prompt, seat.seat_id, seats), [], `${name} prompt independence failed for ${seat.seat_id}`);
     }
   }
+  // The default completion seat is the configuration the 2026-09-04 benchmark
+  // measured; changing it means the evidence no longer applies.
+  assert.deepEqual(JSON.parse(readFileSync(join(presetsDir, 'completion-default.seats.json'), 'utf8')), [{
+    seat_id: 'skeptic',
+    jurisdiction: 'global',
+    style: 'personality',
+    persona: 'Assume the task is unfinished until proven otherwise; systematically hunt for the acceptance criterion with the weakest evidence.',
+  }]);
 });
 
 test('extractRawBallot accepts bare/fenced subagent JSON and CLI envelopes, rejects prose', () => {
@@ -832,7 +850,7 @@ test('run-seats --from-raw, --seat, and --missing-only support parallel subagent
   const ballotsDir = join(runDir, 'ballots');
   const rawDir = join(runDir, 'raw');
   const fixtureDir = join(TESTDATA, 'fixture-mini');
-  const presetPath = join(HARNESS, 'presets', 'completion-default.seats.json');
+  const presetPath = join(HARNESS, 'presets', 'completion-panel.seats.json');
   assert.equal(runNode([RENDER, fixtureDir, presetPath, promptDir]).status, 0);
   mkdirSync(rawDir, { recursive: true });
 

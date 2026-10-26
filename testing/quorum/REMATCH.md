@@ -7,10 +7,12 @@ and a jurisdiction panel wrongly held 100% of genuinely complete work. Panels
 get a rematch only under this protocol — its whole point is that the bar is
 chosen before the data exists.
 
-Status (2026-10-26): #104 made a 3-seat panel the skill's default on
-2026-10-23 without this rematch having run. The default is a judgment call,
-not a measured result. It also seats one model family, so it is not the
-cross-family arm this protocol would test.
+Status (2026-10-26): #104 made a same-model 3-seat panel the skill's default
+on 2026-10-23 without this rematch having run; #107 restored the single
+skeptic as the default. The 3-seat presets stay available as explicit opt-in
+(`presets/*-panel.seats.json`) until this protocol says otherwise. They seat
+one model family, so they are not the cross-family arm this protocol would
+test.
 
 ## Preconditions (all required before any run)
 
