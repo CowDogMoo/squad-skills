@@ -200,6 +200,41 @@ test('protocol corruption: unknown ballot file and missing panel.json', () => {
   assert.throws(() => judgeRun(empty), ProtocolError);
 });
 
+test('protocol corruption: a panel with no required seat cannot pass vacuously', () => {
+  const dir = mkRun('no-required', [{ jurisdiction: 'global', required: false, seat_id: 'skeptic' }]);
+  assert.throws(() => judgeRun(dir), /no required seat/);
+  const res = runNode([JUDGE, dir]);
+  assert.equal(res.status, 2, `stdout=${res.stdout} stderr=${res.stderr}`);
+  assert.ok(!existsSync(join(dir, 'verdict.json')), 'verdict.json must not be written on corruption');
+});
+
+test('protocol corruption: panel.json may not drop or demote a rendered seat', () => {
+  const seats = JSON.parse(readFileSync(join(HARNESS, 'presets', 'completion-default.seats.json'), 'utf8'));
+  const complete = (s) => ({ seat_id: s.seat_id, jurisdiction: s.jurisdiction, verdict: 'complete', unmet: [], evidence: ['x'] });
+  const full = seats.map((s) => ({ jurisdiction: s.jurisdiction, seat_id: s.seat_id }));
+  const withPrompts = (name, panel) => {
+    const dir = mkRun(name, panel);
+    assert.equal(runNode([RENDER, join(TESTDATA, 'fixture-mini'), join(HARNESS, 'presets', 'completion-default.seats.json'), join(dir, 'prompts')]).status, 0);
+    return dir;
+  };
+
+  // skeptic stayed absent; quietly leaving it out of the panel must not yield COMPLETE.
+  const dropped = withPrompts('rendered-dropped', full.filter((s) => s.seat_id !== 'skeptic'));
+  for (const s of seats.filter((x) => x.seat_id !== 'skeptic')) {
+    writeFileSync(join(dropped, 'ballots', `${s.seat_id}.json`), canonicalJson(complete(s)));
+  }
+  assert.throws(() => judgeRun(dropped), /omits rendered seat "skeptic"/);
+
+  const demoted = withPrompts('rendered-demoted', full.map((s) => (s.seat_id === 'skeptic' ? { ...s, required: false } : s)));
+  assert.throws(() => judgeRun(demoted), /marks rendered seat "skeptic" optional/);
+
+  // Extra non-rendered seats (gates, exec seats) are fine alongside the rendered ones.
+  const ok = withPrompts('rendered-ok', [{ jurisdiction: 'deterministic-checks', seat_id: 'gates' }, ...full]);
+  writeFileSync(join(ok, 'ballots', 'gates.json'), canonicalJson({ seat_id: 'gates', jurisdiction: 'deterministic-checks', verdict: 'complete', unmet: [], evidence: ['x'] }));
+  for (const s of seats) writeFileSync(join(ok, 'ballots', `${s.seat_id}.json`), canonicalJson(complete(s)));
+  assert.equal(judgeRun(ok).verdict, 'COMPLETE');
+});
+
 test('validateBallot enforces confidence range and seat match', () => {
   const base = { seat_id: 'a', jurisdiction: 'j', verdict: 'complete', unmet: [], evidence: [], confidence: 0.5 };
   assert.equal(validateBallot(base, 'a').valid, true);
@@ -692,10 +727,27 @@ test('exec-seat: --expect nonzero inverts polarity', () => {
   assert.equal(JSON.parse(readFileSync(join(dir, 'ballots', 'exec.json'), 'utf8')).verdict, 'complete');
 });
 
+test('exec-seat: exit 126/127 never ran -> abstain under either polarity', () => {
+  for (const expect of ['zero', 'nonzero']) {
+    for (const code of [126, 127]) {
+      const dir = mkRun(`exec-notrun-${expect}-${code}`, EXEC_PANEL.map((s) => ({ ...s, seat_id: 'exec' })));
+      const res = runNode([EXEC_SEAT, dir, 'exec', '--expect', expect, '--',
+        process.execPath, '-e', `console.error("nope: command not found"); process.exit(${code})`]);
+      assert.equal(res.status, 0, res.stderr);
+      const ballot = JSON.parse(readFileSync(join(dir, 'ballots', 'exec.json'), 'utf8'));
+      assert.equal(ballot.verdict, 'abstain', `expect=${expect} exit=${code}`);
+      assert.equal(ballot.artifacts.exit_code, code);
+      assert.ok(ballot.evidence[0].includes('not found or not executable'), ballot.evidence[0]);
+      assert.equal(judgeRun(dir).verdict, 'NOT_COMPLETE');
+    }
+  }
+});
+
 test('rendered prompt carries the untrusted-content boundary, independence intact', () => {
   const seats = JSON.parse(readFileSync(join(TESTDATA, 'seats-mini.json'), 'utf8'));
   const prompt = renderPrompt(seats[0], '/tmp/none');
   assert.ok(prompt.includes('UNTRUSTED CONTENT BOUNDARY'), 'boundary missing');
+  assert.ok(prompt.includes('You are read-only'), 'read-only instruction missing');
   assert.deepEqual(checkPromptIndependence(prompt, seats[0].seat_id, seats), []);
 });
 

@@ -38,7 +38,7 @@
     },
     {
       "id": 3,
-      "prompt": "The skeptic seat returned prose instead of a schema-valid ballot, as in scripts/testdata/run-malformed. You expected that seat to vote complete. Decide what happens next.",
+      "prompt": "The test-quality seat returned prose instead of a schema-valid ballot, as in scripts/testdata/run-malformed. You expected that seat to vote complete. Decide what happens next.",
       "expected_output": "The seat is re-run exactly once with the same prompt; if the ballot is still absent or malformed, the seat stays absent and the judge fails closed to NOT_COMPLETE — the ballot is never hand-written or repaired.",
       "files": [
         "scripts/testdata/run-malformed/panel.json",

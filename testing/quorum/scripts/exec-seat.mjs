@@ -5,7 +5,9 @@
 // artifacts (exit code, output hash, duration) so a `requires_artifacts`
 // panel seat accepts it; a failed execution is a cited veto, and a hung or
 // unstartable one is an abstain (§2.10) — fail-closed either way under
-// unanimity.
+// unanimity. Exit 126/127 (a shell wrapper's "cannot execute" / "command not
+// found") counts as unstartable, so a typo can't pass as a reproduction under
+// --expect nonzero.
 //
 // Usage:
 //   node exec-seat.mjs <run-dir> <seat_id> [options] -- <command> [args...]
@@ -73,6 +75,7 @@ const output = `${res.stdout ?? ''}${res.stderr ?? ''}`;
 const timedOut = res.error?.code === 'ETIMEDOUT';
 const spawnFailed = Boolean(res.error) && !timedOut;
 const exitCode = typeof res.status === 'number' ? res.status : -1;
+const notExecutable = exitCode === 126 || exitCode === 127;
 
 mkdirSync(join(runDir, 'ballots'), { recursive: true });
 mkdirSync(join(runDir, 'raw'), { recursive: true });
@@ -89,17 +92,17 @@ const artifacts = {
 const firstLine = (output.split('\n').find((l) => l.trim().length > 0) ?? '').trim().slice(0, 200);
 
 let ballot;
-if (timedOut || spawnFailed) {
+if (timedOut || spawnFailed || notExecutable) {
+  let why;
+  if (timedOut) why = `execution timed out after ${timeout}ms`;
+  else if (spawnFailed) why = `spawn failed: ${res.error.message}`;
+  else why = `${command.join(' ')} exited ${exitCode} (command not found or not executable)${firstLine ? `: ${firstLine}` : ''}`;
   ballot = {
     seat_id: seatId,
     jurisdiction: 'execution',
     verdict: 'abstain',
     unmet: [],
-    evidence: [
-      timedOut
-        ? `execution timed out after ${timeout}ms`
-        : `spawn failed: ${res.error.message}`,
-    ],
+    evidence: [why],
     artifacts,
   };
 } else {
