@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.14.9"
+  PYTHON_VERSION: "3.14.10"
   GO_VERSION: "1.27.3"
   SHFMT_VERSION: "v3.10.0"
   PRETTIER_VERSION: "3.3.3"
