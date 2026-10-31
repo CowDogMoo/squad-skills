@@ -872,13 +872,23 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         cname = case.get("name", "?")
         runs = case.get("arms", {}).get("with", [])
         errors = [r["error"] for r in runs if r.get("error")]
+        # A run's grader results carry no type; claude plugin eval records it
+        # only in the case's grader definitions. A grader with no definition
+        # is treated as an LLM grader, so it still needs judge votes.
+        types = {
+            g.get("name"): g.get("type")
+            for g in case.get("graders", [])
+            if isinstance(g, dict)
+        }
         # A judge call that failed (refused, rate limited, timed out) leaves no
         # votes; it says nothing about the skill, so it is a harness failure.
         errors += [
             f"{g.get('name', '?')} could not be graded: {g.get('explanation', 'no judge votes')}"
             for r in runs
             for g in r.get("graders", [])
-            if g.get("type", "llm") == "llm" and g.get("scored") and "judgeVotes" not in g
+            if (g.get("type") or types.get(g.get("name")) or "llm") == "llm"
+            and g.get("scored")
+            and "judgeVotes" not in g
         ]
         scores = [float(r.get("score", 0)) for r in runs]
         mean = sum(scores) / len(scores) if scores else 0.0
