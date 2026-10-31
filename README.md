@@ -341,6 +341,14 @@ app, or the network are listed under `ci_skipped` with the reason. The
 header of `.github/workflows/skill-evals.yaml` describes how the job
 keeps the token away from skill content.
 
+`claude plugin eval` blocks the agent from reading any directory named
+`evals/`, so the agent can't see its expectations. CI therefore
+never stages `evals/`. It copies only the files each case lists into
+`eval-inputs/` and repoints the prompt's `evals/...` paths there.
+Pull request CI stages every allowlisted skill the same way and fails
+when a case's inputs would be unreadable or a file the agent can reach
+holds an expectation.
+
 ## Contributing
 
 ```bash

@@ -18,8 +18,10 @@ eval cases. The skill-evals workflow calls this script in two jobs:
               printed or uploaded; on a hit, delete the results and fail
     judge     score the results and write the step summary
 
-  validate  check every evals.json, the allowlist, and the workflow triggers
-            (no secrets needed; runs in Validate Skills on every pull request)
+  validate  check every evals.json, the allowlist, the workflow triggers, and
+            that every case can read its staged inputs but not its
+            expectations (no secrets needed; runs in Validate Skills on every
+            pull request)
 
 The allowlist of skills that can run in CI lives in .github/skill-evals.json.
 """
@@ -28,6 +30,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
+import io
 import json
 import os
 import re
@@ -35,6 +39,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,6 +48,10 @@ POLICY = ROOT / ".github" / "skill-evals-managed-settings.json"
 WORKFLOW = ROOT / ".github" / "workflows" / "skill-evals.yaml"
 PLUGIN_MANIFEST = ROOT / ".claude-plugin" / "plugin.json"
 CASE_DIR = "ci-evals"
+EVALS_DIR = "evals"
+# Case input files are staged here, outside every directory claude plugin eval
+# fences off from the agent (see FENCED_DIRS).
+INPUTS_DIR = "eval-inputs"
 CANARY = "skill-evals-canary"
 BASE_TOOLS = ["Read", "Glob", "Grep", "Skill"]
 GRANTABLE_TOOLS = {"Bash", "Edit", "Write"}
@@ -70,6 +79,18 @@ PLUGIN_OWNED = {
     CASE_DIR,
 }
 IGNORED = {"__pycache__", "results", ".DS_Store"}
+# What claude plugin eval (2.1.296) denies the agent inside the plugin under
+# test, whatever letter case: every directory named like an eval directory
+# (the --eval-dir, and "evals" whatever the flag says), version-control
+# metadata, run results, and any directory holding run results directly or one
+# level down. A case input staged under any of them cannot be read.
+FENCED_DIRS = {
+    EVALS_DIR, CASE_DIR, ".git", ".hg", ".svn", ".jj", ".sl", ".bzr", "_darcs", "cvs",
+}
+FENCED_FILES = {"aggregate-result.json", "report.html"}
+# An `evals/...` path in a prompt, which staging moves to INPUTS_DIR.
+EVALS_REF = re.compile(r"(?<![\w/.-])(?:\./)?" + EVALS_DIR + "/")
+INPUT_LIST_HEADER = "Input files (read-only; copy one into your working directory before changing it):"
 # Only these reach `claude plugin eval`; the step's other variables stay out.
 CHILD_ENV = [
     "CLAUDE_CODE_OAUTH_TOKEN",
@@ -170,6 +191,12 @@ def check_evals(skill: Path) -> list[str]:
         for f in files:
             if not nonempty_str(f) or not (skill / f).exists():
                 errors.append(f"{where} file {f!r} does not exist under {skill.name}/")
+            elif Path(f).is_absolute() or ".." in Path(f).parts:
+                errors.append(f"{where} file {f!r} must be a relative path inside {skill.name}/")
+            elif (skill / f).is_symlink() or not (skill / f).is_file():
+                errors.append(f"{where} file {f!r} must be a regular file, not a directory or link")
+            elif Path(f) == Path(EVALS_DIR, "evals.json"):
+                errors.append(f"{where} file {f!r} would show the agent its own expectations")
     return errors
 
 
@@ -248,6 +275,24 @@ def cmd_validate(_args) -> int:
         if not errors:
             print(f"  ✓ {rel}/evals/evals.json")
 
+    # Stage every runnable skill the way the eval job gets it and check that
+    # each case can read its inputs there, but not its expectations. The
+    # evals themselves never run on a pull request, so this is the only
+    # place a layout claude plugin eval would fence off can be caught first.
+    with tempfile.TemporaryDirectory() as tmp:
+        staged = Path(tmp) / "staged"
+        for name in sorted(set(runnable) & set(skills)):
+            evals = skills[name] / EVALS_DIR / "evals.json"
+            if not evals.is_file() or check_evals(skills[name]):
+                continue
+            with contextlib.redirect_stdout(io.StringIO()):
+                problems = stage(name, skills[name], staged) or check_staged(staged / name)
+            rel = skills[name].relative_to(ROOT)
+            for problem in problems:
+                error(f"{rel}/evals/evals.json", f"staged for CI: {problem}")
+            if not problems:
+                print(f"  ✓ {name}: every case can read its staged inputs")
+
     try:
         json.loads(POLICY.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -304,6 +349,13 @@ def copy_skill(src: Path, dest: Path) -> list[str]:
         rel = here.relative_to(src)
         keep = []
         for d in sorted(dirnames):
+            # evals/ holds evals.json, the expectations; stage() copies only
+            # the case input files out of it, into INPUTS_DIR.
+            if rel == Path(".") and d == EVALS_DIR:
+                continue
+            if rel == Path(".") and d == INPUTS_DIR:
+                problems.append(f"{d}/ is reserved for staged eval inputs")
+                continue
             if d in IGNORED or (rel == Path(".") and d in PLUGIN_OWNED):
                 if d not in IGNORED:
                     print(f"::notice::{src.name}: not staging plugin-owned {d}/")
@@ -358,6 +410,38 @@ def write_case(
         (case_dir / "graders" / f"{name}.md").write_text(body, encoding="utf-8")
 
 
+def input_path(f: str) -> Path:
+    """Where a case input file is staged, relative to the staged skill.
+
+    claude plugin eval denies the agent every directory named evals/, so
+    inputs kept there move to INPUTS_DIR with the rest of their path; any
+    other input is already staged in place.
+    """
+    parts = Path(f).parts
+    if parts and parts[0] == EVALS_DIR:
+        return Path(INPUTS_DIR, *parts[1:])
+    return Path(f)
+
+
+def stage_inputs(src: Path, staged: Path, cases: list[dict]) -> list[str]:
+    """Copy each case input file kept under evals/ to its staged path."""
+    problems = []
+    for f in sorted({f for case in cases for f in case.get("files", [])}):
+        rel = input_path(f)
+        if rel == Path(f):
+            continue
+        path = src / f
+        if path.is_symlink() or not path.is_file():
+            problems.append(f"input {f} is not a regular file")
+            continue
+        target = staged / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+        if path.stat().st_mode & stat.S_IXUSR:
+            target.chmod(0o755)
+    return problems
+
+
 def stage(name: str, src: Path, dest: Path) -> list[str]:
     """Copy one skill into dest/name and write plugin-eval cases from evals.json."""
     staged = dest / name
@@ -365,16 +449,16 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
     if problems:
         return problems
     opts = allowlist()[name]
-    data = json.loads((src / "evals" / "evals.json").read_text(encoding="utf-8"))
+    data = json.loads((src / EVALS_DIR / "evals.json").read_text(encoding="utf-8"))
+    problems = stage_inputs(src, staged, data["evals"])
+    if problems:
+        return problems
     tools = BASE_TOOLS + [t for t in opts.get("allow_tools", []) if t not in BASE_TOOLS]
     for case in data["evals"]:
-        prompt = case["prompt"]
+        prompt = EVALS_REF.sub(f"{staged / INPUTS_DIR}/", case["prompt"])
         if case.get("files"):
-            listed = "\n".join(f"- {staged / f}" for f in case["files"])
-            prompt += (
-                "\n\nInput files (read-only; copy one into your working "
-                f"directory before changing it):\n{listed}"
-            )
+            listed = "\n".join(f"- {staged / input_path(f)}" for f in case["files"])
+            prompt += f"\n\n{INPUT_LIST_HEADER}\n{listed}"
         graders = {
             f"expectation-{n}": f"---\ntype: llm\nweight: 1\n---\n\n{expectation}\n"
             for n, expectation in enumerate(case["expectations"], 1)
@@ -388,6 +472,111 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
             opts.get("timeout_seconds", TIMEOUT_SECONDS),
         )
     return []
+
+
+def holds_results(d: Path) -> bool:
+    """True when claude plugin eval would take d for a results directory."""
+    try:
+        children = list(d.iterdir())
+    except OSError:
+        return False
+    if any(c.name.lower() in FENCED_FILES for c in children):
+        return True
+    return any(
+        c.is_dir() and not c.is_symlink() and any((c / f).exists() for f in FENCED_FILES)
+        for c in children
+    )
+
+
+def fenced_reason(plugin: Path, path: Path) -> str | None:
+    """Why claude plugin eval would deny the agent path, or None if it would not."""
+    try:
+        rel = path.relative_to(plugin)
+    except ValueError:
+        return "is outside the staged skill"
+    if ".." in rel.parts:
+        return "is outside the staged skill"
+    for part in rel.parts:
+        if part.lower() in FENCED_DIRS:
+            return f"is inside {part}/, which claude plugin eval denies the agent"
+    if rel.name.lower() in FENCED_FILES:
+        return f"is named {rel.name}, which claude plugin eval denies the agent"
+    for n in range(1, len(rel.parts) + 1):
+        d = plugin.joinpath(*rel.parts[:n])
+        if d.is_dir() and holds_results(d):
+            return (
+                f"is inside {d.relative_to(plugin)}/, which holds run results, so "
+                "claude plugin eval denies the agent"
+            )
+    return None
+
+
+def prompt_paths(prompt: str, plugin: Path) -> tuple[list[Path], list[Path]]:
+    """Return (listed inputs, every path) under plugin that a staged prompt names."""
+    root = re.escape(str(plugin))
+    named = [
+        Path(m.group(0).rstrip(".:"))
+        for m in re.finditer(root + r"(?![\w.-])(?:/[^\s`'\"<>()\[\]{},;]*)?", prompt)
+    ]
+    listed, in_list = [], False
+    for line in prompt.splitlines():
+        if line == INPUT_LIST_HEADER:
+            in_list = True
+        elif in_list and line.startswith("- "):
+            listed.append(Path(line[2:]))
+        elif in_list and line.strip():
+            in_list = False
+    return listed, named
+
+
+def grader_bodies(case_dir: Path) -> list[str]:
+    bodies = []
+    for grader in sorted((case_dir / "graders").glob("*.md")):
+        parts = grader.read_text(encoding="utf-8").split("---\n", 2)
+        if len(parts) == 3 and "type: llm" in parts[1].splitlines() and parts[2].strip():
+            bodies.append(parts[2].strip())
+    return bodies
+
+
+def check_staged(plugin: Path) -> list[str]:
+    """Return why a staged skill's cases would not see their inputs, or would see
+    their expectations (empty when neither).
+
+    Every input a case prompt lists must be a regular file that claude plugin
+    eval lets the agent read, and every staged path a prompt names must lie
+    outside what it fences off. No file the agent can reach may hold
+    evals.json or a case's expectation text: only the graders under CASE_DIR,
+    which plugin eval fences as the eval directory, may.
+    """
+    problems, expectations = [], set()
+    for prompt_md in sorted((plugin / CASE_DIR).glob("*/prompt.md")):
+        case = prompt_md.parent.name
+        expectations.update(grader_bodies(prompt_md.parent))
+        listed, named = prompt_paths(prompt_md.read_text(encoding="utf-8"), plugin)
+        for path in listed:
+            if path.is_symlink() or not path.is_file():
+                problems.append(f"{case}: input {path} was not staged as a regular file")
+        for path in dict.fromkeys(listed + named):
+            reason = fenced_reason(plugin, path)
+            if reason:
+                problems.append(f"{case}: the prompt points the agent at {path}, which {reason}")
+
+    for dirpath, dirnames, filenames in os.walk(plugin):
+        here = Path(dirpath)
+        if here == plugin:
+            dirnames[:] = [d for d in dirnames if d != CASE_DIR]
+        for f in filenames:
+            path = here / f
+            rel = path.relative_to(plugin)
+            if f == "evals.json":
+                problems.append(f"{rel} was staged outside {CASE_DIR}/; stage only case inputs")
+                continue
+            data = path.read_bytes()
+            for text in expectations:
+                if text.encode() in data:
+                    problems.append(f"{rel} holds a case expectation the agent could read")
+                    break
+    return problems
 
 
 # Each probe prints a marker the grader looks for. The expected values are
@@ -477,7 +666,7 @@ def cmd_bundle(args) -> int:
             print(f"::error::{name} is not an allowlisted skill")
             failed = True
             continue
-        problems = stage(name, skills[name], staged)
+        problems = stage(name, skills[name], staged) or check_staged(staged / name)
         for problem in problems:
             print(f"::error::{name}: {problem}; refusing to stage it")
         failed = failed or bool(problems)
