@@ -4,30 +4,75 @@
   "threshold": 0.5,
   "max_cost_usd": 10,
   "ci_runnable": {
-    "comment-scrub-playbook": { "allow_tools": ["Bash", "Edit", "Write"] },
+    "comment-scrub-playbook": {
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
     "detect-llm-tells": {},
     "doc-comments-discovery-and-fix-loop": {
-      "allow_tools": ["Bash", "Edit", "Write"]
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
     },
     "enqueue-coverage-targets": {
-      "allow_tools": ["Bash", "Edit", "Write"],
-      "python_packages": ["pytest", "coverage", "pytest-cov"]
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ],
+      "python_packages": [
+        "pytest",
+        "coverage",
+        "pytest-cov"
+      ]
     },
-    "quorum": { "allow_tools": ["Bash", "Write"] },
+    "quorum": {
+      "allow_tools": [
+        "Bash",
+        "Write"
+      ]
+    },
     "score-coverage-and-report-gaps": {
-      "allow_tools": ["Bash", "Edit", "Write"],
-      "python_packages": ["pytest", "coverage", "pytest-cov"]
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ],
+      "python_packages": [
+        "pytest",
+        "coverage",
+        "pytest-cov"
+      ]
     },
     "test-writer-honesty": {
-      "allow_tools": ["Bash", "Edit", "Write"],
-      "python_packages": ["pytest", "coverage", "pytest-cov"]
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ],
+      "python_packages": [
+        "pytest",
+        "coverage",
+        "pytest-cov"
+      ]
     },
     "guitar-pro": {
-      "allow_tools": ["Bash", "Write"],
+      "allow_tools": [
+        "Bash",
+        "Write"
+      ],
       "python_requirements": "scripts/requirements.txt"
     },
     "tab-vs-recording": {
-      "allow_tools": ["Bash", "Write"],
+      "allow_tools": [
+        "Bash",
+        "Write"
+      ],
       "python_packages": [
         "numpy",
         "scipy",
@@ -38,11 +83,24 @@
       ]
     },
     "transcribe-guitar-riff": {
-      "allow_tools": ["Bash", "Write"],
+      "allow_tools": [
+        "Bash",
+        "Write"
+      ],
       "python_requirements": "scripts/requirements.txt",
       "timeout_seconds": 900
     },
-    "detect-dinner-freezer-protein": {}
+    "detect-dinner-freezer-protein": {},
+    "ansible-collection-release": {
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ],
+      "python_packages": [
+        "pyyaml"
+      ]
+    }
   },
   "ci_skipped": {
     "extract-recipe-grocery-list": "its evals fetch live recipe pages, and the eval job blocks every host but api.anthropic.com",

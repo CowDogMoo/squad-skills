@@ -120,6 +120,12 @@ each listed path exactly one level deep.
 | [thall-amp-neural-capture](./music/thall-amp-neural-capture)               | Odeholm thall amp specifics: every control and whether a static Neural Capture can model it, the Tone Lock trap, all 53 factory presets with a bundled `.afx` reader, the capture-as-played rule, the V1-V5 history, and the standing V4 measured envelope.        |
 | [transcribe-guitar-riff](./music/transcribe-guitar-riff)                   | Turn an Ableton guitar clip (or a WAV) into verified notes: locate the exact sample region a clip plays from the `.als`, cut it bit-exact, estimate per-sixteenth fundamentals with a CQT harmonic-salience script that survives high-gain tremolo picking, decide the octave from tuning-grid and difference-tone evidence, author a cleaned MIDI, place an A/B reference track in Live, and hand the tab to `guitar-pro`.                                                                                     |
 
+### release/
+
+| Skill | Description |
+| --- | --- |
+| [ansible-collection-release](./release/ansible-collection-release) | Cut an Ansible collection release: pick the SemVer bump from commits since the last tag, write and validate the antsibull-changelog fragment (`scripts/check-fragment.py`), run the Taskfile `release` / `release-finalize` flow, and verify the GitHub release and Galaxy publish. |
+
 ### cooking/
 
 | Skill                                                                | Description                                                                                                                                                     |
@@ -236,7 +242,8 @@ across them. The pattern that works:
 
 ```bash
 # 1. Create the directory inside the category folder that fits
-#    (cooking/, music/, testing/, writing-quality/). A new category
+#    (cooking/, music/, release/, testing/,
+#    writing-quality/). A new category
 #    also needs an entry in .claude-plugin/plugin.json's "skills"
 #    list, or the plugin loader will never see it.
 mkdir testing/my-skill

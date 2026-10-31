@@ -1,0 +1,13 @@
+---
+release_date: '2026-10-01'
+release_summary:
+  - Adds the nginx role and hardens SSH defaults.
+added:
+  - Added the ``nginx`` role with TLS defaults (#212)
+  - Added per-host overrides for the ``ssh`` role (#215, #218)
+changed:
+  - Updated ``community.general`` collection to v13.3.0 (#220)
+security:
+  - Disabled SSH password authentication by default (#216)
+fixed:
+  - Fixed idempotence of the ``users`` role (#219)
