@@ -132,6 +132,9 @@ jobs:
       - name: Test eval input staging
         run: python .github/scripts/test_skill_evals_staging.py
 
+      - name: Test the eval judge
+        run: python .github/scripts/test_skill_evals.py
+
   # Kept as a plain job in this workflow (not inside the reusable one) so
   # its check-run name stays exactly "Validation Summary" — the required
   # status check on main. Nested reusable-workflow jobs report as
