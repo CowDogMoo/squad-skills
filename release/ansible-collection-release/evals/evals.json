@@ -1,0 +1,52 @@
+{
+  "skill_name": "ansible-collection-release",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Before I cut 3.1.0, check the changelog fragment at evals/files/bad-collection/changelogs/fragments/3.1.0.yaml against the collection's evals/files/bad-collection/changelogs/config.yaml and fix whatever is wrong with it in place.",
+      "expected_output": "The fragment is rewritten so every entry survives YAML parsing intact, only configured sections plus release_summary remain, release_date is gone, and release_summary is a string.",
+      "files": [
+        "evals/files/bad-collection/changelogs/config.yaml",
+        "evals/files/bad-collection/changelogs/fragments/3.1.0.yaml"
+      ],
+      "expectations": [
+        "The ssh overrides entry is quoted (or otherwise rewritten) so it parses as a string ending in '(#215, #218)' rather than being truncated at ' #218'",
+        "The release_date key is removed from the fragment",
+        "The security section is removed and its SSH password authentication entry is kept under one of added, changed, removed, or fixed",
+        "release_summary is a single string, not a list",
+        "The response explains the '#' truncation problem rather than only reporting that the file changed"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our last release tag is 1.4.2. The commits since then are in evals/files/draft-collection/commits.txt and the changelog config is evals/files/draft-collection/changelogs/config.yaml. Tell me what version the next release should be and write the fragment to evals/files/draft-collection/changelogs/fragments/ for it.",
+      "expected_output": "Recommends 1.5.0 (new features, nothing breaking) and writes changelogs/fragments/1.5.0.yaml containing only user-facing changes in the configured sections.",
+      "files": [
+        "evals/files/draft-collection/commits.txt",
+        "evals/files/draft-collection/changelogs/config.yaml"
+      ],
+      "expectations": [
+        "The recommended version is 1.5.0 and the fragment file is named 1.5.0.yaml",
+        "ansible-core appears exactly once, at v2.21.5",
+        "Neither the podman support commit (#133) nor its revert (#137) produces an entry",
+        "The ci, docs, test, and renovatebot GitHub Action commits produce no entries",
+        "The entry for the Debian default shell fix keeps both '#128' and '#127' after YAML parsing",
+        "The fragment uses only release_summary plus added, changed, removed, or fixed, and has no release_date"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The release PR for 2.4.0 of our cowdogmoo.example collection just merged on GitHub. The repo has a Taskfile with release-finalize and a tag-triggered .github/workflows/release.yaml that publishes to Galaxy. Don't run anything yet — list exactly what you will run, in order, to finish and verify the release.",
+      "expected_output": "An ordered plan: confirm the go-ahead, update main, run release-finalize (or gh release create from main), then verify the GitHub release, the publish workflow run, and the version Galaxy reports, and clean up the local release branch and tags.",
+      "files": [],
+      "expectations": [
+        "The plan updates local main (checkout and pull) before the tag or release is created, so the tag points at the merged commit",
+        "The plan creates the release with NEXT_VERSION=2.4.0 task release-finalize or an equivalent gh release create 2.4.0",
+        "The plan verifies the publish workflow run result, not just that the tag exists",
+        "The plan checks the version Galaxy reports for cowdogmoo/example (for example via the Galaxy API highest_version)",
+        "The plan asks for or notes the need for explicit confirmation before tagging and publishing, because a Galaxy version cannot be re-uploaded",
+        "The plan includes deleting a local release branch named 2.4.0 or fetching tags afterwards"
+      ]
+    }
+  ]
+}
