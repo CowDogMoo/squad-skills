@@ -23,7 +23,8 @@ on:
       - '.github/workflows/validate-skills.yaml'
       - '.github/workflows/reusable-validate-skills.yaml'
       - '.github/workflows/skill-evals.yaml'
-      - '.github/scripts/skill_evals.py'
+      - '.github/scripts/**'
+      - '**/evals/files/**'
       - '.github/skill-evals.json'
       - '.github/skill-evals-managed-settings.json'
   workflow_dispatch:
@@ -127,6 +128,9 @@ jobs:
 
       - name: Validate the eval allowlist and workflow
         run: python .github/scripts/skill_evals.py validate
+
+      - name: Test eval input staging
+        run: python .github/scripts/test_skill_evals_staging.py
 
   # Kept as a plain job in this workflow (not inside the reusable one) so
   # its check-run name stays exactly "Validation Summary" — the required
