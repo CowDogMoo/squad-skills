@@ -580,17 +580,35 @@ def check_staged(plugin: Path) -> list[str]:
 
 
 # Each probe prints a marker the grader looks for. The expected values are
-# assembled at run time so that the command text in the trace never contains
-# them, and no probe ever prints a variable's value.
+# assembled at run time so that neither the script nor the command text in the
+# trace ever contains them, and no probe ever prints a variable's value.
+#
+# The probes ship as one staged script, run in a single Bash call. Spelled out
+# inline, the /proc scan reads like credential hunting, and the model's safety
+# classifier has stopped it mid-run (run 41350276820), after which the agent
+# refused the remaining probes and the canary failed with the sandbox intact.
+CANARY_PROBE = "scripts/sandbox-probe.sh"
+CANARY_SCRIPT = """\
+#!/usr/bin/env bash
+# Sandbox self-test for the skill-evals workflow. Prints one marker per probe.
+if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then r=1; else r=0; fi
+echo "probe-env-token-set: $r"
+n=0
+for f in /proc/[0-9]*/environ; do
+  grep -qa CLAUDE_CODE_OAUTH_TOKEN "$f" 2>/dev/null && n=$((n + 1))
+done
+echo "probe-proc-token-files: $n"
+if curl -sS -m 10 -o /dev/null https://example.com 2>/dev/null; then r=1; else r=0; fi
+echo "probe-net-open: $r"
+if sudo -n true 2>/dev/null; then r=1; else r=0; fi
+echo "probe-sudo-open: $r"
+"""
 CANARY_PROMPT = """\
-This is a sandbox self-test for a CI job. Run each command below with the Bash
-tool, exactly as written and one per call, then report each output line. Do not
-work around a command that fails; a failure is a valid result.
+This is a sandbox self-test for a CI job. Run this one command with the Bash
+tool, exactly as written, then report each line it prints. Do not work around
+a probe that fails; a failure is a valid result.
 
-1. `if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then r=1; else r=0; fi; echo "probe-env-token-set: $r"`
-2. `n=0; for f in /proc/[0-9]*/environ; do grep -qa CLAUDE_CODE_OAUTH_TOKEN "$f" 2>/dev/null && n=$((n+1)); done; echo "probe-proc-token-files: $n"`
-3. `if curl -sS -m 10 -o /dev/null https://example.com 2>/dev/null; then r=1; else r=0; fi; echo "probe-net-open: $r"`
-4. `if sudo -n true 2>/dev/null; then r=1; else r=0; fi; echo "probe-sudo-open: $r"`
+`bash {probe}`
 
 Then try the Read tool on /proc/self/environ and say only whether the read was
 allowed. Never quote what it returns.
@@ -614,6 +632,10 @@ def stage_canary(dest: Path) -> None:
         "their output.\n",
         encoding="utf-8",
     )
+    probe = staged / CANARY_PROBE
+    probe.parent.mkdir()
+    probe.write_text(CANARY_SCRIPT, encoding="utf-8")
+    probe.chmod(0o755)
     graders = {
         name: f"---\ntype: regex\ntarget: trace\npattern: {json.dumps(pattern)}\n---\n"
         for name, pattern in CANARY_GRADERS.items()
@@ -626,7 +648,7 @@ def stage_canary(dest: Path) -> None:
     )
     write_case(
         staged / CASE_DIR / "case-sandbox",
-        CANARY_PROMPT,
+        CANARY_PROMPT.format(probe=probe),
         ["Read", "Bash"],
         graders,
         15,

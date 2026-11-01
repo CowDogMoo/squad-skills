@@ -15,6 +15,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -168,6 +169,30 @@ class StagingTest(unittest.TestCase):
             [{"id": 1, "prompt": "Hi.", "expectations": ["ok"]}],
         )
         self.assertEqual(self.stage("demo", skill), ["eval-inputs/ is reserved for staged eval inputs"])
+
+
+    def test_canary_runs_its_probes_from_one_staged_script(self) -> None:
+        # Run 41350276820: the safety classifier stopped the inline /proc scan
+        # and the agent refused the rest, so the probes now run as one script.
+        self.dest.mkdir()
+        skill_evals.stage_canary(self.dest)
+        staged = self.dest / skill_evals.CANARY
+        probe = staged / skill_evals.CANARY_PROBE
+        self.assertTrue(probe.stat().st_mode & 0o100)
+        script = probe.read_text(encoding="utf-8")
+        prompt = (staged / skill_evals.CASE_DIR / "case-sandbox" / "prompt.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(f"`bash {probe}`", prompt)
+        self.assertNotIn("/proc/[0-9]", prompt)
+        for marker in ("probe-env-token-set", "probe-proc-token-files", "probe-net-open", "probe-sudo-open"):
+            self.assertIn(f'echo "{marker}: $', script)
+        # Neither the agent's command nor a Read of the script may satisfy a
+        # grader by itself or trip the not_contains one.
+        for pattern in skill_evals.CANARY_GRADERS.values():
+            self.assertNotRegex(script + prompt, pattern)
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN=", script + prompt)
+        subprocess.run(["bash", "-n", str(probe)], check=True)
 
 
 if __name__ == "__main__":
