@@ -15,6 +15,8 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -193,6 +195,86 @@ class StagingTest(unittest.TestCase):
             self.assertNotRegex(script + prompt, pattern)
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN=", script + prompt)
         subprocess.run(["bash", "-n", str(probe)], check=True)
+
+
+class CanaryProbeTest(unittest.TestCase):
+    """Runs the staged probe script and grades its output with CANARY_GRADERS.
+
+    The Skill Evals workflow cannot run in a PR, so this proves here that the
+    script prints lines the graders accept when the sandbox holds and reject
+    when a probe reports exposure. curl and sudo are stubbed on PATH so the
+    result does not depend on the runner's own network or sudo rules.
+    """
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = Path(tmp.name)
+        skill_evals.stage_canary(self.tmp / "staged")
+        self.probe = self.tmp / "staged" / skill_evals.CANARY / skill_evals.CANARY_PROBE
+
+    def run_probe(self, token: bool = False, net: bool = False, sudo: bool = False) -> str:
+        stubs = self.tmp / ("stubs-%d%d" % (net, sudo))
+        stubs.mkdir(exist_ok=True)
+        for name, open_ in (("curl", net), ("sudo", sudo)):
+            stub = stubs / name
+            stub.write_text(f"#!/bin/sh\nexit {0 if open_ else 1}\n", encoding="utf-8")
+            stub.chmod(0o755)
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_OAUTH_TOKEN"}
+        env["PATH"] = f"{stubs}{os.pathsep}{env.get('PATH', '')}"
+        if token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = "fake-canary-token"
+        out = subprocess.run(
+            ["bash", str(self.probe)], env=env, capture_output=True, text=True, check=True, timeout=60
+        ).stdout
+        # The no-token-assignment-in-trace grader: the script never echoes
+        # the variable, even when it is set.
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN=", out)
+        self.assertNotIn("fake-canary-token", out)
+        return out
+
+    @staticmethod
+    def graded(out: str) -> dict[str, bool]:
+        return {
+            name: re.search(pattern, out) is not None
+            for name, pattern in skill_evals.CANARY_GRADERS.items()
+        }
+
+    def test_graders_accept_a_clean_sandbox(self) -> None:
+        verdicts = self.graded(self.run_probe())
+        if PROC_TOKEN_VISIBLE:
+            # Another process on this host carries the variable, so the /proc
+            # probe rightly reports it; only CI guarantees a clean host.
+            verdicts.pop("proc-environ-shows-no-token")
+        self.assertEqual(verdicts, dict.fromkeys(verdicts, True))
+
+    def test_each_exposure_fails_its_grader(self) -> None:
+        cases = {
+            "token-absent-in-bash": {"token": True},
+            "network-blocked": {"net": True},
+            "sudo-blocked": {"sudo": True},
+        }
+        for grader, exposure in cases.items():
+            with self.subTest(grader=grader):
+                self.assertFalse(self.graded(self.run_probe(**exposure))[grader])
+
+    @unittest.skipUnless(Path("/proc/self/environ").exists(), "needs Linux /proc")
+    def test_proc_scan_finds_a_token_in_a_process_environment(self) -> None:
+        # With the variable set, bash's own /proc/<pid>/environ carries it.
+        out = self.run_probe(token=True)
+        self.assertFalse(self.graded(out)["proc-environ-shows-no-token"])
+        self.assertRegex(out, r"probe-proc-token-files: [1-9]")
+
+
+def _proc_token_visible() -> bool:
+    for environ in Path("/proc").glob("[0-9]*/environ"):
+        with contextlib.suppress(OSError):
+            if b"CLAUDE_CODE_OAUTH_TOKEN" in environ.read_bytes():
+                return True
+    return False
+
+
+PROC_TOKEN_VISIBLE = _proc_token_visible()
 
 
 if __name__ == "__main__":
