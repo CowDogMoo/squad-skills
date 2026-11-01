@@ -3,8 +3,8 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Before I cut 3.1.0, check the changelog fragment at evals/files/bad-collection/changelogs/fragments/3.1.0.yaml against the collection's evals/files/bad-collection/changelogs/config.yaml and fix whatever is wrong with it in place.",
-      "expected_output": "The fragment is rewritten so every entry survives YAML parsing intact, only configured sections plus release_summary remain, release_date is gone, and release_summary is a string.",
+      "prompt": "Before I cut 3.1.0, check the changelog fragment at evals/files/bad-collection/changelogs/fragments/3.1.0.yaml against the collection's evals/files/bad-collection/changelogs/config.yaml and fix whatever is wrong with it. Those paths are read-only, so copy both files into changelogs/ in your working directory and make the fix there. Finish by showing me the corrected fragment in full and explaining each problem you fixed.",
+      "expected_output": "The working-directory copy of the fragment is rewritten so every entry survives YAML parsing intact, only configured sections plus release_summary remain, release_date is gone, and release_summary is a string; the final response shows that fragment and explains each fix.",
       "files": [
         "evals/files/bad-collection/changelogs/config.yaml",
         "evals/files/bad-collection/changelogs/fragments/3.1.0.yaml"
@@ -19,8 +19,8 @@
     },
     {
       "id": 2,
-      "prompt": "Our last release tag is 1.4.2. The commits since then are in evals/files/draft-collection/commits.txt and the changelog config is evals/files/draft-collection/changelogs/config.yaml. Tell me what version the next release should be and write the fragment to evals/files/draft-collection/changelogs/fragments/ for it.",
-      "expected_output": "Recommends 1.5.0 (new features, nothing breaking) and writes changelogs/fragments/1.5.0.yaml containing only user-facing changes in the configured sections.",
+      "prompt": "Our last release tag is 1.4.2. The commits since then are in evals/files/draft-collection/commits.txt and the changelog config is evals/files/draft-collection/changelogs/config.yaml. Tell me what version the next release should be and write the fragment for it. Those paths are read-only, so copy the config into changelogs/ in your working directory and write the fragment to changelogs/fragments/ there. Finish by giving the file name and showing the fragment in full, and say which commits you left out and why.",
+      "expected_output": "Recommends 1.5.0 (new features, nothing breaking), writes changelogs/fragments/1.5.0.yaml in the working directory containing only user-facing changes in the configured sections, and shows that fragment and the omitted commits in the final response.",
       "files": [
         "evals/files/draft-collection/commits.txt",
         "evals/files/draft-collection/changelogs/config.yaml"
