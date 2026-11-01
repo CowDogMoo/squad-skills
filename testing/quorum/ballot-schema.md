@@ -76,7 +76,8 @@ type is protocol corruption) alongside `seat_id`, `jurisdiction`, and
 state `complete`**. Any `veto`, `abstain`, `absent`, or `malformed` required
 seat forces `NOT_COMPLETE`. Seats with `"required": false` in `panel.json`
 are recorded but never block (all cquorum panels mark every seat required;
-`required` defaults to `true` when omitted).
+`required` defaults to `true` when omitted). A panel needs at least one
+required seat; otherwise unanimity would hold vacuously.
 
 `work_queue` aggregates every cited unmet criterion from every `veto` seat,
 in stable order (panel order, then within-ballot `unmet` order),
@@ -99,8 +100,11 @@ output: what to fix before re-judging.
 
 - `0` — a verdict was written (COMPLETE or NOT_COMPLETE alike).
 - `2` — protocol corruption, no verdict written: missing/unparsable/invalid
-  `panel.json`, duplicate `seat_id` in the panel, or an unknown file in
-  `ballots/` (any non-dotfile that is not `<panel seat_id>.json`).
+  `panel.json`, duplicate `seat_id` in the panel, a panel with no required
+  seat, an unknown file in `ballots/` (any non-dotfile that is not
+  `<panel seat_id>.json`), or, when `<run-dir>/prompts/` exists, a rendered
+  seat (`prompts/<seat_id>.prompt.md`) that `panel.json` omits or marks
+  `"required": false`.
 
 Seat-level problems (absent/malformed ballots) are NOT corruption — they are
 judged as designed and produce a NOT_COMPLETE verdict with exit 0.
