@@ -55,6 +55,26 @@ times onto the recording's timeline, and scores.
   with clean quarters suggests octave errors rather than wrong notes; see
   the octave note in `references/alignment-and-scoring.md`.
 
+## Quick check without Basic Pitch
+
+For a short lead line or a single bar - a lick the user says is wrong, two
+candidate readings to choose between - a full alignment is more machinery than
+the question needs. `transcribe-guitar-riff/scripts/shift_score.py` tracks the
+recording's pitch frame by frame and reports how often the tab's sounding pitch
+matches, next to the same notes shifted -1/+1 semitone and -1/+1 octave:
+
+```bash
+python ../transcribe-guitar-riff/scripts/shift_score.py CLIP.wav --start S --bpm 120 \
+  --bar 36 --bars 1 --spec new.spec --require-beats old.spec --fmin 300 --band 280 5000
+```
+
+A real match clears all four controls by a wide margin (77-88% against 1-21%
+on two real jobs). It needs the region already located (`--start` is the
+file's seconds at the first downbeat) and the octave already settled - the
+pYIN floor decides which octave it can see. Pair it with
+`overlay_tab.py` from the same folder for the picture. Use the full
+`compare_tab.py` run when the question is the whole song.
+
 ## What this cannot decide
 
 - Anything about tone, feel, or arrangement quality — it scores notes and
