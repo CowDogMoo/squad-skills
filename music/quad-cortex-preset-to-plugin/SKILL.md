@@ -40,8 +40,9 @@ not restate them.
   or ask the player to read them. The QC preset is the reference: do not
   "fix" it to make the plugins easier to match.
 - **Never overwrite a preset the player uses.** Write new names into the
-  User folder. `write_preset.py` refuses to overwrite without `--force`, and
-  keeps `OUT.bak` when forced; `repoint_ir.py` keeps `.pre-irmove`. Fit EQ
+  User folder. `write_preset.py` refuses to overwrite an existing file;
+  replacing one means removing it first. `repoint_ir.py` keeps
+  `.pre-irmove`. Fit EQ
   on scratch copies outside the User folder and write the winner once.
 - **A stand-in is not the block.** When the amp sim lacks a QC block, find
   the same model in another plugin and chain it. Do not substitute a

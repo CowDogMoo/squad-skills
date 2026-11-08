@@ -12,8 +12,8 @@ A spec file is a flat JSON object of key -> value; keys starting with `_`
 are comments. `--set` pairs are applied after the spec and override it.
 
 Refuses to write when a key is not in the template (a typo, or a key the
-plugin version does not have), and refuses to overwrite an existing file
-unless --force, in which case the old file is kept as OUT.bak first.
+plugin version does not have), and refuses to overwrite an existing file;
+to replace one, remove it first.
 
 Usage (standard library only):
   python3 -I write_preset.py TEMPLATE.xml OUT.xml --spec SPEC.json
@@ -21,7 +21,6 @@ Usage (standard library only):
 """
 import argparse
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -35,7 +34,6 @@ def main():
     ap.add_argument('out')
     ap.add_argument('--spec', help='JSON object of key -> value')
     ap.add_argument('--set', action='append', default=[], metavar='KEY=VALUE')
-    ap.add_argument('--force', action='store_true', help='overwrite OUT, keeping OUT.bak')
     a = ap.parse_args()
 
     values = {}
@@ -58,10 +56,8 @@ def main():
         sys.exit(f"keys not found in {a.template}: {missing}")
 
     out = Path(a.out)
-    if out.exists() and not a.force:
-        sys.exit(f"{out} exists; pass --force to overwrite it (the old file is kept as .bak)")
     if out.exists():
-        shutil.copy2(out, str(out) + '.bak')
+        sys.exit(f"{out} exists; refusing to overwrite it (remove it first to replace it)")
     out.write_bytes(write_tree(tree) + tail)
 
     # Read back from disk and compare every requested value.
