@@ -57,8 +57,8 @@ is punched back in):
    that you did not mean to change is a finding to report, not to hide.
    Exit status 0 means no differences in those fields, not that the sets
    are identical: device parameter values, clip length, gain, warp and
-   notes, automation, and set options such as Reduced Latency When
-   Monitoring are not compared.
+   notes, automation, and set-level options such as `LatencyCompensation`
+   or Reduced Latency When Monitoring are not compared.
 
 ## Settings: audio device, buffer size, sample rate (2.3.3, 40.2)
 

@@ -4,8 +4,8 @@
 Each plugin is loaded headless with Spotify's `pedalboard` (no DAW, no plugin
 window) and given a saved preset: the preset's `appModel` values are applied
 onto the plugin's own state XML by node path, so the preset file is the one
-source of truth. After loading, the script waits for file-based loads (a
-custom IR) to settle, reads the state back from each plugin and prints every
+source of truth. After loading, the script waits 3 s for file-based loads
+(a custom IR) to settle, reads the state back from each plugin and prints every
 value that did not take. A mismatch that is only number formatting ('1' vs
 '1.0') is not counted. A mono DI is duplicated to two channels, the way Live
 feeds a mono track into a stereo plugin. Output is a 32-bit float wav at the
@@ -34,6 +34,8 @@ from pedalboard import Pedalboard, load_plugin  # noqa: E402
 
 from juce_state import components, mb_decode, replace_component, split  # noqa: E402
 from ndsp_preset import load as load_preset  # noqa: E402
+
+SETTLE = 3.0
 
 
 def as_text(t, v):
@@ -136,12 +138,10 @@ def main():
     ap.add_argument('di')
     ap.add_argument('out')
     ap.add_argument('chain', nargs='+', metavar='PLUGIN.vst3[=PRESET.xml]')
-    ap.add_argument('--settle', type=float, default=3.0,
-                    help='seconds to wait for file-based loads such as a custom IR (default 3)')
     a = ap.parse_args()
 
     chain = load_chain(a.chain)
-    time.sleep(a.settle)
+    time.sleep(SETTLE)
     for p, preset in chain:
         if preset:
             bad = read_back(p, preset)

@@ -8,7 +8,7 @@ the result is loaded back to confirm it still round-trips, OLD is gone and
 the new paths exist on disk.
 
 Usage (standard library only):
-  python3 -I repoint_ir.py PRESET.xml OLD_PREFIX NEW_PREFIX [--dry-run]
+  python3 -I repoint_ir.py PRESET.xml OLD_PREFIX NEW_PREFIX
 """
 import argparse
 import os
@@ -25,7 +25,6 @@ def main():
     ap.add_argument('preset')
     ap.add_argument('old')
     ap.add_argument('new')
-    ap.add_argument('--dry-run', action='store_true', help='print the changes, write nothing')
     a = ap.parse_args()
 
     tree, tail = load(a.preset)
@@ -45,8 +44,6 @@ def main():
     for node, key, after in changed:
         exists = 'exists' if os.path.exists(after) else 'MISSING ON DISK'
         print(f"{node}.{key} -> {after} ({exists})")
-    if a.dry_run:
-        return 0
 
     shutil.copy2(a.preset, a.preset + '.pre-irmove')
     with open(a.preset, 'wb') as fh:

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """CPU load and reported latency of a plugin chain, measured offline.
 
-Loads the chain the way render_chain.py does, then processes the DI in
-fixed-size blocks (default 128 samples, the tracking buffer) and reports
+Loads the chain the way render_chain.py does, waits 2 s for it to settle,
+then processes the DI in 128-sample blocks (the tracking buffer) and reports
 the chain's average load as a percentage of one core, the worst block
 against its real-time budget, and each plugin's reported latency. Use it to
 check a chain is cheap enough to track through before committing to it.
 
 Usage:
   uv run --with pedalboard --with soundfile --with numpy python -I chain_cost.py \\
-    DI.wav "/Library/Audio/Plug-Ins/VST3/<Plugin>.vst3=<preset>.xml" [...] [--block 128]
+    DI.wav "/Library/Audio/Plug-Ins/VST3/<Plugin>.vst3=<preset>.xml" [...]
 
 Run once per candidate chain; the numbers are for this machine only.
 """
@@ -24,13 +24,14 @@ import soundfile as sf  # noqa: E402
 
 from render_chain import load_chain  # noqa: E402
 
+BLOCK = 128
+SETTLE = 2.0
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('di')
     ap.add_argument('chain', nargs='+', metavar='PLUGIN.vst3[=PRESET.xml]')
-    ap.add_argument('--block', type=int, default=128, help='block size in samples (default 128)')
-    ap.add_argument('--settle', type=float, default=2.0)
     a = ap.parse_args()
 
     x, sr = sf.read(a.di, always_2d=True)
@@ -41,11 +42,11 @@ def main():
     dur = x.shape[1] / sr
 
     plugins = [p for p, _ in load_chain(a.chain)]
-    time.sleep(a.settle)
+    time.sleep(SETTLE)
     lat = [getattr(p, 'reported_latency_samples', None) for p in plugins]
     for p in plugins:
         p.reset()
-    bs = a.block
+    bs = BLOCK
     worst = 0.0
     t0 = time.perf_counter()
     for i in range(0, x.shape[1] - bs, bs):

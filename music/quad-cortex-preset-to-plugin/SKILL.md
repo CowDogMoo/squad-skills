@@ -101,7 +101,7 @@ the plugin-state format the renderer uses: `references/preset-file-format.md`.
 
 ```bash
 S=<this skill>/scripts
-python3 -I $S/ndsp_preset.py "<preset>.xml" --grep leadEQ     # read any preset
+python3 -I $S/ndsp_preset.py "<preset>.xml" | rg leadEQ     # read any preset
 python3 -I $S/write_preset.py "<Plugin>/Default.xml" "<Plugin>/User/<New name>.xml" \
   --spec references/specs/<spec>.json [--set key=value ...]
 ```
@@ -154,12 +154,11 @@ uv run --with pedalboard --with soundfile --with numpy python -I $S/render_chain
 
 Each plugin loads headless (the plugin must be installed and licensed on
 this machine), the preset values are applied onto the plugin's own state by
-node path, the script waits `--settle` seconds (default 3) for file loads
-such as an IR, then reads the state back and prints every value that did not
-take. Read that line: zero mismatches, or a reason for each. A mono DI is
-fed as two identical channels, as Live feeds a mono track into a stereo
-plugin. The render is a 32-bit float wav, so a hot `outputGain` does not
-clip the file.
+node path, the script waits 3 s for file loads such as an IR, then reads
+the state back and prints every value that did not take. Read that line:
+zero mismatches, or a reason for each. A mono DI is fed as two identical
+channels, as Live feeds a mono track into a stereo plugin. The render is a
+32-bit float wav, so a hot `outputGain` does not clip the file.
 
 Validated once against Live: the offline render and Live's own re-amp of the
 same DI through the same preset nulled to −20.5 dB, ESR 0.009. So compare
@@ -209,7 +208,7 @@ chain, not that take. If not, report both takes and fit to neither.
 
 ```bash
 uv run --with pedalboard --with soundfile --with numpy python -I $S/chain_cost.py \
-  "<DI>.wav" "<plugin>.vst3=<preset>.xml" [...] --block 128
+  "<DI>.wav" "<plugin>.vst3=<preset>.xml" [...]
 ```
 
 Reports average load as a share of one core, the worst block against its
@@ -244,7 +243,7 @@ driven and gain staging must be re-checked (see the measurement skill).
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `write_preset.py`: keys not found | Typo, a key the plugin version lacks, or an unscoped `sectionActive` | Dump the template with `ndsp_preset.py --grep`; scope as `key@node` |
+| `write_preset.py`: keys not found | Typo, a key the plugin version lacks, or an unscoped `sectionActive` | Dump the template with `ndsp_preset.py` piped through `rg`; scope as `key@node` |
 | Render ignores the custom IR | IR fields hand-written, or set on a slot that is not `selectedCab` | Load the IR in the plugin UI on the selected slot and press SAVE; re-render |
 | Read-back mismatch `'1'` vs `'1.0'` | Number formatting | Not counted; nothing to fix |
 | Coherence < 0.8 everywhere, deltas small | Drive stage differs (a stand-in pedal, wrong amp gain) | Back to step 2; EQ cannot fix it |

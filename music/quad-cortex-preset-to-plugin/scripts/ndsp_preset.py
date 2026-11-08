@@ -17,8 +17,8 @@ byte, so a file this module cannot represent exactly is refused, not
 rewritten.
 
 Usage (standard library only):
-  python3 -I ndsp_preset.py PRESET.xml                 # dump path, key, type, value
-  python3 -I ndsp_preset.py PRESET.xml --grep leadEQ   # only keys containing text
+  python3 -I ndsp_preset.py PRESET.xml             # dump path, key, type, value
+  python3 -I ndsp_preset.py PRESET.xml | rg leadEQ # filter the dump
 """
 import argparse
 import struct
@@ -177,12 +177,9 @@ def get_values(tree, keys):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('preset')
-    ap.add_argument('--grep', help='only print keys containing this text')
     a = ap.parse_args()
     t, tail = load(a.preset)
     for p, k, ty, v in walk(t):
-        if a.grep and a.grep not in k:
-            continue
         print(f"{p}\t{k}\t{ty}\t{v}")
     print(f"# round-trip ok; trailing bytes: {len(tail)}")
 

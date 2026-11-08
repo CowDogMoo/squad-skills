@@ -13,7 +13,7 @@ on/off), take-lane count and arrangement/session clips (kind, name, start;
 take-lane clips included); then the main track, tempo and locators. It also
 prints the return-track count. It does not compare device parameter values,
 clip length, gain, warp or notes, automation, or set-level options such as
-Reduced Latency When Monitoring.
+`LatencyCompensation` or Reduced Latency When Monitoring.
 
 Read-only, standard library only:
   python3 -I als_diff.py BASE.als NEW.als

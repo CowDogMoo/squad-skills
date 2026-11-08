@@ -30,10 +30,10 @@
     {
       "id": 3,
       "prompt": "The Gojira preset sounds right but the IR is still sitting in my Downloads folder. I moved it to ~/Music/Impulse Responses/. Fix the preset so it points there.",
-      "expected_output": "Uses scripts/repoint_ir.py on the preset with the old and new path prefixes (dry run first), which keeps a .pre-irmove backup and verifies the new path exists; then re-renders the DI once to confirm the output is unchanged, and warns that DAW sets holding the old state keep the old path until the preset is reloaded there.",
+      "expected_output": "Uses scripts/repoint_ir.py on the preset with the old and new path prefixes, which keeps a .pre-irmove backup and verifies the new path exists; then re-renders the DI once to confirm the output is unchanged, and warns that DAW sets holding the old state keep the old path until the preset is reloaded there.",
       "files": [],
       "expectations": [
-        "scripts/repoint_ir.py is used, ideally with --dry-run first, rather than hand-editing the binary preset",
+        "scripts/repoint_ir.py is used rather than hand-editing the binary preset",
         "The response mentions the .pre-irmove backup and the check that the new IR path exists on disk",
         "A re-render or other check confirms the preset still loads the IR after the move",
         "It warns not to delete the original IR until any DAW set using the preset has reloaded it"
