@@ -1,0 +1,13 @@
+{
+  "fixed": [
+    "com.google.photos",
+    "com.google.translate",
+    "com.netflix.Netflix"
+  ],
+  "pinned": [
+    "com.google.photos",
+    "com.google.translate",
+    "com.netflix.Netflix"
+  ],
+  "duplicate": []
+}

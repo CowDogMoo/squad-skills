@@ -133,6 +133,12 @@ each listed path exactly one level deep.
 | [detect-dinner-freezer-protein](./cooking/detect-dinner-freezer-protein) | Map a dish name (and optionally a recipe URL) to the protein to take out of the freezer that morning — a normalized keyword like `chicken` or `meatballs` — or `null` with a reason for meatless dishes. |
 | [extract-recipe-grocery-list](./cooking/extract-recipe-grocery-list) | Fetch recipe URLs, extract ingredients (preferring schema.org JSON-LD), and produce a deduplicated grocery list grouped by aisle with per-item dish annotations. |
 
+### devices/
+
+| Skill | Description |
+| --- | --- |
+| [organize-iphone-home-screen](./devices/organize-iphone-home-screen) | Reorganize an iPhone Home Screen from a Mac over USB with the Unjiggle CLI: scan, plan with the user, preview with a read-only check, apply only after approval, verify by rescanning. Bundles a workspace setup script, a plan builder with coverage checks, a fixed-icon lister, and `installed_first.py`, which puts installed apps ahead of offloaded icons inside folders. |
+
 ## Skill Structure
 
 Layout follows Anthropic's
@@ -242,7 +248,7 @@ across them. The pattern that works:
 
 ```bash
 # 1. Create the directory inside the category folder that fits
-#    (cooking/, music/, release/, testing/,
+#    (cooking/, devices/, music/, release/, testing/,
 #    writing-quality/). A new category
 #    also needs an entry in .claude-plugin/plugin.json's "skills"
 #    list, or the plugin loader will never see it.

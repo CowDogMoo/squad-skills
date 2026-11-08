@@ -1,0 +1,169 @@
+{
+  "device": {
+    "name": "Test iPhone",
+    "model": "iPhone17,1",
+    "ios_version": "26.1"
+  },
+  "total_apps": 16,
+  "page_count": 2,
+  "folder_count": 2,
+  "dock_items": 4,
+  "dock": [
+    {
+      "type": "app",
+      "app": {
+        "bundle_id": "com.apple.mobilephone",
+        "display_name": "Phone",
+        "category": "Utilities"
+      }
+    },
+    {
+      "type": "app",
+      "app": {
+        "bundle_id": "com.apple.mobilesafari",
+        "display_name": "Safari",
+        "category": "Utilities"
+      }
+    },
+    {
+      "type": "app",
+      "app": {
+        "bundle_id": "com.apple.MobileSMS",
+        "display_name": "Messages",
+        "category": "Utilities"
+      }
+    },
+    {
+      "type": "app",
+      "app": {
+        "bundle_id": "com.apple.camera",
+        "display_name": "Camera",
+        "category": "Utilities"
+      }
+    }
+  ],
+  "pages": [
+    [
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.apple.mobileslideshow",
+          "display_name": "Photos",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.apple.mobilecal",
+          "display_name": "Calendar",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.google.Gmail",
+          "display_name": "Gmail - Email by Google",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.google.Maps",
+          "display_name": "Google Maps",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "folder",
+        "folder": {
+          "display_name": "Google Stuff",
+          "apps": [
+            [
+              {
+                "bundle_id": "com.google.photos",
+                "display_name": "Google Photos"
+              },
+              {
+                "bundle_id": "com.google.Docs",
+                "display_name": "Google Docs"
+              }
+            ]
+          ]
+        }
+      },
+      {
+        "type": "widget",
+        "widget": {
+          "container_bundle_id": "com.apple.weather",
+          "grid_size": "small"
+        }
+      }
+    ],
+    [
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.google.Drive",
+          "display_name": "Google Drive",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.google.calendar",
+          "display_name": "Google Calendar",
+          "category": "Utilities"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.spotify.client",
+          "display_name": "Spotify",
+          "category": "Music"
+        }
+      },
+      {
+        "type": "app",
+        "app": {
+          "bundle_id": "com.netflix.Netflix",
+          "display_name": "Netflix",
+          "category": "Entertainment"
+        }
+      },
+      {
+        "type": "folder",
+        "folder": {
+          "display_name": "Misc",
+          "apps": [
+            [
+              {
+                "bundle_id": "com.google.translate",
+                "display_name": "Google Translate"
+              },
+              {
+                "bundle_id": "com.apple.calculator",
+                "display_name": "Calculator"
+              },
+              {
+                "bundle_id": "com.apple.weather",
+                "display_name": "Weather"
+              }
+            ]
+          ]
+        }
+      }
+    ]
+  ],
+  "parse_integrity": {
+    "structure_preserved": true,
+    "raw_page_count": 2,
+    "unparsed_items": 0,
+    "dropped_empty_pages": 0
+  },
+  "snapshot_id": "test-snapshot-0001"
+}
