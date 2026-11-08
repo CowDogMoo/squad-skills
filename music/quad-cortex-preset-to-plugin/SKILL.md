@@ -128,8 +128,11 @@ IR on the selected slot, press **SAVE** so the plugin writes the IR fields
 itself. Plain value edits (EQ, output, knobs) load fine from the script,
 before or after that save. If the IR file moves later (out of Downloads,
 say), `repoint_ir.py PRESET OLD_PREFIX NEW_PREFIX` rewrites the path in
-place and checks the new path exists; re-render once and confirm the output
-is bit-identical.
+place and checks the new path exists; re-render once and confirm the audio
+samples are identical to the render before the move (for example
+`numpy.array_equal` on the arrays `soundfile.read` returns). Compare the
+samples, not the files: the float wav's PEAK chunk carries a timestamp, so
+`cmp` or `shasum` reports a difference even when the audio is unchanged.
 
 ## 4. Record the reference take
 
@@ -159,7 +162,10 @@ Each plugin loads headless (the plugin must be installed and licensed on
 this machine), the preset values are applied onto the plugin's own state by
 node path, the script waits 3 s for file loads such as an IR, then reads
 the state back and prints every value that did not take. Read that line:
-zero mismatches, or a reason for each. A mono DI is fed as two identical
+zero mismatches, or a reason for each. Then check the printed `out peak` is
+above zero before analyzing: a preset whose custom IR path does not exist
+renders silence (`out peak 0.000`) and still reports zero mismatches. A mono
+DI is fed as two identical
 channels, as Live feeds a mono track into a stereo plugin. The render is a
 32-bit float wav, so a hot `outputGain` does not clip the file.
 
@@ -248,6 +254,7 @@ driven and gain staging must be re-checked (see the measurement skill).
 | --- | --- | --- |
 | `write_preset.py`: keys not found | Typo, or a key the plugin version lacks | Dump the template with `ndsp_preset.py` piped through `rg`; check the key and any `@node` name |
 | Render ignores the custom IR | IR fields hand-written, or set on a slot that is not `selectedCab` | Load the IR in the plugin UI on the selected slot and press SAVE; re-render |
+| Render silent (`out peak 0.000`), zero mismatches | The preset's custom IR path does not exist (the IR was moved) | `repoint_ir.py PRESET OLD_PREFIX NEW_PREFIX`, then re-render |
 | Read-back mismatch `'1'` vs `'1.0'` | Number formatting | Not counted; nothing to fix |
 | Coherence < 0.8 everywhere, deltas small | Drive stage differs (a stand-in pedal, wrong amp gain) | Back to step 2; EQ cannot fix it |
 | QC wet file silent | Wet follows the preset's output routing | Out tile → Multi Out, USB Output 3/4 on, save (measurement skill) |
