@@ -1,0 +1,43 @@
+{
+  "skill_name": "quad-cortex-preset-to-plugin",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to record in Ableton with the same tone as my Quad Cortex preset. The QC chain is Adaptive Gate -> Fortin Grind (Boost 4.6) -> HOT amp (Gain 7, Low 3, Mid 5.5, High 6.5, Presence 7, Depth 3, Master 7.5) -> Graphic-9 EQ -> IR -> Room reverb 20%. Can you just set up Archetype Gojira X to match it?",
+      "expected_output": "Maps each QC block to Gojira settings (HOT = selectedAmp 2 / leadAmp*, 0-10 knobs to 0-1, EQ bands copied, EQ output added to outputGain), flags that Gojira has no Fortin Grind and chains the Grind from Fortin Nameless Suite X instead of using the OD as a stand-in, writes the presets with write_preset.py into new User preset names, explains the custom-IR selected-slot rule, and states that this reaches structurally faithful only until a DI + QC take is rendered and measured.",
+      "files": [],
+      "expectations": [
+        "The response states that Archetype Gojira X has no Fortin Grind and proposes chaining the Grind from Fortin Nameless Suite X rather than substituting Gojira's OD pedal",
+        "QC 0-10 amp knob values are converted to 0-1 plugin values (for example Gain 7 -> 0.7, Master 7.5 -> 0.75)",
+        "Presets are written with scripts/write_preset.py to new preset names, not by overwriting an existing User preset",
+        "The custom IR is placed on the selected cab slot, with loading it in the plugin UI and pressing SAVE named as the reliable route",
+        "The response does not claim the plugin chain matches the QC without a measurement, and names the claim-ladder rung reached"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I've got a DI and the Quad's wet signal from one take, and two Neural DSP presets (a Nameless pedal preset into Gojira). How close is the plugin chain to the Quad? Don't make me open the plugins.",
+      "expected_output": "Renders the DI through the two-plugin chain offline with scripts/render_chain.py (pedalboard, no plugin windows), checks the read-back mismatch line, runs quad-cortex-capture-measurement's analyze.py with DI, render, QC wet, reports the numbers against that skill's thresholds, and names the rung (measured, one take) plus the caveats: EQ fitted on the same take needs a second take, reverb on both sides, no A/B listening yet.",
+      "files": [],
+      "expectations": [
+        "scripts/render_chain.py is used with each PLUGIN.vst3=PRESET.xml pair in chain order, and no plugin window is opened",
+        "The state read-back output is checked before trusting the render",
+        "analyze.py from quad-cortex-capture-measurement is run with the DI, the render in the plugin slot, and the QC wet file",
+        "Results are read against the measurement skill's thresholds (bands within 0.5 dB from 250 Hz up, coherence, ESR ladder)",
+        "The verdict names the claim-ladder rung and says a second take is needed before claiming the match holds across performances"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The Gojira preset sounds right but the IR is still sitting in my Downloads folder. I moved it to ~/Music/Impulse Responses/. Fix the preset so it points there.",
+      "expected_output": "Uses scripts/repoint_ir.py on the preset with the old and new path prefixes, which keeps a .pre-irmove backup and verifies the new path exists; then re-renders the DI once to confirm the output is unchanged, and warns that DAW sets holding the old state keep the old path until the preset is reloaded there.",
+      "files": [],
+      "expectations": [
+        "scripts/repoint_ir.py is used rather than hand-editing the binary preset",
+        "The response mentions the .pre-irmove backup and the check that the new IR path exists on disk",
+        "A re-render or other check confirms the preset still loads the IR after the move",
+        "It warns not to delete the original IR until any DAW set using the preset has reloaded it"
+      ]
+    }
+  ]
+}

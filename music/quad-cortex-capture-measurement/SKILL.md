@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-capture-measurement
-description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth, ESR), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture) or for editing the preset grid (quad-cortex-preset-editing).
+description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth, ESR), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture), for editing the preset grid (quad-cortex-preset-editing), or for matching plugins to a QC preset (quad-cortex-preset-to-plugin).
 ---
 
 # Quad Cortex capture measurement
@@ -9,6 +9,9 @@ Decide — with numbers, from one recorded performance — how close a Neural
 Capture or the preset hosting it is to the plugin it was captured from.
 `quad-cortex-plugin-capture` sends captures here to be verified;
 `quad-cortex-preset-editing` sends presets here to reach rung 3.
+`quad-cortex-preset-to-plugin` runs the other direction — a plugin chain
+built to match a QC preset — and uses this method and `scripts/analyze.py`
+with an offline render of the DI in the plugin slot.
 
 Rig: Quad Cortex, RME Fireface UCX II, Ableton Live 12, Cortex Control.
 
@@ -98,6 +101,13 @@ for playing, almost no margin for measuring. When a full level match needs
 more makeup than one control gives, split it between the capture Volume and
 the lane output Volume; running out is headroom, not a knob limit.
 
+The input path is part of the level. Feeding the plugin from the Fireface's
+instrument input instead of the QC's Dry Input 1 USB channel changes how hard
+the amp sim is driven: a short test after switching showed peaks about 2 dB
+apart. Keep the DI on the QC's USB channel for measurement takes, and
+re-check gain staging whenever the input path changes, including when
+switching from a measured setup to tracking through the Fireface.
+
 Ableton records a track's input **pre-FX**, so a clip on the plugin track is
 the DI, the plugin's sound only exists on the Post-FX REC track, and a
 Utility on the QC track is not in the recorded file — set that after
@@ -173,7 +183,10 @@ Check these with tools before the user plays, not by asking them.
    set fixes nothing here. Read the `Audio In Out: Input Device:` line from
    Live's log first; when it says Fireface, switch it in Settings > Audio
    (input only; output stays on the Fireface), and confirm by eye — the log
-   line has lagged a Settings change once (see the reference).
+   line has lagged a Settings change once (see the reference). The QC is a
+   48 kHz-only device, so Live must run at 48 kHz to use it as input:
+   choosing it at 44.1 kHz gives "Selected audio device is not available"
+   and Live comes back at 48 kHz.
 5. **Track routing, arm, and solo** — read from the `.als`, not the screen.
    The measurement set was verified 2026-09-08: M0 / Track.8 PostFxOut / S1,
    all armed, nothing soloed, no take lanes, no clips.
