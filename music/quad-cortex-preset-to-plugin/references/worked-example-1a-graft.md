@@ -67,8 +67,9 @@ gap of the ladder (< 0.05 good, ~0.1 borderline).
 
 The offline render of the Gojira preset and Live's own re-amp of the same DI
 through the same preset nulled to −20.5 dB with ESR 0.009. After the IR was
-moved out of Downloads and both presets were repointed, a re-render was
-bit-identical.
+moved out of Downloads and both presets were repointed, a re-render had
+identical audio samples (the wav files differed only in the PEAK-chunk
+timestamp).
 
 ## Cost (48 kHz, 128-sample blocks, this Mac)
 

@@ -42,8 +42,8 @@ not restate them.
 - **Never overwrite a preset the player uses.** Write new names into the
   User folder. `write_preset.py` refuses to overwrite an existing file;
   replacing one means removing it first. `repoint_ir.py` keeps
-  `.pre-irmove`. Fit EQ
-  on scratch copies outside the User folder and write the winner once.
+  `.pre-irmove`. Fit EQ on scratch copies outside the User folder and
+  write the winner once.
 - **A stand-in is not the block.** When the amp sim lacks a QC block, find
   the same model in another plugin and chain it. Do not substitute a
   different pedal and call the result matched — on the worked example the
@@ -140,9 +140,10 @@ Use `quad-cortex-capture-measurement`'s one-cable method: guitar → QC
 Input 1, Live's audio **input** device = Quad Cortex, output device stays on
 the interface. One take records QC USB channel 1 (Dry Input 1, the DI, pre
 grid) and channels 3/4 (Wet Signal L/R) together, sample-locked. Two
-facts from this work, kept in that skill's pre-flight: the QC is a 48 kHz
-device, so Live must run at 48 kHz to use it as input; and the Wet channels
-are silent until the lane's Out tile is Multi Out with USB Output 3/4 on.
+facts that skill owns: the QC is a 48 kHz device, so Live must run at
+48 kHz to use it as input (pre-flight); and the Wet channels are silent
+until the lane's Out tile is Multi Out with USB Output 3/4 on
+(troubleshooting).
 
 For a measurement take, bypass time-based effects on the QC (reverb, delay)
 and leave them off in the plugin render too; put them back after. The worked
@@ -165,9 +166,9 @@ the state back and prints every value that did not take. Read that line:
 zero mismatches, or a reason for each. Then check the printed `out peak` is
 above zero before analyzing: a preset whose custom IR path does not exist
 renders silence (`out peak 0.000`) and still reports zero mismatches. A mono
-DI is fed as two identical
-channels, as Live feeds a mono track into a stereo plugin. The render is a
-32-bit float wav, so a hot `outputGain` does not clip the file.
+DI is fed as two identical channels, as Live feeds a mono track into a
+stereo plugin. The render is a 32-bit float wav, so a hot `outputGain` does
+not clip the file.
 
 Validated once against Live: the offline render and Live's own re-amp of the
 same DI through the same preset nulled to −20.5 dB, ESR 0.009. So compare

@@ -50,14 +50,17 @@ the plugin window on the selected slot and pressing SAVE lets the plugin
 write those fields itself, and it loaded reliably after that. Ordinary value
 edits (EQ, output, amp knobs) load fine from a script, before or after.
 `render_chain.py` reads the state back after a settle delay, which catches an
-IR path the plugin did not take.
+IR path the plugin did not take. It does not catch a path whose file no
+longer exists: the plugin keeps the path and the render is silent with zero
+mismatches (SKILL.md, step 5).
 
 The path is absolute, so moving the IR breaks the preset silently.
 `repoint_ir.py` rewrites the prefix in place (keeping `.pre-irmove`) and
 checks the new path exists; on the worked example a re-render after the move
-was bit-identical. A DAW set that already holds the plugin keeps its own copy
-of the state, including the old path, until the preset is reloaded there, so
-keep the old file until every set using it has reloaded the preset.
+had identical audio samples (compare samples, not files: SKILL.md, step 3).
+A DAW set that already holds the plugin keeps its own copy of the state,
+including the old path, until the preset is reloaded there, so keep the old
+file until every set using it has reloaded the preset.
 
 ## VST3 plugin state (what the renderer edits)
 

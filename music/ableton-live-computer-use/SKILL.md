@@ -187,9 +187,9 @@ the user can do.
   manual, grouped by task.
 - `references/screen-control-playbook.md` — access, seeing, aiming,
   typing values, focus, plug-in windows, dialogs, rig quirks, safety.
-- `references/task-recipes.md` — step lists for export, save, settings,
-  plug-ins, freeze and bounce, consolidate, warp, locators, groups,
-  mapping, missing files.
+- `references/task-recipes.md` — step lists for export, save, reviewable
+  edits to a shared set, settings, plug-ins, freeze and bounce,
+  consolidate, warp, locators, groups, mapping, missing files.
 - `scripts/live_manual.py` — sync, toc, search, show, shortcuts, status.
 - `scripts/als_diff.py` — read-only comparison of two `.als` sets: tracks
   added and removed; per track, name, top-level devices and on/off (devices
