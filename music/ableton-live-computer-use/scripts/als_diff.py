@@ -7,13 +7,15 @@ this on the pair. Tracks are matched by Live's track Id, so a rename shows
 as a change, not as a remove plus an add.
 
 Compares only these fields: tracks added and removed; for every track in
-both sets: name, type, group, input and output routing, monitoring, volume,
-pan, track on/off (Speaker, i.e. mute), solo, sends, arm, devices (name and
-on/off), take-lane count and arrangement/session clips (kind, name, start;
+both sets: name, type, group, input routing (audio and MIDI), audio output
+routing, monitoring, volume, pan, track on/off (Speaker, i.e. mute), solo,
+sends, arm, top-level devices (name and on/off; devices inside racks are not
+compared), take-lane count and arrangement/session clips (kind, name, start;
 take-lane clips included); then the main track, tempo and locators. It also
-prints the return-track count. It does not compare device parameter values,
-clip length, gain, warp or notes, automation, or set-level options such as
-`LatencyCompensation` or Reduced Latency When Monitoring.
+prints the return-track count. It does not compare MIDI output routing,
+devices inside racks, device parameter values, clip length, gain, warp or
+notes, automation, or set-level options such as `LatencyCompensation` or
+Reduced Latency When Monitoring.
 
 Read-only, standard library only:
   python3 -I als_diff.py BASE.als NEW.als
@@ -24,7 +26,7 @@ import argparse
 import gzip
 import sys
 import xml.etree.ElementTree as ET
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 
 DEVICE_NAME_TAGS = ('.//PlugName', './/Vst3PluginInfo/Name', './/AuPluginInfo/Name',
                     'UserName', 'EffectiveName')
@@ -146,9 +148,11 @@ def main():
         print(f"\nCHANGED track {x['name']!r} (Id {tid}):")
         for k, u, v in diffs:
             if k == 'clips':
-                su, sv = set(u), set(v)
-                print(f"   clips: -{len(su - sv)} +{len(sv - su)}  "
-                      f"removed={sorted(su - sv, key=str)[:5]} added={sorted(sv - su, key=str)[:5]}")
+                cu, cv = Counter(u), Counter(v)
+                gone, new = cu - cv, cv - cu
+                print(f"   clips: -{sum(gone.values())} +{sum(new.values())}  "
+                      f"removed={sorted(gone.elements(), key=str)[:5]} "
+                      f"added={sorted(new.elements(), key=str)[:5]}")
             else:
                 print(f"   {k}: {u!r} -> {v!r}")
     differences += changed

@@ -192,9 +192,11 @@ the user can do.
   mapping, missing files.
 - `scripts/live_manual.py` — sync, toc, search, show, shortcuts, status.
 - `scripts/als_diff.py` — read-only comparison of two `.als` sets: tracks
-  added and removed; per track, name, devices and on/off, input/output
-  routing, monitoring, volume, pan, mute, solo, sends, arm, clips (take
-  lanes included); main track, tempo, locators. Exit 0 = no differences in
-  those fields, not that the sets are identical (device parameter values,
-  clip length, gain, warp and notes, automation, and set-level options such
-  as `LatencyCompensation` are not compared).
+  added and removed; per track, name, top-level devices and on/off (devices
+  inside racks are not compared), input routing, audio output routing,
+  monitoring, volume, pan, mute, solo, sends, arm, clips (take lanes
+  included); main track, tempo, locators. Exit 0 = no differences in those
+  fields, not that the sets are identical (MIDI output routing, devices
+  inside racks, device parameter values, clip length, gain, warp and notes,
+  automation, and set-level options such as `LatencyCompensation` are not
+  compared).

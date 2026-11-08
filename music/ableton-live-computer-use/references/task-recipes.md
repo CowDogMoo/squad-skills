@@ -51,14 +51,16 @@ is punched back in):
    ```
 
    It prints tracks added and removed and, per existing track, every change
-   to name, input/output routing, monitoring, volume, pan, on/off (mute),
-   solo, sends, arm, devices (name and on/off), take lanes and clips (kind,
+   to name, input routing, audio output routing, monitoring, volume, pan,
+   on/off (mute), solo, sends, arm, top-level devices (name and on/off;
+   devices inside racks are not compared), take lanes and clips (kind,
    name, start), then the main track, tempo and locators. Anything listed
    that you did not mean to change is a finding to report, not to hide.
    Exit status 0 means no differences in those fields, not that the sets
-   are identical: device parameter values, clip length, gain, warp and
-   notes, automation, and set-level options such as `LatencyCompensation`
-   or Reduced Latency When Monitoring are not compared.
+   are identical: MIDI output routing, devices inside racks, device
+   parameter values, clip length, gain, warp and notes, automation, and
+   set-level options such as `LatencyCompensation` or Reduced Latency When
+   Monitoring are not compared.
 
 ## Settings: audio device, buffer size, sample rate (2.3.3, 40.2)
 
