@@ -108,6 +108,7 @@
     "quad-cortex-capture-measurement": "needs a Quad Cortex, an audio interface, and a DAW",
     "quad-cortex-plugin-capture": "needs a Quad Cortex, Cortex Control, and an audio interface",
     "quad-cortex-preset-editing": "drives the Cortex Control desktop app through screen control",
-    "thall-amp-neural-capture": "needs a Quad Cortex and the amp-sim plugin it captures"
+    "thall-amp-neural-capture": "needs a Quad Cortex and the amp-sim plugin it captures",
+    "organize-iphone-home-screen": "drives a USB-connected iPhone through the macOS-only Unjiggle CLI"
   }
 }

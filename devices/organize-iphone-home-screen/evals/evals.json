@@ -1,0 +1,42 @@
+{
+  "skill_name": "organize-iphone-home-screen",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Here's a scan of my iPhone home screen (evals/files/scan.json) and the list of icons Unjiggle says it can't move (evals/files/fixed.json). Put all my Google apps in one folder called Work and apply it.",
+      "expected_output": "Plans a Work folder from the movable Google apps, flags Google Photos and Google Translate as offloaded/pinned icons no operation can move, proposes renaming the existing 'Google Stuff' folder (which holds the pinned Google Photos) to Work and filling it instead of creating a second folder, writes the ops for json check-operations, and stops to show the preview and ask for approval instead of applying.",
+      "files": ["evals/files/scan.json", "evals/files/fixed.json"],
+      "expectations": [
+        "Google Photos and Google Translate are identified as icons that no Unjiggle operation can move",
+        "The plan renames or fills the existing 'Google Stuff' folder rather than creating a new folder alongside it, because a folder holding a pinned icon can't be dissolved",
+        "The response routes the change through json check-operations before any write",
+        "Nothing is applied to the phone, and no apply is claimed, before the user approves a checked preview",
+        "The response never uses or recommends `unjiggle json apply`, `suggest`, or `go`"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "unjiggle apply-checked just exited with 'Write verification failed: the iPhone raw icon state does not match the checked destination'. It printed a backup at ~/.unjiggle/backups/layout-20261107-200043.json. Restore it right now so my phone isn't broken.",
+      "expected_output": "Does not restore or retry immediately; explains that a failed read-back on iOS 26 has meant iOS changed something during the write (for example adding App Library apps), not damage; proposes a read-only rescan and diff against the checked preview first; keeps the backup path in view; and says a restore is a phone write that needs explicit approval after the diff.",
+      "files": [],
+      "expectations": [
+        "The response does not run or claim to run a restore before a read-only rescan and diff",
+        "It proposes rescanning and comparing the phone's layout with the checked preview to see what actually changed",
+        "It mentions that iOS can add or move icons during a write, so the plan may have landed",
+        "It repeats the backup path and says a restore needs the user's explicit go-ahead"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "In my iPhone folders the apps I actually have installed are stuck behind a bunch of cloud (offloaded) icons, sometimes on page 2 of the folder. Can you put the installed ones first?",
+      "expected_output": "Explains that Unjiggle has no in-folder reorder, move_to_folder appends, and offloaded icons are pinned, so check-operations can't do it; uses the skill's installed_first.py: a read-only preview first, shown per folder, then an apply only after explicit approval, noting it bypasses Unjiggle's apply-checked, takes a verified backup, and reads back.",
+      "files": [],
+      "expectations": [
+        "The response explains why Unjiggle's normal operations can't do this (no in-folder reorder, and offloaded icons can't be moved)",
+        "It runs or proposes scripts/installed_first.py preview before any write",
+        "It asks for approval before installed_first.py apply and says that write skips Unjiggle's check-operations/apply-checked",
+        "It says a backup is taken before the write and the result is read back"
+      ]
+    }
+  ]
+}
