@@ -8,8 +8,8 @@ source of truth. After loading, the script waits for file-based loads (a
 custom IR) to settle, reads the state back from each plugin and prints every
 value that did not take. A mismatch that is only number formatting ('1' vs
 '1.0') is not counted. A mono DI is duplicated to two channels, the way Live
-feeds a mono track into a stereo plugin. Output is a 24-bit wav at the DI's
-sample rate.
+feeds a mono track into a stereo plugin. Output is a 32-bit float wav at the
+DI's sample rate, so a peak over full scale is kept, not clipped.
 
 Validated against Live's own re-amp of the same DI: null -20.5 dB, ESR 0.009,
 so an offline render stands in for a Live re-amp when comparing settings.
@@ -18,9 +18,7 @@ Usage:
   uv run --with pedalboard --with soundfile --with numpy python -I render_chain.py \\
     DI.wav OUT.wav "/Library/Audio/Plug-Ins/VST3/<Plugin>.vst3=<preset>.xml" [...]
 
-A spec without `=PRESET` loads the plugin in its default state. Exit status
-3 with --strict when any read-back mismatch remains (the render is still
-written, so you can inspect it).
+A spec without `=PRESET` loads the plugin in its default state.
 """
 import argparse
 import struct
@@ -140,17 +138,13 @@ def main():
     ap.add_argument('chain', nargs='+', metavar='PLUGIN.vst3[=PRESET.xml]')
     ap.add_argument('--settle', type=float, default=3.0,
                     help='seconds to wait for file-based loads such as a custom IR (default 3)')
-    ap.add_argument('--strict', action='store_true',
-                    help='exit 3 when any read-back mismatch remains')
     a = ap.parse_args()
 
     chain = load_chain(a.chain)
     time.sleep(a.settle)
-    mismatches = 0
     for p, preset in chain:
         if preset:
             bad = read_back(p, preset)
-            mismatches += len(bad)
             print(f"  {Path(preset).name} read-back mismatches: {len(bad)}")
             for line in bad[:20]:
                 print(f"    {line}")
@@ -162,10 +156,8 @@ def main():
     y = Pedalboard([p for p, _ in chain])(x.astype(np.float32), sr)
     print(f"in peak {np.abs(x).max():.3f}  out peak {np.abs(y).max():.3f}  "
           f"{y.shape[0]} ch, {y.shape[1] / sr:.1f} s @ {sr} Hz")
-    sf.write(a.out, y.T, sr, subtype='PCM_24')
+    sf.write(a.out, y.T, sr, subtype='FLOAT')
     print("wrote", a.out)
-    if a.strict and mismatches:
-        return 3
     return 0
 
 

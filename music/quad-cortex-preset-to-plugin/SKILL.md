@@ -108,9 +108,13 @@ python3 -I $S/write_preset.py "<Plugin>/Default.xml" "<Plugin>/User/<New name>.x
 
 Keys are `prop` or `prop@node` (`sectionActive` exists in every section, so
 `sectionActive@pedalParameters`). The script refuses unknown keys, loads the
-written file back and checks every value. The two bundled specs reproduce
-the worked example's final chain from the factory defaults; rendered, they
-are bit-identical to the presets the player saved from the plugin UI.
+written file back and checks every value. The two bundled specs build the
+worked example's final chain from the factory defaults. The Nameless spec
+reproduces the saved "Graft Grind" preset exactly. The Gojira spec matches
+the saved "Graft with Nameless Grind" except the custom IR
+(`leftCab2MicType`, `leftCab2ChosenIRFilePath`) and the knobs of the OD,
+which is off; until the IR is loaded and saved in the plugin (or passed
+with `--set`), it renders the stock cab mic, not the IR.
 
 **Custom IR quirk.** A custom IR is honoured only on the selected cab slot:
 `selectedCab` N, `leftCab<N>MicType` 7 (the custom-IR entry after the stock
@@ -152,9 +156,10 @@ Each plugin loads headless (the plugin must be installed and licensed on
 this machine), the preset values are applied onto the plugin's own state by
 node path, the script waits `--settle` seconds (default 3) for file loads
 such as an IR, then reads the state back and prints every value that did not
-take. Read that line: zero mismatches, or a reason for each. `--strict` makes
-a mismatch exit 3 for batch use. A mono DI is fed as two identical channels,
-as Live feeds a mono track into a stereo plugin.
+take. Read that line: zero mismatches, or a reason for each. A mono DI is
+fed as two identical channels, as Live feeds a mono track into a stereo
+plugin. The render is a 32-bit float wav, so a hot `outputGain` does not
+clip the file.
 
 Validated once against Live: the offline render and Live's own re-amp of the
 same DI through the same preset nulled to −20.5 dB, ESR 0.009. So compare
@@ -265,7 +270,6 @@ driven and gain staging must be re-checked (see the measurement skill).
   read-back.
 - `scripts/render_chain.py` — offline re-amp through a preset chain, with
   state read-back.
-- `scripts/juce_state.py` — JUCE VST3 state codec used by the renderer; run
-  alone it prints a saved plugin state as XML.
+- `scripts/juce_state.py` — JUCE VST3 state codec used by the renderer.
 - `scripts/repoint_ir.py` — move a preset's IR paths, with backup and check.
 - `scripts/chain_cost.py` — CPU and latency of a chain.

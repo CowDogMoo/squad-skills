@@ -147,7 +147,9 @@ time. Export is not undoable and writes files, so confirm the folder.
   band set lagged noticeably while tracking guitar; with it on, what is
   left is the device buffer and the monitored chain's own latency (about
   7 ms of buffer plus about 2 ms of plug-ins at 128 samples on this rig).
-  It is a global option: ask before changing it.
+  It is saved with each Set, not globally, so turn it on in each Set used
+  for tracking. In a shared set the change travels with the set: ask
+  before changing it.
 
 ## Options.txt and preferences (2.3)
 

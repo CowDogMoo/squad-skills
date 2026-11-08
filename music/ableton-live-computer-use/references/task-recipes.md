@@ -51,10 +51,14 @@ is punched back in):
    ```
 
    It prints tracks added and removed and, per existing track, every change
-   to name, routing, monitoring, volume, pan, on/off, solo, sends, arm,
-   devices, take lanes and clips, then the main track, tempo and locators.
-   Anything listed that you did not mean to change is a finding to report,
-   not to hide. Exit status 0 means the sets are identical.
+   to name, input/output routing, monitoring, volume, pan, on/off (mute),
+   solo, sends, arm, devices (name and on/off), take lanes and clips (kind,
+   name, start), then the main track, tempo and locators. Anything listed
+   that you did not mean to change is a finding to report, not to hide.
+   Exit status 0 means no differences in those fields, not that the sets
+   are identical: device parameter values, clip length, gain, warp and
+   notes, automation, and set options such as Reduced Latency When
+   Monitoring are not compared.
 
 ## Settings: audio device, buffer size, sample rate (2.3.3, 40.2)
 

@@ -162,13 +162,15 @@ def set_values(tree, values):
 
 
 def get_values(tree, keys):
-    """Return {key: [values...]} for `prop` or `prop@node` keys."""
+    """Return {key: [values...]} for `prop` or `prop@node` keys. A scoped
+    key wins over a bare one, as in set_values."""
     found = {k: [] for k in keys}
     for path, k, ty, v in walk(tree):
         node = path.rsplit('/', 1)[-1]
         for key in (f"{k}@{node}", k):
             if key in found:
                 found[key].append(v)
+                break
     return found
 
 

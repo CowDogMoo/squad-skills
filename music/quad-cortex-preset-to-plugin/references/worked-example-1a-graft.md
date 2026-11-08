@@ -31,7 +31,10 @@ EQ was not attempted.
   re-fitted to +2.7 / −0.5 / −5.2 / −4.5 / +2.5 / +3 / +1.5 / +1 / 0 and
   `outputGain` 3.4.
 
-The bundled specs in `specs/` rebuild both from the factory defaults.
+The bundled specs in `specs/` build both from the factory defaults. The
+Nameless one reproduces the saved preset exactly; the Gojira one matches
+except the custom IR fields (and the knobs of the OD, which is off), so the
+IR still has to be loaded and saved in the plugin before its render matches.
 
 Result on the same take, scored with `quad-cortex-capture-measurement`'s
 `analyze.py` (deltas QC − plugin, bands 60–120, 120–250, 250–500, 500–1k,

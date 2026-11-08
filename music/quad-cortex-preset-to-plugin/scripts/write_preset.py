@@ -35,7 +35,6 @@ def main():
     ap.add_argument('out')
     ap.add_argument('--spec', help='JSON object of key -> value')
     ap.add_argument('--set', action='append', default=[], metavar='KEY=VALUE')
-    ap.add_argument('--name', help='preset name shown in the plugin (sets the root `name`)')
     ap.add_argument('--force', action='store_true', help='overwrite OUT, keeping OUT.bak')
     a = ap.parse_args()
 
@@ -49,8 +48,6 @@ def main():
             sys.exit(f"--set needs KEY=VALUE, got {pair!r}")
         k, v = pair.split('=', 1)
         values[k] = v
-    if a.name:
-        values['name'] = a.name
     if not values:
         sys.exit("nothing to set: pass --spec and/or --set")
 

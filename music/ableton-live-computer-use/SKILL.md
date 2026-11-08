@@ -172,7 +172,7 @@ the user can do.
 | Plug-in missing from the browser | Not scanned or failed to load | Settings > Plug-Ins > Rescan; check `Log.txt` |
 | Value typed into a field was ignored | Field was not in edit mode | Single-click the number, type, Enter |
 | `live_manual.py` exits 3 | No network on first sync | Run `sync` once online, or set `LIVE_MANUAL_CACHE` to a synced copy |
-| Playing through an amp sim lags in a big set | Delay compensation is applied to armed, monitored tracks | Options > Reduced Latency When Monitoring on (ask first; it is a global option) |
+| Playing through an amp sim lags in a big set | Delay compensation is applied to armed, monitored tracks | Options > Reduced Latency When Monitoring on, in each Set used for tracking (ask first; it is saved with the Set) |
 | A set opens nearly silent, drum tracks dead | Plug-ins the set was built with are not installed here (e.g. KClip3 carrying track gain, Kontakt drums) | Read the missing-plug-in list in `Log.txt` and the device names; faders set low to feed a missing clipper are not wrong, the clipper is absent. Report, don't "fix" levels |
 | A recording made an extra take lane or a noise clip on another track | That track was already armed | Delete the main-lane clip (`delete_arrangement_clip`), then the take-lane clip and the empty lane in the UI; check arm on every track first next time |
 
@@ -192,5 +192,8 @@ the user can do.
   mapping, missing files.
 - `scripts/live_manual.py` — sync, toc, search, show, shortcuts, status.
 - `scripts/als_diff.py` — read-only comparison of two `.als` sets: tracks
-  added, removed, and changed (devices, routing, monitoring, mixer, sends,
-  arm, take lanes, clips), main track, tempo, locators. Exit 0 = identical.
+  added and removed; per track, devices and on/off, input/output routing,
+  monitoring, volume, pan, mute, solo, sends, arm, clips (take lanes
+  included); main track, tempo, locators. Exit 0 = no differences in those
+  fields, not that the sets are identical (device parameter values, clip
+  contents, automation and set options are not compared).
