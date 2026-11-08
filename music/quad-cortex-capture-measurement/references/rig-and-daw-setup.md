@@ -70,6 +70,13 @@ What the split does and does not fix:
   USB channels. "Aggregate for the DI" is therefore not a shortcut; it is an
   Audio MIDI Setup job plus a Live restart.
 - Live Input Config: enable Mono 1&2 and Stereo 3/4 (Mono 3&4 too, harmless).
+- The Quad Cortex only runs at **48 kHz**. With Live at 44.1 kHz, choosing it
+  as the input device gives "Selected audio device is not available" and
+  Live comes back at 48 kHz. Run measurement sets at 48 kHz.
+- The input path sets the drive into the amp sim. The Fireface's instrument
+  input and the QC's Dry Input 1 USB channel do not deliver the same level
+  (a short test after switching showed peaks about 2 dB apart), so re-check
+  gain staging when switching between them.
 
 ## Reading the set without the UI
 

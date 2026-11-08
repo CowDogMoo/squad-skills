@@ -1,6 +1,6 @@
 ---
 name: ableton-live-computer-use
-description: Drive Ableton Live 12 through screen control (computer use) when the ableton-mcp API cannot do the job - export or bounce, Save As, Collect All, Settings (audio device, buffer, plug-in rescan), plug-in GUI windows, warp markers, consolidate, freeze, comping, locators, key/MIDI mapping, dialogs - with a full UI map, how Live works, manual-verified shortcuts, and a script that caches and full-text searches the official Live 12 manual (scripts/live_manual.py search, show, shortcuts). Use for "click in Ableton", "do it in the Live UI", "export the track from Live", "open Settings in Ableton", "change the buffer size", "open the plug-in window", "what does this button do in Live", "look up the Live manual", or any Live task with no matching MCP function. Do NOT use for jobs the API covers (tracks, clips, notes, tempo, volume, pan, device parameters - use ableton-mcp directly), for Cortex Control or TotalMix screen work (quad-cortex-preset-editing), or for transcribing audio (transcribe-guitar-riff).
+description: Drive Ableton Live 12 through screen control (computer use) when the ableton-mcp API cannot do the job - export or bounce, Save As, Collect All, Settings (audio device, buffer, plug-in rescan), plug-in GUI windows, warp markers, consolidate, freeze, comping, locators, key/MIDI mapping, dialogs - with a full UI map, how Live works, manual-verified shortcuts, and a script that caches and full-text searches the official Live 12 manual (scripts/live_manual.py) and scripts/als_diff.py, a set diff. Use for "click in Ableton", "do it in the Live UI", "export the track from Live", "open Settings in Ableton", "change the buffer size", "open the plug-in window", "what does this button do in Live", "look up the Live manual", or any Live task with no matching MCP function. Do NOT use for jobs the API covers (tracks, clips, notes, tempo, volume, pan, device parameters - use ableton-mcp directly), for Cortex Control or TotalMix screen work (quad-cortex-preset-editing), or for transcribing audio (transcribe-guitar-riff).
 ---
 
 # Ableton Live via screen control
@@ -56,6 +56,16 @@ what was changed, what was left alone, and what could not be verified.
   device or buffer, or answer a dialog's question, unless the request
   says so. Live's dialogs ("Save changes?", missing files, "Set was not
   closed properly") are the user's to answer: quote them and stop.
+- **Before anything records in a shared set, list every armed track.**
+  Band sets get saved with someone else's track armed, and that track
+  records alongside yours (noise on the main lane plus an extra take
+  lane). `get_track_info` reports arm for each track; read them all and
+  have the user disarm or confirm every one. Exclusive Arm only acts on
+  the next arm click; it does not disarm what is already armed.
+- **Edit a shared set as a copy.** Save Live Set As... a new `.als` name in
+  the same Project first, so the original stays identical to the shared
+  copy, then compare with `scripts/als_diff.py` (recipe in
+  `references/task-recipes.md`).
 - **Stop and ask** when: a plug-in GUI or dialog you do not recognize is
   in front; a click landed somewhere other than aimed twice in a row (see
   the click-offset section of `references/screen-control-playbook.md`); the
@@ -162,6 +172,9 @@ the user can do.
 | Plug-in missing from the browser | Not scanned or failed to load | Settings > Plug-Ins > Rescan; check `Log.txt` |
 | Value typed into a field was ignored | Field was not in edit mode | Single-click the number, type, Enter |
 | `live_manual.py` exits 3 | No network on first sync | Run `sync` once online, or set `LIVE_MANUAL_CACHE` to a synced copy |
+| Playing through an amp sim lags in a big set | Delay compensation is applied to armed, monitored tracks | Options > Reduced Latency When Monitoring on (ask first; it is a global option) |
+| A set opens nearly silent, drum tracks dead | Plug-ins the set was built with are not installed here (e.g. KClip3 carrying track gain, Kontakt drums) | Read the missing-plug-in list in `Log.txt` and the device names; faders set low to feed a missing clipper are not wrong, the clipper is absent. Report, don't "fix" levels |
+| A recording made an extra take lane or a noise clip on another track | That track was already armed | Delete the main-lane clip (`delete_arrangement_clip`), then the take-lane clip and the empty lane in the UI; check arm on every track first next time |
 
 ## Reference files
 
@@ -178,3 +191,6 @@ the user can do.
   plug-ins, freeze and bounce, consolidate, warp, locators, groups,
   mapping, missing files.
 - `scripts/live_manual.py` — sync, toc, search, show, shortcuts, status.
+- `scripts/als_diff.py` — read-only comparison of two `.als` sets: tracks
+  added, removed, and changed (devices, routing, monitoring, mixer, sends,
+  arm, take lanes, clips), main track, tempo, locators. Exit 0 = identical.

@@ -31,6 +31,31 @@ differs (`python3 scripts/live_manual.py show 5.1.3`).
   Library, Current Project, Elsewhere). Choose per the user; verify
   `Samples/Imported/` grew.
 
+## Change a shared set so the change can be reviewed (5.4)
+
+For a band set checked out from shared storage (for example a Punch
+checkout under `~/Music/Punch/<song> Project/`, which stays local until it
+is punched back in):
+
+1. Before editing, Cmd+Shift+S (Save Live Set As...) to a new `.als` name in
+   the **same** Project folder, e.g. `<song> (new guitars).als`. The
+   original `.als` stays byte-identical to the shared copy; samples you
+   record still land in the shared `Samples/Recorded/`.
+2. Before recording, list armed tracks (`get_track_info` on every track)
+   and have every unexpected arm cleared.
+3. Make the change; Cmd+S saves the new name only.
+4. Review it from the shell:
+
+   ```bash
+   python3 -I scripts/als_diff.py "<song>.als" "<song> (new guitars).als"
+   ```
+
+   It prints tracks added and removed and, per existing track, every change
+   to name, routing, monitoring, volume, pan, on/off, solo, sends, arm,
+   devices, take lanes and clips, then the main track, tempo and locators.
+   Anything listed that you did not mean to change is a finding to report,
+   not to hide. Exit status 0 means the sets are identical.
+
 ## Settings: audio device, buffer size, sample rate (2.3.3, 40.2)
 
 1. Cmd+, opens Settings. Use the up/down arrows in the page chooser to

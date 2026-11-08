@@ -1,0 +1,21 @@
+{
+  "_what": "Fortin Nameless Suite X used as a pedal only: gate plus the Fortin Grind boost, every later section off, unity in/out. Mirrors the Quad Cortex 1A Graft front end (Adaptive Gate -> Fortin Grind, Boost 4.6). Template: the plugin's factory Default.xml.",
+  "name": "Graft Grind",
+  "gateActive": "true",
+  "transpose": "0",
+  "inputGain": "0",
+  "outputGain": "0",
+  "doublerActive": "false",
+  "sectionActive@preFXParameters": "true",
+  "grindActive": "true",
+  "grindBoost": "0.46",
+  "hexDriveActive": "false",
+  "zuulActive": "false",
+  "sectionActive@ampParameters": "false",
+  "sectionActive@eqParameters": "false",
+  "namelessEQActive": "false",
+  "sectionActive@cabParameters": "false",
+  "sectionActive@postFXParameters": "false",
+  "reverbActive": "false",
+  "delayActive": "false"
+}

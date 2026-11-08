@@ -92,6 +92,13 @@ numbers are manual sections (`python3 scripts/live_manual.py show 3.7`).
 - Plug-in scanning happens at launch and on **Rescan** in Settings >
   Plug-Ins; Option-click Rescan wipes the plug-in database first.
   `Log.txt` records every plug-in that failed to load.
+- A set opened on a machine without some of its plug-ins keeps the devices
+  as placeholders that pass no sound. A band set seen on this rig used
+  KClip3 (46 instances, VST2) for gain, Kontakt 8 for drums, plus AmMark73,
+  Minimal Audio Rift and Cluster Delay, mvMeter2 and UAD devices; with
+  those missing, faders sitting at −26 to −40 dB that relied on KClip3
+  gain were inaudible and the Kontakt drum tracks were silent. A near-silent
+  set is a missing-plug-in finding before it is a level problem.
 
 ## Recording (19)
 
@@ -100,6 +107,10 @@ numbers are manual sections (`python3 scripts/live_manual.py show 3.7`).
   takes (21). Punch In/Out use the loop brace.
 - Session recording: arm, press Session Record (Cmd+Shift+F9); the new
   clip lands in the selected scene and starts looping when you press again.
+- Arm state is saved in the set. A shared set can arrive with another
+  player's track armed, and it will record alongside yours; list armed
+  tracks (`get_track_info`) before recording. Exclusive Arm only changes
+  what the next arm click does.
 - **Capture MIDI** grabs what you just played on an unarmed instrument
   track after the fact.
 - Record Quantization and MIDI Overdub are Control Bar settings; Count-In
@@ -129,7 +140,14 @@ time. Export is not undoable and writes files, so confirm the folder.
   changing the sample rate re-warps every clip's playback math.
 - The CPU meter in the Control Bar is the mixer's worst-case load; the
   Performance Impact mixer section shows per-track load. Freeze or Bounce
-  heavy tracks; Reduced Latency When Monitoring is in the Options menu.
+  heavy tracks.
+- **Reduced Latency When Monitoring** (Options menu) drops delay
+  compensation from tracks that are armed and monitoring, so playing
+  through an amp sim in a big set feels immediate. With it off, a large
+  band set lagged noticeably while tracking guitar; with it on, what is
+  left is the device buffer and the monitored chain's own latency (about
+  7 ms of buffer plus about 2 ms of plug-ins at 128 samples on this rig).
+  It is a global option: ask before changing it.
 
 ## Options.txt and preferences (2.3)
 
