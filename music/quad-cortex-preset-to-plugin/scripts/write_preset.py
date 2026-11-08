@@ -4,9 +4,10 @@
 Start from a template (the plugin's factory `Default.xml`, or an existing
 User preset for a variant), set values by key, write the result, then load
 it back and check every value landed. Keys are `prop` or `prop@node`, where
-node is the ValueTree type that holds the prop (`sectionActive` exists in
-every section, so it needs `sectionActive@pedalParameters` and the like).
-Values are given as text and converted to the type the template holds.
+node is the ValueTree type that holds the prop. A bare key sets that prop in
+every node that has it: a bare `sectionActive` switches every section and
+still reads back ok, so scope it (`sectionActive@pedalParameters`) to change
+one section. Values are given as text and converted to the type the template holds.
 
 A spec file is a flat JSON object of key -> value; keys starting with `_`
 are comments. `--set` pairs are applied after the spec and override it.

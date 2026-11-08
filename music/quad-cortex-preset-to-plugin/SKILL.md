@@ -107,9 +107,11 @@ python3 -I $S/write_preset.py "<Plugin>/Default.xml" "<Plugin>/User/<New name>.x
   --spec references/specs/<spec>.json [--set key=value ...]
 ```
 
-Keys are `prop` or `prop@node` (`sectionActive` exists in every section, so
-`sectionActive@pedalParameters`). The script refuses unknown keys, loads the
-written file back and checks every value. The two bundled specs build the
+Keys are `prop` or `prop@node`. A bare key sets that prop in every node
+that has it: a bare `sectionActive` switches every section and still reads
+back ok, so scope it (`sectionActive@pedalParameters`) to change one
+section. The script refuses unknown keys, loads the written file back and
+checks every value. The two bundled specs build the
 worked example's final chain from the factory defaults. The Nameless spec
 reproduces the saved "Graft Grind" preset exactly. The Gojira spec matches
 the saved "Graft with Nameless Grind" except the custom IR
@@ -244,7 +246,7 @@ driven and gain staging must be re-checked (see the measurement skill).
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `write_preset.py`: keys not found | Typo, a key the plugin version lacks, or an unscoped `sectionActive` | Dump the template with `ndsp_preset.py` piped through `rg`; scope as `key@node` |
+| `write_preset.py`: keys not found | Typo, or a key the plugin version lacks | Dump the template with `ndsp_preset.py` piped through `rg`; check the key and any `@node` name |
 | Render ignores the custom IR | IR fields hand-written, or set on a slot that is not `selectedCab` | Load the IR in the plugin UI on the selected slot and press SAVE; re-render |
 | Read-back mismatch `'1'` vs `'1.0'` | Number formatting | Not counted; nothing to fix |
 | Coherence < 0.8 everywhere, deltas small | Drive stage differs (a stand-in pedal, wrong amp gain) | Back to step 2; EQ cannot fix it |
