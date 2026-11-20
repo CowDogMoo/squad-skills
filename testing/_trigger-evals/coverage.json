@@ -1,0 +1,114 @@
+{
+  "family": "coverage",
+  "description": "Coverage and test-writing discipline skills: the coverage queue, the report-the-gaps loop, and the test-writer honesty rules.",
+  "skills": [
+    "enqueue-coverage-targets",
+    "score-coverage-and-report-gaps",
+    "test-writer-honesty"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Raise test coverage to 80% on every Go package in this repo that's below it.",
+      "expect": "enqueue-coverage-targets",
+      "not": ["score-coverage-and-report-gaps"]
+    },
+    {
+      "id": 2,
+      "query": "Bring every Python module under 75% coverage up to target. Write the tests, then re-measure at the end.",
+      "expect": "enqueue-coverage-targets",
+      "not": ["score-coverage-and-report-gaps"]
+    },
+    {
+      "id": 3,
+      "query": "Coverage on our TypeScript packages is all over the place. Queue every file under 70% and write tests until each is at target.",
+      "expect": "enqueue-coverage-targets"
+    },
+    {
+      "id": 4,
+      "query": "Get the Rust crate's coverage up to 75% per module.",
+      "expect": "enqueue-coverage-targets"
+    },
+    {
+      "id": 5,
+      "query": "Raise coverage to 90% on every package in this monorepo, Go and Python both. Measure once up front, not between batches.",
+      "expect": "enqueue-coverage-targets"
+    },
+    {
+      "id": 6,
+      "query": "Measure our current coverage, list the zero-coverage functions and untested packages, then add tests and give me a before/after report.",
+      "expect": "score-coverage-and-report-gaps",
+      "not": ["enqueue-coverage-targets"]
+    },
+    {
+      "id": 7,
+      "query": "Raise coverage, then report exactly what's still untested afterwards, prioritized by impact.",
+      "expect": "score-coverage-and-report-gaps"
+    },
+    {
+      "id": 8,
+      "query": "Which functions in this repo have zero test coverage? Write tests for the most important ones and show me the delta.",
+      "expect": "score-coverage-and-report-gaps"
+    },
+    {
+      "id": 9,
+      "query": "Before you write any tests, measure baseline coverage and tell me where the biggest gaps are, then fix the worst ones.",
+      "expect": "score-coverage-and-report-gaps"
+    },
+    {
+      "id": 10,
+      "query": "Write tests for the payments package, and don't touch or rewrite any of the existing tests.",
+      "expect": "test-writer-honesty"
+    },
+    {
+      "id": 11,
+      "query": "Last time an agent overwrote my test files and claimed coverage improved without measuring. Add tests to internal/queue and report from git diff.",
+      "expect": "test-writer-honesty"
+    },
+    {
+      "id": 12,
+      "query": "Extend the existing test suite for the parser, and make sure your report lists only the files you actually changed.",
+      "expect": "test-writer-honesty"
+    },
+    {
+      "id": 13,
+      "query": "Add tests for src/auth and report the real build and test exit codes, not a summary.",
+      "expect": "test-writer-honesty"
+    },
+    {
+      "id": 14,
+      "query": "Write unit tests for the new retry helper in pkg/retry without changing the code under test.",
+      "expect": "test-writer-honesty"
+    },
+    {
+      "id": 15,
+      "query": "What's a good code coverage target for a CLI tool?",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Explain the difference between statement coverage and branch coverage.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Set up Codecov uploads in our GitHub Actions workflow.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "TestServerShutdown fails about one run in ten. Find out why.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Delete the tests for the legacy module we removed last week.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Show me the coverage numbers from the last CI run.",
+      "expect": null
+    }
+  ]
+}

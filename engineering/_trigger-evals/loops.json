@@ -1,0 +1,110 @@
+{
+  "family": "loops",
+  "description": "The shared fix-in-place loops the review and security-stage agents run, against the per-language criteria and security guides they are often confused with.",
+  "skills": ["review-loop", "security-audit-loop"],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Do a repo-scale review of this Go module and fix the problems in place, verifying the build after each edit.",
+      "expect": "review-loop",
+      "not": ["security-audit-loop"]
+    },
+    {
+      "id": 2,
+      "query": "Review the whole Python package and fix issues directly. Edit in place, don't just report.",
+      "expect": "review-loop"
+    },
+    {
+      "id": 3,
+      "query": "Run a fix-in-place review over src/ in this TypeScript project, with a severity-rated report at the end.",
+      "expect": "review-loop"
+    },
+    {
+      "id": 4,
+      "query": "Review this Rust workspace and apply the fixes yourself, reverting anything that breaks cargo test.",
+      "expect": "review-loop"
+    },
+    {
+      "id": 5,
+      "query": "Readonly review of the Node.js service: report the findings by severity and change nothing.",
+      "expect": "review-loop"
+    },
+    {
+      "id": 6,
+      "query": "Review and fix this module in place. Security is out of scope; just correctness and design.",
+      "expect": "review-loop",
+      "not": ["security-audit-loop"]
+    },
+    {
+      "id": 7,
+      "query": "Review the nodejs codebase and fix bugs in place, with a final report that lists every change.",
+      "expect": "review-loop"
+    },
+    {
+      "id": 8,
+      "query": "Run a scoped security audit of the auth package and fix the vulnerabilities in place, reverting any fix that breaks the tests.",
+      "expect": "security-audit-loop",
+      "not": ["review-loop"]
+    },
+    {
+      "id": 9,
+      "query": "Audit internal/api for injection bugs and fix them in place, verifying the build after each edit.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 10,
+      "query": "Do a readonly security audit of the Python upload handlers and give me findings in the standard severity format.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 11,
+      "query": "Run a fix-in-place audit of our Express app for path traversal and SSRF.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 12,
+      "query": "Audit the Go service for resource issues (temp files, weak crypto, TLS config) and fix what you find.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 13,
+      "query": "Scoped security audit of cmd/ only, in edit mode. Wind down cleanly when you hit the budget.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 14,
+      "query": "Find and fix the SQL injection risks in this Python repo, then run the tests.",
+      "expect": "security-audit-loop"
+    },
+    {
+      "id": 15,
+      "query": "What are the most common Go concurrency bugs?",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "What should a Python code review checklist include?",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "List the OWASP Top 10.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Review this one-line change: `timeout = 30` became `timeout = 60`.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Write tests for the auth package.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Explain what SSRF is.",
+      "expect": null
+    }
+  ]
+}

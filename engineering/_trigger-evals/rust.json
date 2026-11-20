@@ -1,0 +1,116 @@
+{
+  "family": "rust",
+  "description": "Rust knowledge and orchestration skills: review criteria, testing patterns, rustdoc conventions, and the Rust pipeline.",
+  "skills": [
+    "rust-review-criteria",
+    "rust-testing-patterns",
+    "rust-documentation-standards",
+    "rust-pipeline"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Review src/cache.rs for needless clones, unwrap() in library code, and lock contention.",
+      "expect": "rust-review-criteria",
+      "not": ["rust-testing-patterns"]
+    },
+    {
+      "id": 2,
+      "query": "We return Box<dyn Error> everywhere in this library crate. Review the error handling and tell me what's idiomatic.",
+      "expect": "rust-review-criteria"
+    },
+    {
+      "id": 3,
+      "query": "Check this crate's unsafe blocks and Send/Sync impls for soundness problems.",
+      "expect": "rust-review-criteria"
+    },
+    {
+      "id": 4,
+      "query": "Review this trait design: one trait with 20 methods that every storage backend has to implement.",
+      "expect": "rust-review-criteria"
+    },
+    {
+      "id": 5,
+      "query": "Write unit tests for the tokenizer in src/lexer.rs, including the error cases, using rstest.",
+      "expect": "rust-testing-patterns",
+      "not": ["rust-review-criteria"]
+    },
+    {
+      "id": 6,
+      "query": "How do I test an async function that calls tokio::time::sleep without actually waiting?",
+      "expect": "rust-testing-patterns"
+    },
+    {
+      "id": 7,
+      "query": "Add property-based tests for our base64 encode/decode round trip.",
+      "expect": "rust-testing-patterns"
+    },
+    {
+      "id": 8,
+      "query": "Write integration tests in tests/ for the CLI binary's argument parsing.",
+      "expect": "rust-testing-patterns"
+    },
+    {
+      "id": 9,
+      "query": "Add rustdoc comments to every public item in src/lib.rs, with # Errors and # Examples sections.",
+      "expect": "rust-documentation-standards",
+      "not": ["rust-review-criteria"]
+    },
+    {
+      "id": 10,
+      "query": "Our doc tests fail and half the public API is undocumented. Audit the crate's rustdoc.",
+      "expect": "rust-documentation-standards"
+    },
+    {
+      "id": 11,
+      "query": "How do I link to another type in a rustdoc comment so it renders as a link on docs.rs?",
+      "expect": "rust-documentation-standards"
+    },
+    {
+      "id": 12,
+      "query": "Fix the missing_docs warnings in this crate with proper doc comments.",
+      "expect": "rust-documentation-standards"
+    },
+    {
+      "id": 13,
+      "query": "Run the Rust pipeline on this workspace: review, tests, then doc comments, with clippy and test gates.",
+      "expect": "rust-pipeline",
+      "not": ["rust-review-criteria"]
+    },
+    {
+      "id": 14,
+      "query": "Take this crate end to end: review it, raise test coverage, and document the public API.",
+      "expect": "rust-pipeline"
+    },
+    {
+      "id": 15,
+      "query": "What's the difference between String and &str?",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Bump serde to the latest version in Cargo.toml.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Write Go tests for parser.go.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Set up a GitHub Actions workflow that runs cargo build on every push.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Explain Rust lifetimes like I'm five.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Format the crate with rustfmt.",
+      "expect": null
+    }
+  ]
+}

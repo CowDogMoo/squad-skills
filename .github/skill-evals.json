@@ -2,6 +2,7 @@
   "model": "claude-sonnet-5-5",
   "judge_model": "claude-sonnet-5-5",
   "threshold": 0.5,
+  "trigger_threshold": 0.6,
   "max_cost_usd": 10,
   "ci_runnable": {
     "comment-scrub-playbook": {

@@ -1,0 +1,115 @@
+{
+  "family": "comments-and-docs",
+  "description": "Comment scrubbing, LLM-tell detection, and the doc-comment discovery loop, which are easy to confuse with each other and with the per-language documentation standards.",
+  "skills": [
+    "comment-scrub-playbook",
+    "detect-llm-tells",
+    "doc-comments-discovery-and-fix-loop"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Scrub the useless comments out of internal/, the ones that just restate the code like `// increment i`.",
+      "expect": "comment-scrub-playbook",
+      "not": ["doc-comments-discovery-and-fix-loop"]
+    },
+    {
+      "id": 2,
+      "query": "An LLM wrote half of this codebase and the comments are full of 'This function elegantly handles...'. Clean them up.",
+      "expect": "comment-scrub-playbook"
+    },
+    {
+      "id": 3,
+      "query": "Should this comment stay? `// Loop over users` above `for _, u := range users {`",
+      "expect": "comment-scrub-playbook"
+    },
+    {
+      "id": 4,
+      "query": "Remove the banner comments and ASCII dividers from src/ and trim the comments that narrate what the code does.",
+      "expect": "comment-scrub-playbook"
+    },
+    {
+      "id": 5,
+      "query": "Strip the comment slop from our Go and Rust code, but keep the comments that explain why.",
+      "expect": "comment-scrub-playbook",
+      "not": ["doc-comments-discovery-and-fix-loop"]
+    },
+    {
+      "id": 6,
+      "query": "Does this README read like ChatGPT wrote it? Score it paragraph by paragraph.",
+      "expect": "detect-llm-tells",
+      "not": ["comment-scrub-playbook"]
+    },
+    {
+      "id": 7,
+      "query": "Check my conference talk script for AI-sounding phrasing and tell me which paragraphs to rewrite.",
+      "expect": "detect-llm-tells"
+    },
+    {
+      "id": 8,
+      "query": "Our docs/ folder reads like slop: 'delve', 'robust', 'seamless' everywhere. Flag the worst paragraphs.",
+      "expect": "detect-llm-tells"
+    },
+    {
+      "id": 9,
+      "query": "Is this paragraph AI-generated? \"In today's fast-paced world, it's crucial to leverage robust solutions.\"",
+      "expect": "detect-llm-tells"
+    },
+    {
+      "id": 10,
+      "query": "Find every exported function in this package that's missing a doc comment and add them, most important first.",
+      "expect": "doc-comments-discovery-and-fix-loop",
+      "not": ["comment-scrub-playbook"]
+    },
+    {
+      "id": 11,
+      "query": "Audit the doc-comment coverage of our public API, fix the gaps, then make sure it still compiles.",
+      "expect": "doc-comments-discovery-and-fix-loop"
+    },
+    {
+      "id": 12,
+      "query": "Half of our public Rust items have no docs. Find them and document them in priority order.",
+      "expect": "doc-comments-discovery-and-fix-loop"
+    },
+    {
+      "id": 13,
+      "query": "Which public classes in this Python package have missing or stub docstrings? Fix the important ones.",
+      "expect": "doc-comments-discovery-and-fix-loop"
+    },
+    {
+      "id": 14,
+      "query": "Our exported TypeScript functions have placeholder JSDoc like '@param x - the x'. Find the deficient ones and fix them.",
+      "expect": "doc-comments-discovery-and-fix-loop"
+    },
+    {
+      "id": 15,
+      "query": "Fix the typo in the README title.",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Write a blog post announcing our new release.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Add a code comment explaining why we retry three times here.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Translate the README into Spanish.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Turn on the lint rule that requires comments on exported functions.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Summarize what this module does.",
+      "expect": null
+    }
+  ]
+}

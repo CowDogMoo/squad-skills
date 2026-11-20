@@ -27,8 +27,11 @@ MANIFESTS = (
     ".codex-plugin/plugin.json",
     "music/.claude-plugin/plugin.json",
 )
+# Eval cases (a skill's evals/ and a category's _trigger-evals/) change what
+# CI measures, not what the plugin ships, so they need no version bump.
 BUMP_PATHS = re.compile(
-    r"^(?:(?:cooking|devices|engineering|music|release|testing|writing-quality)/(?!.*/evals/).*"
+    r"^(?:(?:cooking|devices|engineering|music|release|testing|writing-quality)/"
+    r"(?!.*/evals/)(?!_trigger-evals/).*"
     r"|\.claude-plugin/.*|\.codex-plugin/.*)$"
 )
 ALLOWED_TOOLS = re.compile(r"^allowed-tools\s*:", re.MULTILINE)

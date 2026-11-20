@@ -1,0 +1,118 @@
+{
+  "family": "ops",
+  "description": "Ansible, Molecule, Taskfile, changelog, and Ansible collection release skills.",
+  "skills": [
+    "ansible-standards",
+    "ansible-molecule-guide",
+    "taskfile-standards",
+    "changelog-standards",
+    "ansible-collection-release"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Review roles/nginx/tasks/main.yml for Ansible best practices: FQCN, idempotency, no_log on secrets.",
+      "expect": "ansible-standards",
+      "not": ["ansible-molecule-guide"]
+    },
+    {
+      "id": 2,
+      "query": "This playbook uses the shell module for everything and isn't idempotent. Refactor it the Ansible way.",
+      "expect": "ansible-standards"
+    },
+    {
+      "id": 3,
+      "query": "How should I name variables in an Ansible role so they don't collide with other roles?",
+      "expect": "ansible-standards"
+    },
+    {
+      "id": 4,
+      "query": "Write a Molecule scenario for the postgres role that tests on Ubuntu and Rocky Linux.",
+      "expect": "ansible-molecule-guide",
+      "not": ["ansible-standards"]
+    },
+    {
+      "id": 5,
+      "query": "Our verify.yml only checks that files exist. Strengthen the Molecule assertions so they test real outcomes.",
+      "expect": "ansible-molecule-guide"
+    },
+    {
+      "id": 6,
+      "query": "The Molecule idempotence check keeps failing on the users role. How do I debug it?",
+      "expect": "ansible-molecule-guide"
+    },
+    {
+      "id": 7,
+      "query": "Review our Taskfile.yml: tasks repeat the same env vars, nothing uses sources/generates, and one task echoes a secret.",
+      "expect": "taskfile-standards",
+      "not": ["ansible-standards"]
+    },
+    {
+      "id": 8,
+      "query": "Write a Taskfile.yaml for this Go project with build, test, lint, and release tasks.",
+      "expect": "taskfile-standards"
+    },
+    {
+      "id": 9,
+      "query": "How do I make a go-task task skip when its inputs haven't changed?",
+      "expect": "taskfile-standards"
+    },
+    {
+      "id": 10,
+      "query": "Write the CHANGELOG entry for v2.3.0 from the commits since v2.2.0, in Keep a Changelog style.",
+      "expect": "changelog-standards",
+      "not": ["ansible-collection-release"]
+    },
+    {
+      "id": 11,
+      "query": "Which of these commits are user-facing enough to go in the changelog?",
+      "expect": "changelog-standards"
+    },
+    {
+      "id": 12,
+      "query": "Add an antsibull-changelog fragment for the bugfix I just made to the collection. We're not releasing yet.",
+      "expect": "changelog-standards",
+      "not": ["ansible-collection-release"]
+    },
+    {
+      "id": 13,
+      "query": "Cut a new release of our Ansible collection: bump galaxy.yml, write the changelog fragment, and run the release task.",
+      "expect": "ansible-collection-release"
+    },
+    {
+      "id": 14,
+      "query": "The release PR for the collection merged. Finish the release and check that Galaxy published it.",
+      "expect": "ansible-collection-release"
+    },
+    {
+      "id": 15,
+      "query": "Write a Dockerfile for this Python app.",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Explain what Ansible is in two sentences.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Write a Makefile with build and test targets.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Write a Terraform module for an S3 bucket.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Write a commit message for my staged changes.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Set up a Kubernetes CronJob that runs every night.",
+      "expect": null
+    }
+  ]
+}

@@ -410,6 +410,44 @@ Pull request CI stages every allowlisted skill the same way and fails
 when a case's inputs would be unreadable or a file the agent can reach
 holds an expectation.
 
+`-f ablation=true` adds a no-skill baseline arm to each skill case and
+reports the score delta, which is the evidence that a skill earns its
+tokens. A case with inputs grants them to both arms (`context.add_dirs`),
+so the baseline sees the same files. The workflow also runs on a monthly
+schedule with every suite and the baseline arm, one run per case; it
+still waits for the owner's approval.
+
+### Trigger evals
+
+Skills whose descriptions overlap can steal each other's requests. Each
+overlapping family has a trigger suite in its category's
+`_trigger-evals/<family>.json`: at least 20 requests, each naming the one
+skill it should load (or `null` for none), plus siblings it must not
+load (`not`). Every family skill needs one request that should load it,
+and every suite needs at least five should-not-trigger requests.
+
+```json
+{
+  "family": "go",
+  "description": "Go knowledge and orchestration skills.",
+  "skills": ["go-review-criteria", "golang-security-guide"],
+  "queries": [
+    {"id": 1, "query": "Audit api/hooks.go for SQL injection.", "expect": "golang-security-guide", "not": ["go-review-criteria"]},
+    {"id": 2, "query": "What's a buffered channel?", "expect": null}
+  ]
+}
+```
+
+CI stages a suite as one plugin holding every skill in the repository,
+so the model routes against the listing users see, and grades only the
+Skill tool's inputs. The workspace is empty, so each request is prefixed
+with a fixed note saying the repository isn't checked out and only the
+Skill tool is allowed: the case measures which skill the description
+wins, not whether the model would search first. Run them with
+`gh workflow run skill-evals.yaml --ref main -f suite=triggers` (add
+`-f skill=<family>` for one family). Trigger cases are judged against
+`trigger_threshold` in `.github/skill-evals.json`.
+
 ## Contributing
 
 ```bash
@@ -428,6 +466,8 @@ CI runs the same checks:
 - `evals/evals.json` exists, names the skill, has ≥2 evals with
   prompts and ≥2 expectations each, and every referenced fixture
   exists.
+- Every trigger suite in `_trigger-evals/` validates: ≥20 requests, ≥5
+  that should load no family skill, and one request per family skill.
 - Markdown lints clean (`markdownlint`), YAML lints clean
   (`yamllint`), and frontmatter parses.
 - `.github/scripts/check_skills.py policy`: no skill declares

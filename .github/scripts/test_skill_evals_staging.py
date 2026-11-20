@@ -69,7 +69,7 @@ class StagingTest(unittest.TestCase):
             skill_evals.stage(name, skill_evals.skill_dirs()[name], self.dest)
         plugin = self.dest / name
         for case in ("case-1", "case-2"):
-            prompt = (plugin / skill_evals.CASE_DIR / case / "prompt.md").read_text(encoding="utf-8")
+            prompt, _criteria = skill_evals.read_case(plugin / skill_evals.CASE_DIR / case)
             listed, named = skill_evals.prompt_paths(prompt, plugin)
             self.assertTrue(listed, case)
             self.assertNotIn("/evals/", prompt)
@@ -108,10 +108,39 @@ class StagingTest(unittest.TestCase):
         self.assertTrue((plugin / "eval-inputs" / "files" / "col" / "a.yaml").is_file())
         self.assertFalse((plugin / "evals").exists())
         self.assertFalse((plugin / "eval-inputs" / "notes.md").exists())
-        prompt = (plugin / "ci-evals" / "case-1" / "prompt.md").read_text(encoding="utf-8")
+        prompt, _criteria = skill_evals.read_case(plugin / "ci-evals" / "case-1")
         self.assertIn(f"Check {plugin}/eval-inputs/files/col/a.yaml and {plugin}/eval-inputs/files/col/.", prompt)
         prompt = (plugin / "ci-evals" / "case-2" / "prompt.md").read_text(encoding="utf-8")
         self.assertIn(f"- {plugin}/scripts/x.py", prompt)
+
+    def test_inputs_are_granted_to_the_no_skill_arm(self) -> None:
+        # Under --ablation with-without the no-skill arm is denied every read
+        # inside the plugin, so a case with inputs grants them with
+        # context.add_dirs, which may only name a path inside the case
+        # directory: a link there to eval-inputs/.
+        skill = self.make_skill(
+            {"evals/files/in.txt": "x\n", "scripts/x.py": ""},
+            [
+                {"id": 1, "prompt": "Read evals/files/in.txt.", "expectations": [EXPECTATION],
+                 "files": ["evals/files/in.txt"]},
+                {"id": 2, "prompt": "Run scripts/x.py.", "expectations": ["ok"],
+                 "files": ["scripts/x.py"]},
+            ],
+        )
+        self.assertEqual(self.stage("demo", skill), [])
+        plugin = self.dest / "demo"
+        case_dir = plugin / skill_evals.CASE_DIR / "case-1"
+        self.assertFalse((case_dir / "prompt.md").exists())
+        case = json.loads((case_dir / "case.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(case["context"]["add_dirs"], [skill_evals.CASE_INPUTS])
+        link = case_dir / skill_evals.CASE_INPUTS
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(link.resolve(), (plugin / skill_evals.INPUTS_DIR).resolve())
+        self.assertEqual(case["graders"][0]["criteria"], EXPECTATION)
+        self.assertEqual(case["execution"]["allowed_tools"], skill_evals.BASE_TOOLS)
+        # An input kept outside evals/ is never granted to the baseline arm.
+        self.assertTrue((plugin / skill_evals.CASE_DIR / "case-2" / "prompt.md").is_file())
+        self.assertEqual(skill_evals.check_staged(plugin), [])
 
     def test_prompt_rewrite_leaves_other_paths_alone(self) -> None:
         sub = skill_evals.EVALS_REF.sub
@@ -158,6 +187,18 @@ class StagingTest(unittest.TestCase):
         self.assertEqual(self.stage("demo", skill), [])
         problems = skill_evals.check_staged(self.dest / "demo")
         self.assertEqual(problems, ["eval-inputs/files/in.txt holds a case expectation the agent could read"])
+
+    def test_expectation_in_case_yaml_is_still_checked(self) -> None:
+        # read_case must hand check_staged the criteria of case.yaml cases, or
+        # the leak scan would pass any input holding its own answer.
+        skill = self.make_skill(
+            {"evals/files/in.txt": "x\n", "scripts/notes.txt": f"{EXPECTATION}\n"},
+            [{"id": 1, "prompt": "Read evals/files/in.txt.", "expectations": [EXPECTATION],
+              "files": ["evals/files/in.txt"]}],
+        )
+        self.assertEqual(self.stage("demo", skill), [])
+        problems = skill_evals.check_staged(self.dest / "demo")
+        self.assertEqual(problems, ["scripts/notes.txt holds a case expectation the agent could read"])
 
     def test_evals_json_cannot_be_an_input(self) -> None:
         skill = self.make_skill(

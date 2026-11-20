@@ -29,6 +29,7 @@ on:
       - '.github/workflows/skill-evals.yaml'
       - '.github/scripts/**'
       - '**/evals/files/**'
+      - '**/_trigger-evals/**'
       - '.github/skill-evals.json'
       - '.github/skill-evals-managed-settings.json'
   workflow_dispatch:
@@ -119,8 +120,9 @@ jobs:
     with:
       skills-dir: ${{ matrix.category }}
 
-  # Checks the skill-evals allowlist and every evals.json it points at, and
-  # that skill-evals.yaml still runs only on dispatch or schedule from main.
+  # Checks the skill-evals allowlist, every evals.json it points at, and every
+  # trigger suite, and that skill-evals.yaml still runs only on dispatch or
+  # schedule from main.
   # No secrets: the evals themselves run in skill-evals.yaml.
   eval-config:
     name: Eval Config
@@ -147,6 +149,9 @@ jobs:
 
       - name: Test the eval judge
         run: python .github/scripts/test_skill_evals.py
+
+      - name: Test the trigger suites and ablation mode
+        run: python .github/scripts/test_skill_evals_triggers.py
 
   # Repo policy: no `allowed-tools` on shared skills, matching plugin
   # versions, and a version bump on pull requests that change skill or
