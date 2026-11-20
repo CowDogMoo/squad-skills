@@ -29,6 +29,11 @@ name: Skill Evals
 #   -f ablation=true    adds a no-skill baseline arm to every skill case and
 #                       reports the delta, which shows whether a skill earns
 #                       its tokens. It doubles the cost of the skill suites.
+#   -f suite=knowledge  runs the engineering knowledge skills (the ones marked
+#                       "suite": "knowledge" in .github/skill-evals.json),
+#                       always with the no-skill baseline. Only a dispatch
+#                       runs them: suite=all and the schedule leave them out.
+#                       Use -f runs=1 so both arms fit in the job's timeout.
 # The monthly schedule runs both (suite all, ablation on) at one run per
 # case, and still waits for the owner to approve the deployment.
 #
@@ -75,12 +80,13 @@ on:
         required: false
         default: false
       suite:
-        description: Skill evals, trigger suites, or both
+        description: Skill evals, the knowledge skills (dispatch only, with ablation), trigger suites, or skills and triggers
         type: choice
         required: false
         default: skills
         options:
           - skills
+          - knowledge
           - triggers
           - all
       ablation:
@@ -272,8 +278,9 @@ jobs:
           # inputs and uses one run per case: every suite with both arms at
           # three runs would not fit in the job's timeout.
           RUNS: ${{ inputs.runs || '1' }}
-          # The scheduled run always measures the no-skill baseline.
-          ABLATION: ${{ (github.event_name == 'schedule' || inputs.ablation) && 'with-without' || 'none' }}
+          # The scheduled run and the knowledge suite always measure the
+          # no-skill baseline.
+          ABLATION: ${{ (github.event_name == 'schedule' || inputs.ablation || inputs.suite == 'knowledge') && 'with-without' || 'none' }}
         run: /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" run --bundle "${BUNDLE}" --out "${RUNNER_TEMP}/skill-evals-out" --runs "${RUNS}" --ablation "${ABLATION}"
 
       - name: Leak check

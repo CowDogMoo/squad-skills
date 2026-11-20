@@ -36,6 +36,11 @@ cannot load any skill.
 Skill suites can also run with --ablation with-without, which adds a no-skill
 baseline arm and reports the score delta: the evidence for whether a
 knowledge skill earns its tokens.
+
+An allowlisted skill with "suite": "knowledge" runs only in the knowledge
+suite (plan --suite knowledge), never with --suite skills or all, so the
+schedule never runs it: the engineering knowledge skills cost a run only when
+someone dispatches it.
 """
 
 from __future__ import annotations
@@ -138,6 +143,8 @@ TRIGGER_PREAMBLE = (
 )
 SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ABLATIONS = ("none", "with-without")
+SUITES = ("skills", "knowledge", "triggers", "all")
+SKILL_SUITES = ("skills", "knowledge")
 QUOTE_OR_COLON = "[\"':]"
 QUOTE = "[\"']"
 
@@ -435,6 +442,8 @@ def cmd_validate(_args) -> int:
         for key in ("max_turns", "timeout_seconds"):
             if key in opts and (not isinstance(opts[key], int) or opts[key] <= 0):
                 error(where, f"ci_runnable.{name}.{key} must be a positive integer")
+        if opts.get("suite", "skills") not in SKILL_SUITES:
+            error(where, f"ci_runnable.{name}.suite must be one of {list(SKILL_SUITES)}")
 
     for name, skill in sorted(skills.items()):
         if not (skill / "evals" / "evals.json").is_file():
@@ -514,19 +523,25 @@ def cmd_plan(args) -> int:
     suite = getattr(args, "suite", "skills")
     families = sorted(trigger_suites())
     selected = []
-    if suite in ("skills", "all"):
-        if args.skill and suite == "skills":
+    if suite in ("skills", "knowledge", "all"):
+        group = "knowledge" if suite == "knowledge" else "skills"
+        if args.skill and suite in SKILL_SUITES:
             if args.skill not in skills:
                 print(f"::error::No skill named {args.skill!r} in this repository")
                 return 1
             requested = [args.skill]
+        elif group == "knowledge":
+            requested = sorted(n for n in runnable if runnable[n].get("suite") == "knowledge")
         else:
             requested = sorted(skills)
         for name in requested:
-            if name in runnable:
-                selected.append(name)
-            else:
+            if name not in runnable:
                 print(f"::notice::Skipping {name}: {skip.get(name) or UNLISTED_REASON}")
+            elif runnable[name].get("suite", "skills") != group:
+                other = runnable[name].get("suite", "skills")
+                print(f"::notice::Skipping {name}: it runs only with --suite {other}")
+            else:
+                selected.append(name)
     if suite in ("triggers", "all"):
         if args.skill and suite == "triggers":
             if args.skill not in families:
@@ -738,14 +753,12 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
 
 
 def tool_used_grader(pattern: str, *, at_least: int | None = None, at_most: int | None = None) -> str:
-    """A tool_used grader on the Skill tool that counts in both ablation arms."""
+    """A tool_used grader on the Skill tool."""
     front = ["type: tool_used", "tool: Skill", f"input_match: {json.dumps(pattern)}"]
     if at_least is not None:
         front.append(f"min: {at_least}")
     if at_most is not None:
         front.append(f"max: {at_most}")
-    # Without `arm: both`, a Skill grader is display-only under ablation.
-    front.append("arm: both")
     return "---\n" + "\n".join(front) + "\n---\n"
 
 
@@ -1355,8 +1368,8 @@ def main() -> int:
 
     plan = sub.add_parser("plan", help="choose the allowlisted skills to evaluate")
     plan.add_argument(
-        "--suite", choices=("skills", "triggers", "all"), default="skills",
-        help="skill evals, trigger suites, or both",
+        "--suite", choices=SUITES, default="skills",
+        help="skill evals, the knowledge skills, trigger suites, or skills and triggers",
     )
     plan.add_argument("--skill", help="evaluate just this skill (or, with --suite triggers, this family)")
     plan.add_argument("--canary-only", action="store_true", help="run only the sandbox self-test")

@@ -101,6 +101,225 @@
       "python_packages": [
         "pyyaml"
       ]
+    },
+    "ansible-molecule-guide": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "ansible-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "changelog-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "cobra-viper-best-practices": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "go-documentation-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "go-pipeline": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "go-review-criteria": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "go-security-audit": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "go-testing-patterns": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "golang-security-guide": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "grafana-dashboard-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "nodejs-documentation-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "nodejs-review-criteria": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "nodejs-security-guide": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "nodejs-testing-patterns": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "python-documentation-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "python-review-criteria": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "python-security-guide": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "python-testing-patterns": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ],
+      "python_packages": [
+        "pytest"
+      ]
+    },
+    "readme-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "review-loop": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "rust-documentation-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "rust-pipeline": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "rust-review-criteria": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "rust-testing-patterns": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "security-audit-loop": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
+    },
+    "taskfile-standards": {
+      "suite": "knowledge",
+      "allow_tools": [
+        "Bash",
+        "Edit",
+        "Write"
+      ]
     }
   },
   "ci_skipped": {

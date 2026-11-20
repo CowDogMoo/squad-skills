@@ -417,6 +417,12 @@ so the baseline sees the same files. The workflow also runs on a monthly
 schedule with every suite and the baseline arm, one run per case; it
 still waits for the owner's approval.
 
+The `engineering/` knowledge skills are allowlisted with
+`"suite": "knowledge"`, which keeps them out of `-f suite=all` and the
+schedule. They run only when dispatched, always with the baseline arm:
+`gh workflow run skill-evals.yaml --ref main -f suite=knowledge -f runs=1`
+(add `-f skill=<name>` for one).
+
 ### Trigger evals
 
 Skills whose descriptions overlap can steal each other's requests. Each

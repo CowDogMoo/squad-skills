@@ -157,8 +157,6 @@ class StageTriggersTest(unittest.TestCase):
             graders = self.graders(case)
             for body in graders.values():
                 self.assertIn("type: tool_used\ntool: Skill\n", body)
-                # Without arm: both a Skill grader is display-only under ablation.
-                self.assertIn("arm: both", body)
             if q["expect"] is None:
                 self.assertEqual(list(graders), ["loads-no-family-skill"])
                 self.assertIn("max: 0", graders["loads-no-family-skill"])
@@ -190,6 +188,26 @@ class PlanAndCommandTest(unittest.TestCase):
         self.assertEqual((code, one), (0, [skill_evals.TRIGGER_PREFIX + families[0]]))
         code, _none = self.plan(suite="triggers", skill="no-such-family")
         self.assertEqual(code, 1)
+
+    def test_knowledge_suite_runs_only_when_asked_for(self) -> None:
+        runnable = skill_evals.allowlist()
+        knowledge = sorted(n for n, o in runnable.items() if o.get("suite") == "knowledge")
+        engineering = sorted(
+            n for n, d in skill_evals.skill_dirs().items()
+            if d.parent.name == "engineering" and (d / "evals" / "evals.json").is_file()
+        )
+        self.assertEqual(knowledge, engineering)
+        _code, planned = self.plan(suite="knowledge")
+        self.assertEqual(planned, knowledge)
+        for suite in ("skills", "all"):
+            _code, planned = self.plan(suite=suite)
+            self.assertFalse(set(planned) & set(knowledge), suite)
+        code, one = self.plan(suite="knowledge", skill=knowledge[0])
+        self.assertEqual((code, one), (0, [knowledge[0]]))
+        _code, none = self.plan(suite="skills", skill=knowledge[0])
+        self.assertEqual(none, [])
+        _code, none = self.plan(suite="knowledge", skill=next(n for n in runnable if n not in knowledge))
+        self.assertEqual(none, [])
 
     def test_ablation_reaches_skill_suites_only(self) -> None:
         config = skill_evals.load_config()
