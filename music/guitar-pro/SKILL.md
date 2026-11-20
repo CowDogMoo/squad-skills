@@ -1,6 +1,6 @@
 ---
 name: guitar-pro
-description: Create, read, edit, and analyze Guitar Pro tablature (.gp5/.gp4/.gp3, native .gp, MusicXML) using the bundled gp_tab.py helper. Use whenever the user wants a riff, lick, exercise, chord progression, drill, or arrangement written out as a real tab file they can open in Guitar Pro — and equally when they want an existing tab read, summarized, transposed, re-tuned, exported to MIDI, or rendered as ASCII. Trigger on "Guitar Pro", ".gp5", ".gpx", "tab", "tablature", "guitar tab", "bass tab", "riff", "write me a lick", "practice exercise", "chord chart", "transpose this tab", "what tuning is this in", or any request involving frets, strings, tunings (drop D, drop C, DADGAD, open G), extended-range instruments (7-string, 8-string, 9-string, baritone), or bass. Also use it to turn a chord progression, scale, or MIDI idea into notation a guitarist could read and play. Do NOT use for transcribing audio recordings into tab, or for music theory questions needing no file.
+description: Create, read, edit, and analyze Guitar Pro tablature (.gp5, .gp4, .gp3, .gp, MusicXML) with the bundled gp_tab.py helper. Use when the user wants a riff, lick, exercise, or chord progression written as a tab file, or an existing tab read, transposed, re-tuned, exported to MIDI, or shown as ASCII, including drop, 7/8-string, and bass tunings. Trigger on "Guitar Pro", ".gp5", "tab", "write me a lick". Do NOT use for transcribing audio into tab, or for theory questions needing no file.
 ---
 
 # Guitar Pro tablature

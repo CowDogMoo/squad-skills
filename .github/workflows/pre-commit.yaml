@@ -90,4 +90,8 @@ jobs:
         run: npm install -g "prettier@${PRETTIER_VERSION}"
 
       - name: Run pre-commit
+        # script-tests needs uv and the audio stack and takes a minute; the
+        # Script Tests job in validate-skills.yaml runs it on every PR.
+        env:
+          SKIP: script-tests
         run: pre-commit run --all-files --show-diff-on-failure --color=always

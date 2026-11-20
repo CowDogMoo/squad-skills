@@ -47,6 +47,7 @@ CONFIG = ROOT / ".github" / "skill-evals.json"
 POLICY = ROOT / ".github" / "skill-evals-managed-settings.json"
 WORKFLOW = ROOT / ".github" / "workflows" / "skill-evals.yaml"
 PLUGIN_MANIFEST = ROOT / ".claude-plugin" / "plugin.json"
+MARKETPLACE_MANIFEST = ROOT / ".claude-plugin" / "marketplace.json"
 CASE_DIR = "ci-evals"
 EVALS_DIR = "evals"
 # Case input files are staged here, outside every directory claude plugin eval
@@ -115,10 +116,18 @@ def skipped() -> dict[str, str]:
 
 
 def skill_dirs() -> dict[str, Path]:
-    """Map each skill name to its folder, from the plugin's category list."""
+    """Map each skill name to its folder, from every plugin's category list.
+
+    The main plugin lists its categories in "skills"; any other plugin in the
+    marketplace (the music cut) is a category folder named by its "source".
+    """
     plugin = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+    market = json.loads(MARKETPLACE_MANIFEST.read_text(encoding="utf-8"))
+    categories = list(plugin["skills"]) + [
+        str(p["source"]) for p in market["plugins"] if str(p["source"]) not in (".", "./")
+    ]
     found = {}
-    for category in plugin["skills"]:
+    for category in categories:
         base = ROOT / category.removeprefix("./")
         for skill_md in sorted(base.glob("*/SKILL.md")):
             if not skill_md.parent.name.startswith((".", "_")):

@@ -180,6 +180,10 @@ class RiffSyntaxError(ValueError):
     """Raised with the offending token so the caller can fix it precisely."""
 
 
+class Gp7ToolchainMissing(RuntimeError):
+    """Raised by `Tab.gp7()` when Node or alphaTab is not installed."""
+
+
 def parse_riff(source: str) -> list[list[dict[str, Any]]]:
     """Parse riff notation into a list of measures, each a list of beat dicts.
 
@@ -659,8 +663,9 @@ class Tab:
         This is the nicest outcome for 8-string parts -- a real Guitar Pro file
         with no import step -- but it needs Node and `@coderline/alphatab`
         installed, so treat it as an upgrade over `musicxml()`, not a
-        replacement. Raises RuntimeError with install instructions if the
-        toolchain isn't there, so callers can fall back cleanly.
+        replacement. Raises Gp7ToolchainMissing (a RuntimeError) with install
+        instructions if the toolchain isn't there, so callers can fall back
+        cleanly. An export that runs and fails raises a plain RuntimeError.
         """
         import json as _json
         import shutil
@@ -671,7 +676,7 @@ class Tab:
         if not os.path.exists(script):
             raise RuntimeError(f"gp7_export.mjs is missing from {os.path.dirname(script)}")
         if shutil.which("node") is None:
-            raise RuntimeError(
+            raise Gp7ToolchainMissing(
                 "Node is required for .gp export. Either install Node, or use "
                 "save('out.musicxml') instead -- Guitar Pro 7+ imports MusicXML "
                 "with the tablature intact."
@@ -763,7 +768,9 @@ class Tab:
             os.unlink(spec_path)
 
         if result.returncode != 0:
-            raise RuntimeError(
+            # gp7_export.mjs exits 3 when it cannot import alphaTab.
+            error = Gp7ToolchainMissing if result.returncode == 3 else RuntimeError
+            raise error(
                 f"alphaTab export failed (exit {result.returncode}).\n"
                 f"{result.stderr.strip()}\n"
                 f"Falling back to save('...musicxml') is usually the right move."

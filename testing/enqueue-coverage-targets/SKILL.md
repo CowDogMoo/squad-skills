@@ -1,7 +1,6 @@
 ---
 name: enqueue-coverage-targets
-description: "Orchestrator-workers pattern for raising test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and queues every package or file below target into /tmp/squad-targets.txt, then you drain the queue by reading source and writing tests, and re-measure only at the end. Load on iteration 1 of any coverage-raising agent run, whatever the language. Don't use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
-allowed-tools: Bash, Read, Write, Edit
+description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and queues every package or file below target into /tmp/squad-targets.txt, then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
 metadata:
   author: Jayson Grace
   version: 2.0.0
@@ -143,7 +142,6 @@ a projection:
 ## Why this pattern works
 
 The previous agent shape gave the model discretion over a step that doesn't
-need discretion. This skill removes it by running discovery in a script,
-limiting post-Step-1 tools to Read / Write / Edit, and fixing the batch shape
-(Read iteration → Write iteration → repeat) so the agent can't stall in
-single-unit over-thoroughness.
+need discretion. This skill removes it by running discovery in a script and
+fixing the batch shape (Read iteration → Write iteration → repeat) so the
+agent can't stall in single-unit over-thoroughness.

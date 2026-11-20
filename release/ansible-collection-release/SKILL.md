@@ -3,7 +3,6 @@ name: ansible-collection-release
 description: "Cut a release of an Ansible collection that uses antsibull-changelog, a galaxy.yml version, and a tag-triggered Galaxy publish workflow: pick the SemVer bump from commits since the last tag, write and validate the changelog fragment, run the Taskfile release flow (task release, then task release-finalize after the PR merges), and verify the GitHub release and Galaxy publish. Use when asked to create a new release, cut a release, bump the collection version, publish to Ansible Galaxy, or finish a release whose PR has merged."
 license: MIT
 compatibility: "Needs git, gh (authenticated), antsibull-changelog, python3 with PyYAML, and network access to GitHub and galaxy.ansible.com. go-task is optional; the manual path covers repos without a Taskfile."
-allowed-tools: Bash, Read, Edit, Write
 metadata:
   author: Jayson Grace
   version: 1.0.0
