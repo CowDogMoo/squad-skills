@@ -4,7 +4,7 @@ Two columns for every control: what it means in ordinary guitar terms, and
 what has to happen to it for a Quad Cortex capture to sound like the preset.
 
 The exact ranges, defaults and the plugin's own wording are in
-`control-reference.md`. This file is the translation.
+`references/thall-amp-control-reference.md`. This file is the translation.
 
 ## The three buckets
 
@@ -175,7 +175,8 @@ capture as **"Amp"** and put an **IR Loader** after the capture block.
 
 A preset may also have a third-party IR loaded, stored as an absolute file
 path. Eleven factory presets point at files that are not on this machine and
-silently fall back to the internal cab — list in `factory-presets.md`.
+silently fall back to the internal cab — list in
+`references/thall-amp-factory-presets.md`.
 
 ## Output stage
 

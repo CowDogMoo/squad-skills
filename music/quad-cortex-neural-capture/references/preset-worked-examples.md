@@ -41,8 +41,9 @@ is the whole spread these takes show — the bell moved the band every time, by
 the amount its shape predicts (see `references/measurement.md`, "What EQ
 moves, and what coherence tells you"). The HPF is what improved the null and the
 coherence. Do not add more low-end EQ to this preset: at coherence ~0.5 it would
-flatten the number without improving the match. The residual 80–100 Hz gap is a
-recapture item.
+flatten the number without improving the match. The residual 80–100 Hz gap is
+neither an EQ item nor a recapture item: it is the Tighten Chug signature, and
+it is permanent (`references/calibration-baseline.md`).
 
 ## 1D Thall Experimental, 2026-08-23 (rung 2)
 

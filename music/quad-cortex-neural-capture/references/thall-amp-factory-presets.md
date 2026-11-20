@@ -123,9 +123,9 @@ Kahney DoIt (+1 st), Big Chungus, RDS 220, browner, Octave Thall Doom
 ## Other structural oddities
 
 - **Pitch Power already off**: Calle Thomer – Rhythm, Lance Prenc – Chuggy
-  Rhythm / NuMetalcore / The Quads, Mirar – Marius. For these, the capture
-  workflow's "power the pitch section off" is a no-op, and their Low Dirt is
-  already inaudible if the section gates it.
+  Rhythm / NuMetalcore / The Quads, Mirar – Marius. For these, the older
+  capture-safe recipe's "power the pitch section off" is a no-op, and their
+  Low Dirt is already inaudible if the section gates it.
 - **Cab Power off**: Mirar – Marius only. Every other preset is an
   amp-and-cab preset.
 - **Lo-Fi on**: James Carey – Lofi Octave Vocal only.

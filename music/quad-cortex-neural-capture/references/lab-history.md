@@ -147,8 +147,8 @@ rung 3, measured.
 **Open:**
 
 1. **The standing preset is missing Leo's octave.** Mirar – Leo ships Pitch
-   Thicken at 17% and the capture correctly excluded it, but the QC pitch
-   block that should replace it is bypassed. Enable the Pitch Shifter at
+   Thicken at 17% and V4's capture excluded it, but the QC pitch block that
+   should replace it is bypassed. Enable the Pitch Shifter at
    **Coarse −12, Mix 17%**, before the capture block, then A/B against the
    plugin with its pitch section on. **No low-pass on that row** — the block
    has only Mix/Coarse/Fine, and an EQ beside it filters the dry signal too

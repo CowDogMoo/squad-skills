@@ -141,7 +141,7 @@ There is **one** internal cab. "Cab Load" swaps in a third-party IR, "Cab
 Remove" resets "back to the default cabinet", and the loaded IR's path is
 stored in the preset as an absolute path — which is why presets from other
 people can arrive pointing at a file that does not exist on this machine.
-See `factory-presets.md`.
+See `references/thall-amp-factory-presets.md`.
 
 Cab Power decides the capture type: **off → capture as "Amp"** and put an IR
 after it on the QC; **on → capture as "Amp and Cab"**, which is the only way

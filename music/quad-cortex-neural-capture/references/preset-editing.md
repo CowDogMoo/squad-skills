@@ -47,9 +47,13 @@ measurement that would reach the next one.
 
 | Abstract action | Cowork / desktop bridge | Claude Code |
 | --- | --- | --- |
-| Resolve + request app control | `computer_resolve_access` → `computer_request_access` with app "Cortex Control" (bundle `com.NeuralDSP.CortexControl`), entries passed verbatim | the computer-use access request for "Cortex Control" |
-| Look | `computer_screenshot` (scale 0.6 for orientation, 1.0 before precise clicks), `computer_zoom` for panel values | computer-use screenshot and zoom |
-| Click / drag / type | `computer_left_click`, `computer_double_click`, `computer_left_click_drag`, `computer_type`, `computer_key` | computer-use click, double-click, drag, type, key |
+| Resolve + request app control | `computer_resolve_access` → `computer_request_access` with app "Cortex Control" (bundle `com.NeuralDSP.CortexControl`), entries passed verbatim | `mcp__computer-use__request_access` with apps `["Cortex Control"]` (bundle `com.NeuralDSP.CortexControl`) |
+| Look | `computer_screenshot` (scale 0.6 for orientation, 1.0 before precise clicks), `computer_zoom` for panel values | `mcp__computer-use__screenshot`, then `zoom` for panel values |
+| Pick the display | `computer_switch_display` | `mcp__computer-use__switch_display` with the name from the screenshot note |
+| Bring the app forward | `computer_open_application` | `mcp__computer-use__open_application` |
+| Click / drag / type | `computer_left_click`, `computer_double_click`, `computer_left_click_drag`, `computer_type`, `computer_key` | `left_click`, `double_click`, `left_click_drag`, `type`, `key` |
+| Hover without clicking | `computer_mouse_move` | `mouse_move` |
+| Where did the click land | `computer_cursor_position` | `mcp__computer-use__cursor_position` |
 | Read the reference facts | connected project folder via `device_bash` / `device_stage_files` | Read / Bash on the project folder |
 
 Granting Cortex Control hides every other app — Ableton, TotalMix, terminal —

@@ -45,8 +45,10 @@ report says which. Never a higher one.
 
 A structural cleanup is not evidence about sound. "Optimized for the amp
 sound" is a rung-3 claim, and a capture that has only been A/B'd by ear is
-not "measured". Below rung 3, the report says "No listening or measurement
-was done" and names the measurement that would reach the next rung.
+not "measured". Below rung 3, the report says what checking was done — "No
+listening or measurement was done" after a preset edit, "A/B'd by ear, not
+measured" after a capture — and names the measurement that would reach the
+next rung.
 
 ## The capture recipe
 
@@ -59,9 +61,9 @@ was done" and names the measurement that would reach the next rung.
   EQ, tone match, mono/stereo, cab — stays where the preset plays it. The
   older "capture-safe" recipe (gate off, pitch off, mono) is history; use it
   only if the user asks for it by name.
-- **Use Neural Capture Version 1.** V2 made every rejected capture of the
-  thall amp; V1 made the accepted one and the downloaded captures the user
-  rates highest. Do not offer V2 as "better".
+- **Use Neural Capture Version 1.** V2 made every rejected Ashen capture; V1
+  made the accepted one and the downloaded captures the user rates highest.
+  Do not offer V2 as "better".
 - **Dynamic controls stay where the preset plays them.** Anything that ducks,
   tightens, or gates by level cannot be reproduced by a static model and
   leaves a permanent band deficit with low coherence where it operates.

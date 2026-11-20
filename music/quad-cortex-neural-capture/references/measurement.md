@@ -56,7 +56,9 @@ Then:
    you are about to move and get a yes before moving them** — see "Whose call
    it is" below.
 2. Preset input block on In 1, reverb and delay bypassed for the take, lane
-   output routed to USB, preset saved.
+   output routed to USB, preset saved. Confirm with the user before that
+   Save unless the request already covers it (`SKILL.md`, "The user's
+   instrument").
 3. Play 20–30 s continuously: chugs, single notes, one ringing chord.
 4. One take per preset variant.
 

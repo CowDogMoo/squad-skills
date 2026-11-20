@@ -23,7 +23,7 @@
         "scripts/render_chain.py is used with each PLUGIN.vst3=PRESET.xml pair in chain order, and no plugin window is opened",
         "The state read-back output is checked before trusting the render",
         "analyze.py from quad-cortex-neural-capture is run with the DI, the render in the plugin slot, and the QC wet file",
-        "Results are read against the measurement skill's thresholds (bands within 0.5 dB from 250 Hz up, coherence, ESR ladder)",
+        "Results are read against quad-cortex-neural-capture's thresholds (bands within 0.5 dB from 250 Hz up, coherence, ESR ladder)",
         "The verdict names the claim-ladder rung and says a second take is needed before claiming the match holds across performances"
       ]
     },

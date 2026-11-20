@@ -5,9 +5,10 @@ capture signal through the computer: QC → RME interface → Ableton (plugin) �
 RME → QC.
 
 The capture recipe (gate off, everything else as played, Version 1), the
-claim ladder, and `CAPTURE-TEST-STATE.md` are in `SKILL.md`. Rig inventory:
-`rig-and-automation.md`. Not for physical amps or pedals; the QC manual
-covers those.
+claim ladder, the user's-instrument rules, and `CAPTURE-TEST-STATE.md` are in
+`SKILL.md`. Rig inventory: `rig-and-automation.md`. Screen-control tool names
+for each host: `preset-editing.md`, "Host-environment translation". Not for
+physical amps or pedals; the QC manual covers those.
 
 ## Workflow
 
@@ -147,12 +148,15 @@ Levels), so record it rather than "fix" it.
    name plus " 2" and the previous type, and a misplaced click starts the
    capture with the wrong metadata. Set name, instrument (Guitar), and type
    (Amp vs Amp + Cab), and screenshot-verify before pressing Start Capture.
+   Confirm with the user before pressing it unless the request already
+   covers this capture (`SKILL.md`, "The user's instrument").
 4. Recording plus on-device training takes about three minutes. Nobody plays
    during this; the QC sends its own test signals.
 5. The A/B screen alternates every 2 s between capture and reference. Judge
    gain, chug tightness, pick attack, and mids. Close but wrong is almost
-   always input level. Then SAVE, and confirm the "Neural Capture Saved"
-   screen actually appeared.
+   always input level. Confirm with the user before SAVE unless the request
+   already covers it (`SKILL.md`, "The user's instrument"). Then SAVE, and
+   confirm the "Neural Capture Saved" screen actually appeared.
 6. On the QC afterwards: gate block before the capture, cab/IR block after an
    amp-only capture. Naming convention in use: "Thall Monomythic Amp",
    "Thall Monomythic Amp and Cab".
