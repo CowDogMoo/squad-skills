@@ -166,10 +166,11 @@ failure in this rig's capture work happened.
 
 ### 5. Save
 
-Confirm with the user first unless they asked for exactly this save. Click
-the disk icon to the right of the preset name. Confirm the "Preset
-saved." toast and that the `*` is gone. Screenshot. Do not save if any earlier
-screenshot showed something you did not intend.
+Confirm with the user first unless the request already covers this save
+(`SKILL.md`, "The user's instrument"). Click the disk icon to the right of
+the preset name. Confirm the "Preset saved." toast and that the `*` is gone.
+Screenshot. Do not save if any earlier screenshot showed something you did
+not intend.
 
 ### 6. Report
 
@@ -199,29 +200,10 @@ capture in the block, toggle the IR Loader. Nothing else moves.
 Run `measurement.md`: one guitar cable, QC over USB, one pass records DI,
 plugin, and QC together, and `scripts/analyze.py` does the aligned
 comparison — LUFS offset, banded deltas, per-band coherence, null depth —
-plus the interpretation. The preset side of that job, set up before the
-take:
-
-- Preset input block on In 1. Reverb and delay in the preset bypassed for the
-  take. **Reverb and delay, and nothing else.** Do not bypass the post-capture
-  EQ, the input gate, or the capture Volume for a measurement take: every take
-  in `calibration-baseline.md` was measured
-  with a post-capture EQ active, so a take with it bypassed compares to no
-  stored baseline. Measure the preset the user plays. An EQ curve that is
-  wrong for this preset — a bell carried over from an earlier capture, say —
-  is a finding for the measurement to report, not a pre-edit.
-- **The lane output must reach USB.** Set the Out tile at the end of the audio
-  path to **Multi Out** and confirm USB Output 3/4 is enabled in the Multiple
-  Outputs list. With the tile on "Out 3" the Wet Signal channels are silent
-  and the QC track in Live stays dark. Save before recording.
-- One take per preset variant; each variant is one more 30 s take.
-- Plugin in its capture-time reference state from `CAPTURE-TEST-STATE.md` (see
-  step 0) — cab ON if the capture is Amp+Cab.
-
-`measurement.md` owns everything after that, including what the numbers mean
-and how take content biases them. From a Cowork session, stage the three WAVs
-to the cloud workspace and run the analysis there; the local VM is short on
-disk for scipy.
+plus the interpretation. The preset-side prep for the take is in its
+"Recording the take" section. From a Cowork session, stage the three WAVs to
+the cloud workspace and run the analysis there; the local VM is short on disk
+for scipy.
 
 ## Troubleshooting
 

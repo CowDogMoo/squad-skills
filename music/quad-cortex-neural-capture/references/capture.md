@@ -186,7 +186,7 @@ and QC together, and `scripts/analyze.py` does the comparison.
 | ------- | ----- | --- |
 | Capture sounds like dry guitar mixed in | A hardware input or another software playback row is live in the return submix | `totalmix-routing.md` |
 | Settings reverted between sessions | A TotalMix snapshot or workspace was loaded | Re-verify every strip setting |
-| Capture is quieter than a downloaded one | Expected: a capture reproduces the loop's gain as measured, and whoever made the other one used a hotter return | Capture block **Volume**, start +4–6 dB. Never the capture's Gain — that changes how hard the model is driven. To bake it in, recapture with plugin Output +6 dB; tone is identical |
+| Capture is quieter than a downloaded one | Expected: a capture reproduces the loop's gain as measured, and whoever made the other one used a hotter return | Capture block **Volume**, start +4–6 dB, never its Gain (`SKILL.md`). To bake it in, recapture with plugin Output +6 dB; tone is identical |
 | Plugin UI and parameter readout disagree | Normalized VST3 values display misleadingly | Trust the plugin window |
 | Capture started with the wrong name or type | The metadata screen pre-fills and a stray click starts it | One click, one screenshot, then Start |
 | Level check meters disagree by more than ~1 dB | In 4 gain is off calibration | Recalibrate against the meters, not the stored number |

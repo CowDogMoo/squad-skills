@@ -81,8 +81,9 @@ was done" and names the measurement that would reach the next rung.
   report what the contamination makes unreadable.
 - Starting a capture and saving a preset write to the user's hardware. Unless
   the user asked for exactly that write, confirm before **Start Capture** and
-  before **Save**. Save once, at the end, after a screenshot confirms every
-  change.
+  before **Save**. A request to build, fill, or set up a preset asks for that
+  preset to be saved; saving over a different existing preset still needs a
+  yes. Save once, at the end, after a screenshot confirms every change.
 - **Makeup gain goes on the capture block's Volume, never its Gain.** Gain
   changes how hard the model is driven.
 - **Read back after every write, and trust the plugin window.** The

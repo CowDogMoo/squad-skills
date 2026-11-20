@@ -114,8 +114,7 @@ band that later became "the 60–120 hole" is the whole story of V1.
 - IR Loader and Reverb **bypassed**; lane output **0.0**, Multi Out with
   USB Output 3/4 enabled
 
-Never put makeup gain on the capture block's **Gain** — that changes how hard
-the model is driven. Volume only.
+The makeup is on Volume, not Gain: `SKILL.md`, "The user's instrument".
 
 ### Known-good measured envelope (V4 vs the real amp at Chug 50)
 
