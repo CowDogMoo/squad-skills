@@ -223,6 +223,8 @@ jobs:
         run: npm install --prefix music/guitar-pro/scripts "@coderline/alphatab@${ALPHATAB_VERSION}"
 
       - name: Run the script suites
+        env:
+          GP_TAB_REQUIRE_ALPHATAB: "1"
         run: .hooks/run-script-tests.sh
 
   # Kept as a plain job in this workflow (not inside the reusable one) so

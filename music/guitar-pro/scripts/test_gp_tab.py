@@ -3,6 +3,9 @@
 
 Run with:  python test_gp_tab.py
 
+The native .gp blocks need Node and alphaTab and are skipped without them.
+Set GP_TAB_REQUIRE_ALPHATAB=1 (CI does) to make that skip a failure.
+
 These exist because the failure modes in this corner of PyGuitarPro are silent
 -- a file writes "successfully" and opens with the rhythm destroyed. Each test
 here maps to a specific way that happens.
@@ -30,6 +33,7 @@ except ModuleNotFoundError as exc:
 from gp_tab import (
     INSTRUMENTS,
     TUNINGS,
+    Gp7ToolchainMissing,
     RiffSyntaxError,
     Tab,
     main as gp_tab_cli,
@@ -50,6 +54,27 @@ def check(label: str, condition: bool, detail: str = "") -> None:
     else:
         FAILURES.append(f"{label} -- {detail}")
         print(f"  FAIL  {label}  {detail}")
+
+
+def gp7_or_skip(tab: Tab, path: str, label: str) -> bool:
+    """Export `tab` to a native .gp; False when the block needing it cannot run.
+
+    Only a missing Node or alphaTab is a skip, and GP_TAB_REQUIRE_ALPHATAB=1
+    turns that into a failure. Any other export error always fails.
+    """
+    try:
+        tab.gp7(path)
+    except Gp7ToolchainMissing as exc:
+        reason = str(exc).splitlines()[0][:60]
+        if os.environ.get("GP_TAB_REQUIRE_ALPHATAB") == "1":
+            check(f"{label}: Node and alphaTab are installed", False, reason)
+        else:
+            print(f"  skip  {label} ({reason})")
+        return False
+    except RuntimeError as exc:
+        check(f"{label}: gp7 export runs", False, str(exc)[:300])
+        return False
+    return True
 
 
 def beats_of(tab: Tab, track: int = 0, measure: int = 0):
@@ -497,11 +522,7 @@ def main() -> int:
     # A rehearsal marker (as loaded from an existing .gp5) must come out as a GP7 section.
     tab.song.measureHeaders[1].marker = gpm.Marker(title="Chorus")
     gp7_path = os.path.join(tmp, "eight.gp")
-    try:
-        tab.gp7(gp7_path)
-    except RuntimeError as exc:
-        print(f"  skip  native .gp export ({str(exc).splitlines()[0][:60]})")
-    else:
+    if gp7_or_skip(tab, gp7_path, "native .gp export"):
         check("wrote a .gp file", os.path.getsize(gp7_path) > 0)
         import zipfile
 
@@ -641,11 +662,7 @@ def main() -> int:
     before = len(FAILURES)
     tool = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gp7_tool.mjs")
     gp_for_tool = os.path.join(tmp, "tool.gp")
-    try:
-        reloaded.gp7(gp_for_tool)
-    except RuntimeError as exc:
-        print(f"  skip  gp7_tool.mjs ({str(exc).splitlines()[0][:60]})")
-    else:
+    if gp7_or_skip(reloaded, gp_for_tool, "gp7_tool.mjs"):
         def run_tool(*args):
             proc = subprocess.run(
                 ["node", tool, *args], capture_output=True, text=True, check=False
