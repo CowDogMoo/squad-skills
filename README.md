@@ -393,8 +393,7 @@ CI runs the same checks:
 - Markdown lints clean (`markdownlint`), YAML lints clean
   (`yamllint`), and frontmatter parses.
 - `.github/scripts/check_skills.py policy`: no skill declares
-  `allowed-tools`, all plugin manifests carry the same `version`, no
-  category ships in two plugins, and this README lists every skill. On
+  `allowed-tools` and all plugin manifests carry the same `version`. On
   pull requests, `check_skills.py version-bump` fails when skill or
   manifest files changed without a version bump.
 - `claude plugin validate --strict` passes for the main plugin, the

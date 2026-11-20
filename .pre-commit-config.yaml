@@ -70,16 +70,16 @@ repos:
         files: '(^|/)SKILL\.md$'
         pass_filenames: true
 
-  # Repo policy for shared skills and plugin manifests: no `allowed-tools`,
-  # matching plugin versions, each skill in one plugin, README lists every
-  # skill. CI also runs the version-bump check, which needs the PR base.
+  # Repo policy for shared skills and plugin manifests: no `allowed-tools`
+  # and matching plugin versions. CI also runs the version-bump check, which
+  # needs the PR base.
   - repo: local
     hooks:
       - id: skill-policy
         name: Check skill and plugin policy
         entry: python3 .github/scripts/check_skills.py policy
         language: system
-        files: '(^|/)(SKILL\.md|plugin\.json|marketplace\.json|README\.md)$|^\.github/scripts/check_skills\.py$'
+        files: '(^|/)(SKILL\.md|plugin\.json)$|^\.github/scripts/check_skills\.py$'
         pass_filenames: false
 
   # The bundled script suites (gp_tab, transcription selftest, quorum

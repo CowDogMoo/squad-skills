@@ -142,7 +142,6 @@ a projection:
 ## Why this pattern works
 
 The previous agent shape gave the model discretion over a step that doesn't
-need discretion. This skill removes it by running discovery in a script,
-limiting post-Step-1 tools to Read / Write / Edit, and fixing the batch shape
-(Read iteration → Write iteration → repeat) so the agent can't stall in
-single-unit over-thoroughness.
+need discretion. This skill removes it by running discovery in a script and
+fixing the batch shape (Read iteration → Write iteration → repeat) so the
+agent can't stall in single-unit over-thoroughness.

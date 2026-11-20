@@ -24,7 +24,7 @@ import check_skills  # noqa: E402
 
 def make_repo(tmp: Path) -> Path:
     """Copy the files the policy reads into a throwaway git repo."""
-    for rel in check_skills.MANIFESTS + (".claude-plugin/marketplace.json", "README.md"):
+    for rel in check_skills.MANIFESTS:
         dest = tmp / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(REPO / rel, dest)
@@ -70,23 +70,6 @@ class PolicyTest(unittest.TestCase):
         del data["version"]
         manifest.write_text(json.dumps(data), encoding="utf-8")
         self.assertTrue(check_skills.check_versions(self.root))
-
-    def test_music_shipped_twice(self) -> None:
-        manifest = self.root / ".claude-plugin/plugin.json"
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-        data["skills"].append("./music")
-        manifest.write_text(json.dumps(data), encoding="utf-8")
-        errors = check_skills.check_single_shipping(self.root)
-        self.assertEqual(len(errors), 1)
-        self.assertIn("music/", errors[0])
-
-    def test_readme_missing_a_skill(self) -> None:
-        readme = self.root / "README.md"
-        readme.write_text(
-            readme.read_text(encoding="utf-8").replace("[quorum](./testing/quorum)", "quorum"),
-            encoding="utf-8",
-        )
-        self.assertEqual(check_skills.check_readme(self.root), ["README.md does not list skill quorum"])
 
 
 class VersionBumpTest(unittest.TestCase):

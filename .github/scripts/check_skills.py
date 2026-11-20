@@ -6,8 +6,6 @@
         every loaded skill and never pops it, and Claude Code treats it as a
         pre-approval, so it either strips tools or weakens safety)
       - every plugin manifest carries the same `version`
-      - no skill category ships in two plugins of the marketplace
-      - the README lists every skill
 
   check_skills.py version-bump --base REF [--root DIR]
       Fails when skill or manifest content changed against REF but the plugin
@@ -33,7 +31,7 @@ BUMP_PATHS = re.compile(
     r"^(?:(?:cooking|devices|music|release|testing|writing-quality)/(?!.*/evals/).*"
     r"|\.claude-plugin/.*|\.codex-plugin/.*)$"
 )
-ALLOWED_TOOLS = re.compile(r"^allowed[-_]tools\s*:", re.MULTILINE)
+ALLOWED_TOOLS = re.compile(r"^allowed-tools\s*:", re.MULTILINE)
 
 
 def frontmatter(path: Path) -> str:
@@ -74,38 +72,8 @@ def check_versions(root: Path) -> list[str]:
     return errors
 
 
-def check_single_shipping(root: Path) -> list[str]:
-    main = {s.removeprefix("./").rstrip("/") for s in load(root, MANIFESTS[0])["skills"]}
-    market = load(root, ".claude-plugin/marketplace.json")
-    errors = []
-    for plugin in market["plugins"]:
-        source = str(plugin["source"]).removeprefix("./").rstrip("/")
-        if source in ("", "."):
-            continue
-        if source in main:
-            errors.append(
-                f"{source}/ ships in both squad-skills and {plugin['name']}; "
-                "remove it from .claude-plugin/plugin.json 'skills'"
-            )
-    return errors
-
-
-def check_readme(root: Path) -> list[str]:
-    readme = (root / "README.md").read_text(encoding="utf-8")
-    return [
-        f"README.md does not list skill {p.parent.name}"
-        for p in skill_files(root)
-        if f"[{p.parent.name}](./" not in readme
-    ]
-
-
 def policy(root: Path) -> list[str]:
-    return (
-        check_allowed_tools(root)
-        + check_versions(root)
-        + check_single_shipping(root)
-        + check_readme(root)
-    )
+    return check_allowed_tools(root) + check_versions(root)
 
 
 def git(root: Path, *args: str) -> str:

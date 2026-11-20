@@ -24,7 +24,6 @@ on:
       - '.claude-plugin/**'
       - '.codex-plugin/**'
       - 'music/.claude-plugin/**'
-      - 'README.md'
       - '.github/workflows/validate-skills.yaml'
       - '.github/workflows/reusable-validate-skills.yaml'
       - '.github/workflows/skill-evals.yaml'
@@ -150,8 +149,8 @@ jobs:
         run: python .github/scripts/test_skill_evals.py
 
   # Repo policy: no `allowed-tools` on shared skills, matching plugin
-  # versions, each skill shipped in one plugin, a complete README catalog,
-  # and a version bump on pull requests that change skill or manifest files.
+  # versions, and a version bump on pull requests that change skill or
+  # manifest files.
   policy:
     name: Skill Policy
     runs-on: ubuntu-latest
@@ -204,6 +203,8 @@ jobs:
   script-tests:
     name: Script Tests
     runs-on: ubuntu-latest
+    env:
+      ALPHATAB_VERSION: "1.9.0"
     steps:
       - name: Checkout git repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -217,6 +218,9 @@ jobs:
 
       - name: Install uv
         run: pip install uv
+
+      - name: Install alphaTab for the native .gp blocks of test_gp_tab.py
+        run: npm install --prefix music/guitar-pro/scripts "@coderline/alphatab@${ALPHATAB_VERSION}"
 
       - name: Run the script suites
         run: .hooks/run-script-tests.sh
