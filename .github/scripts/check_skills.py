@@ -28,7 +28,7 @@ MANIFESTS = (
     "music/.claude-plugin/plugin.json",
 )
 BUMP_PATHS = re.compile(
-    r"^(?:(?:cooking|devices|music|release|testing|writing-quality)/(?!.*/evals/).*"
+    r"^(?:(?:cooking|devices|engineering|music|release|testing|writing-quality)/(?!.*/evals/).*"
     r"|\.claude-plugin/.*|\.codex-plugin/.*)$"
 )
 ALLOWED_TOOLS = re.compile(r"^allowed-tools\s*:", re.MULTILINE)

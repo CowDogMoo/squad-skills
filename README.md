@@ -105,6 +105,47 @@ with the folder a skill lives in. Each category folder is registered in
 `.claude-plugin/plugin.json`'s `skills` list; the plugin loader scans
 each listed path exactly one level deep.
 
+### engineering/
+
+Language knowledge bases (review criteria, testing patterns, documentation
+and security guides), the Ansible, Taskfile, Cobra/Viper, README, changelog
+and Grafana dashboard standards, the shared review and security-audit loops,
+and the pipeline skills that chain
+[squad-agents](https://github.com/cowdogmoo/squad-agents) agents. The
+squad-agents agents load these by name, so they ship in the main
+`squad-skills` plugin that squad-agents depends on (squad also reads only
+that manifest's `skills` list when it scans this repo as a skill catalog).
+
+| Skill | Description |
+| --- | --- |
+| [ansible-molecule-guide](./engineering/ansible-molecule-guide) | Molecule testing for Ansible roles and collections: scenario layout, molecule.yml, converge and verify playbooks, multi-platform matrices, idempotence, and prepare/cleanup. |
+| [ansible-standards](./engineering/ansible-standards) | Ansible authoring and review standards for collections, roles, and playbooks: the Zen of Ansible, naming, FQCN, variables, loops, handlers, error handling, idempotency, security, linting, and checklists. |
+| [changelog-standards](./engineering/changelog-standards) | Changelog standards: Keep a Changelog sections, entry style, semantic versioning and breaking changes, and antsibull-changelog fragments for Ansible collections. |
+| [cobra-viper-best-practices](./engineering/cobra-viper-best-practices) | Best practices for Go CLIs built on Cobra and Viper: command design, flags, config binding, error handling, testing, completions, and anti-patterns. |
+| [go-documentation-standards](./engineering/go-documentation-standards) | The Go Doc Comments spec in practice: syntax by declaration type, what to document, common mistakes, and a checklist. |
+| [go-pipeline](./engineering/go-pipeline) | Runs the Go quality pipeline over a module: go-cobra, go-review, go-tests, then go-doc-comments, with build and test gates between stages. |
+| [go-review-criteria](./engineering/go-review-criteria) | Review criteria for Go: error handling, concurrency, data management, interface and type design, API design, performance, and package layout. |
+| [go-security-audit](./engineering/go-security-audit) | Runs a parallel Go security audit with the go-security-injection and go-security-resources subagents, then verifies build and tests. |
+| [go-testing-patterns](./engineering/go-testing-patterns) | Idiomatic Go testing: table-driven tests, subtests, helpers, mocking, benchmarks, coverage, Cobra CLI tests, and what not to test. |
+| [golang-security-guide](./engineering/golang-security-guide) | Go security guide: static-analysis tools, common vulnerabilities, memory safety, gRPC, cryptography, and a checklist. |
+| [grafana-dashboard-standards](./engineering/grafana-dashboard-standards) | Grafana dashboard standards: USE, RED and the Four Golden Signals, visual hierarchy, panel choice, sprawl control, query performance, and a maturity model. |
+| [nodejs-documentation-standards](./engineering/nodejs-documentation-standards) | JSDoc standards for Node.js and TypeScript: syntax by declaration type, tag reference, what to document, common mistakes, and a checklist. |
+| [nodejs-review-criteria](./engineering/nodejs-review-criteria) | Review criteria for Node.js and TypeScript: error handling, async patterns, type safety, code structure, API design, performance, and modules. |
+| [nodejs-security-guide](./engineering/nodejs-security-guide) | Node.js and TypeScript security guide: static-analysis tools, common vulnerabilities, cryptography, dependency security, ReDoS, and a checklist. |
+| [nodejs-testing-patterns](./engineering/nodejs-testing-patterns) | Jest and Vitest patterns: parameterized tests, describe/it layout, fixtures, mocking, async tests, coverage, and what not to test. |
+| [python-documentation-standards](./engineering/python-documentation-standards) | Python documentation standards: PEP 257 docstrings, comments, type hints, codetags, linter directives, and a checklist. |
+| [python-review-criteria](./engineering/python-review-criteria) | Review criteria for Python: exception handling, type annotations, pattern matching, data models, function and class design, and async patterns. |
+| [python-security-guide](./engineering/python-security-guide) | Python security guide: static-analysis tools, common vulnerabilities, insecure deserialization, web frameworks, cryptography, supply chain, secrets, and a checklist. |
+| [python-testing-patterns](./engineering/python-testing-patterns) | pytest patterns: parametrized tests, fixtures, exceptions, mocking, async tests, Hypothesis, snapshots, markers, and coverage. |
+| [readme-standards](./engineering/readme-standards) | README standards: essential sections, progressive disclosure, writing style, project-type variations, and a checklist. |
+| [review-loop](./engineering/review-loop) | Shared fix-in-place review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats. The caller supplies the language, globs, verify commands and categories. |
+| [rust-documentation-standards](./engineering/rust-documentation-standards) | Rustdoc conventions: doc-comment syntax by item type, special sections, intra-doc links, doc tests, and a checklist. |
+| [rust-pipeline](./engineering/rust-pipeline) | Runs the Rust quality pipeline over a crate or workspace: rust-review, rust-tests, then rust-doc-comments, with clippy, test, and build gates. |
+| [rust-review-criteria](./engineering/rust-review-criteria) | Review criteria for Rust: error handling, ownership, concurrency, trait and API design, performance, modules, security, and testing. |
+| [rust-testing-patterns](./engineering/rust-testing-patterns) | Rust testing patterns: unit and integration tests, rstest and test-case, error and async tests, mocking, property tests, and doc tests. |
+| [security-audit-loop](./engineering/security-audit-loop) | Shared loop for the six security stage agents (Go, Node.js and Python injection and resources): discovery, read-before-analyze, edit vs readonly mode, verify and revert, budget, severity scale and report formats. The caller supplies the language, globs, build/test commands and categories. |
+| [taskfile-standards](./engineering/taskfile-standards) | go-task Taskfile standards and review criteria: structure, variables and environment, task design, dependencies, cross-platform use, change detection, CI, security, and anti-patterns. |
+
 ### testing/
 
 | Skill                                                                      | Description                                                                                                                                                                                                                                                       |
@@ -261,7 +302,7 @@ across them. The pattern that works:
 
 ```bash
 # 1. Create the directory inside the category folder that fits
-#    (cooking/, devices/, music/, release/, testing/,
+#    (cooking/, devices/, engineering/, music/, release/, testing/,
 #    writing-quality/). A new category also needs an entry in
 #    .claude-plugin/plugin.json's "skills" list (or its own plugin in
 #    .claude-plugin/marketplace.json, as music/ has), or the plugin

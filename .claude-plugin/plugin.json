@@ -1,13 +1,20 @@
 {
   "name": "squad-skills",
   "displayName": "Squad Skills",
-  "version": "0.5.0",
-  "description": "Model-agnostic, host-portable skills for the squad ecosystem: comment scrubbing, LLM-tell detection, doc-comment discovery loops, test-writing discipline and coverage queues, completion gating (quorum), Ansible collection releases, iPhone Home Screen organizing, and recipe tooling.",
+  "version": "0.6.0",
+  "description": "Model-agnostic, host-portable skills for the squad ecosystem: comment scrubbing, LLM-tell detection, doc-comment discovery loops, test-writing discipline and coverage queues, completion gating (quorum), the language review, testing, documentation and security knowledge bases and pipelines the squad-agents agents load, Ansible collection releases, iPhone Home Screen organizing, and recipe tooling.",
   "author": {
     "name": "Jayson Grace",
     "url": "https://github.com/CowDogMoo"
   },
   "repository": "https://github.com/CowDogMoo/squad-skills",
   "license": "MIT",
-  "skills": ["./cooking", "./devices", "./release", "./testing", "./writing-quality"]
+  "skills": [
+    "./cooking",
+    "./devices",
+    "./engineering",
+    "./release",
+    "./testing",
+    "./writing-quality"
+  ]
 }
