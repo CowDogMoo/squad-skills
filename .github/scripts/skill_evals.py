@@ -1238,6 +1238,26 @@ def cmd_leak_check(args) -> int:
     return 0
 
 
+def run_problems(run: dict, types: dict) -> list[str]:
+    """Why one run says nothing about the skill: its error, and graders left ungraded.
+
+    A judge call that failed (refused, rate limited, timed out) leaves no
+    votes; it says nothing about the skill, so it is a harness failure. A
+    run's grader results carry no type; claude plugin eval records it only in
+    the case's grader definitions (types). A grader with no definition is
+    treated as an LLM grader, so it still needs judge votes.
+    """
+    problems = [run["error"]] if run.get("error") else []
+    problems += [
+        f"{g.get('name', '?')} could not be graded: {g.get('explanation', 'no judge votes')}"
+        for g in run.get("graders", [])
+        if (g.get("type") or types.get(g.get("name")) or "llm") == "llm"
+        and g.get("scored")
+        and "judgeVotes" not in g
+    ]
+    return problems
+
+
 def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
     """Score each case on the mean of its runs; return (exit code, summary)."""
     try:
@@ -1257,26 +1277,14 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
     ]
     for case in data.get("cases", []):
         cname = case.get("name", "?")
-        runs = case.get("arms", {}).get("with", [])
-        errors = [r["error"] for r in runs if r.get("error")]
-        # A run's grader results carry no type; claude plugin eval records it
-        # only in the case's grader definitions. A grader with no definition
-        # is treated as an LLM grader, so it still needs judge votes.
+        arms = case.get("arms", {})
+        runs = arms.get("with", [])
         types = {
             g.get("name"): g.get("type")
             for g in case.get("graders", [])
             if isinstance(g, dict)
         }
-        # A judge call that failed (refused, rate limited, timed out) leaves no
-        # votes; it says nothing about the skill, so it is a harness failure.
-        errors += [
-            f"{g.get('name', '?')} could not be graded: {g.get('explanation', 'no judge votes')}"
-            for r in runs
-            for g in r.get("graders", [])
-            if (g.get("type") or types.get(g.get("name")) or "llm") == "llm"
-            and g.get("scored")
-            and "judgeVotes" not in g
-        ]
+        errors = [e for r in runs for e in run_problems(r, types)]
         scores = [float(r.get("score", 0)) for r in runs]
         mean = sum(scores) / len(scores) if scores else 0.0
         failed = sorted({g.get("name", "?") for r in runs for g in r.get("graders", []) if not g.get("passed")})
@@ -1297,10 +1305,14 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
             notes = ", ".join(failed)
         shown = ", ".join(f"{x:.2f}" for x in scores)
         lines.append(f"| {cname} | {mean:.2f} | {shown} | {result} | {notes} |")
-        baseline = [float(r.get("score", 0)) for r in case.get("arms", {}).get("without", []) if not r.get("error")]
-        if baseline and scores:
-            base = sum(baseline) / len(baseline)
-            deltas.append((cname, mean, base))
+        clean_with, clean_without = (
+            [float(r.get("score", 0)) for r in arms.get(arm, []) if not run_problems(r, types)]
+            for arm in ("with", "without")
+        )
+        if clean_with and clean_without:
+            deltas.append(
+                (cname, sum(clean_with) / len(clean_with), sum(clean_without) / len(clean_without))
+            )
     partial = bool(data.get("partial"))
     if partial:
         reason = data.get("partialReason", "unknown")

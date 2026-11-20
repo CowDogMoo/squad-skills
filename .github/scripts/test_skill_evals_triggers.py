@@ -263,6 +263,29 @@ class JudgeTest(unittest.TestCase):
         self.assertIn("| case-2 | 0.50 | 0.50 | +0.00 |", text)
         self.assertIn("| **mean** | 0.70 | 0.50 | +0.20 |", text)
 
+    def test_ablation_delta_uses_only_clean_runs_in_both_arms(self) -> None:
+        clean = lambda s: {"score": s, "error": None, "graders": []}  # noqa: E731
+        errored = {"score": 0.0, "error": "timed out after 600s", "graders": []}
+        ungraded = {
+            "score": 0.0, "error": None,
+            "graders": [{"name": "expectation-1", "scored": True, "passed": False}],
+        }
+        data = {"partial": False, "cases": [
+            {"name": "case-1", "graders": [], "arms": {
+                "with": [errored, clean(0.9)], "without": [clean(0.5), ungraded]}},
+            {"name": "case-2", "graders": [], "arms": {"with": [errored], "without": [clean(0.8)]}},
+            {"name": "case-3", "graders": [], "arms": {"with": [clean(1.0)], "without": [ungraded]}},
+        ]}
+        path = self.tmp / "result.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        code, text = self.judge("demo", path, 0.5)
+        self.assertEqual(code, 1)
+        self.assertIn("| case-1 | 0.90 | 0.50 | +0.40 |", text)
+        self.assertIn("| **mean** | 0.90 | 0.50 | +0.40 |", text)
+        rows = [line for line in text.splitlines() if line.count("|") == 5]
+        self.assertFalse([r for r in rows if r.startswith(("| case-2 ", "| case-3 "))])
+        self.assertIn("| case-2 | 0.00 | 0.00 | did not run |", text)
+
     def test_no_ablation_table_without_a_baseline(self) -> None:
         _code, text = self.judge("demo", self.result([("case-1", [1.0], [])]), 0.5)
         self.assertNotIn("Without skill", text)
