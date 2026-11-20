@@ -1,0 +1,116 @@
+{
+  "family": "nodejs",
+  "description": "Node.js and TypeScript knowledge skills: review criteria, security guide, Jest/Vitest patterns, and JSDoc standards.",
+  "skills": [
+    "nodejs-review-criteria",
+    "nodejs-security-guide",
+    "nodejs-testing-patterns",
+    "nodejs-documentation-standards"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Review src/services/orders.ts for async/await mistakes and unhandled promise rejections.",
+      "expect": "nodejs-review-criteria",
+      "not": ["nodejs-security-guide"]
+    },
+    {
+      "id": 2,
+      "query": "Our Express routes mix callbacks and promises. Review routes/ for Node.js best-practice issues.",
+      "expect": "nodejs-review-criteria"
+    },
+    {
+      "id": 3,
+      "query": "Look at this TypeScript module and tell me where we're abusing `any` and non-null assertions.",
+      "expect": "nodejs-review-criteria"
+    },
+    {
+      "id": 4,
+      "query": "Review this Node module for performance problems: synchronous fs calls in request handlers and N+1 database queries.",
+      "expect": "nodejs-review-criteria"
+    },
+    {
+      "id": 5,
+      "query": "Audit the Express API for injection: we pass req.query straight into a MongoDB find and into child_process.exec.",
+      "expect": "nodejs-security-guide",
+      "not": ["nodejs-review-criteria"]
+    },
+    {
+      "id": 6,
+      "query": "Could the regex in validators/email.js cause ReDoS? Check the rest of the validators while you're at it.",
+      "expect": "nodejs-security-guide"
+    },
+    {
+      "id": 7,
+      "query": "Harden our Node service: we merge user JSON into config with lodash.merge, and jsonwebtoken accepts alg none.",
+      "expect": "nodejs-security-guide"
+    },
+    {
+      "id": 8,
+      "query": "Check package-lock.json and our code for dependency security problems and prototype pollution.",
+      "expect": "nodejs-security-guide"
+    },
+    {
+      "id": 9,
+      "query": "Write Vitest tests for formatPrice in src/utils/money.ts and cover the rounding edge cases.",
+      "expect": "nodejs-testing-patterns",
+      "not": ["nodejs-review-criteria"]
+    },
+    {
+      "id": 10,
+      "query": "How do I mock fetch in Jest for a module that calls it at import time?",
+      "expect": "nodejs-testing-patterns"
+    },
+    {
+      "id": 11,
+      "query": "tests/parser.test.ts is full of copy-pasted cases. Convert it to test.each.",
+      "expect": "nodejs-testing-patterns"
+    },
+    {
+      "id": 12,
+      "query": "Add JSDoc to every exported function in lib/client.js, with @param and @returns.",
+      "expect": "nodejs-documentation-standards",
+      "not": ["nodejs-review-criteria"]
+    },
+    {
+      "id": 13,
+      "query": "Audit the doc comments in our TypeScript SDK. Which exported types are undocumented?",
+      "expect": "nodejs-documentation-standards"
+    },
+    {
+      "id": 14,
+      "query": "Which JSDoc tags should I use for a function that returns a Promise and can throw?",
+      "expect": "nodejs-documentation-standards"
+    },
+    {
+      "id": 15,
+      "query": "Upgrade this project from Node 20 to Node 22 in .nvmrc and the package.json engines field.",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Write pytest tests for api/views.py.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "What's the difference between == and === in JavaScript?",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Add an npm script that runs eslint --fix.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Review this Go handler for goroutine leaks.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Center this div with flexbox.",
+      "expect": null
+    }
+  ]
+}

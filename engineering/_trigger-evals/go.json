@@ -1,0 +1,121 @@
+{
+  "family": "go",
+  "description": "Go knowledge and orchestration skills: review criteria, security guide, testing patterns, doc standards, Cobra/Viper, and the two Go pipelines.",
+  "skills": [
+    "go-review-criteria",
+    "golang-security-guide",
+    "go-testing-patterns",
+    "go-documentation-standards",
+    "cobra-viper-best-practices",
+    "go-pipeline",
+    "go-security-audit"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Review internal/store for Go best-practice problems: error wrapping, goroutine leaks, interface design. Don't fix anything yet, just tell me what you'd change.",
+      "expect": "go-review-criteria",
+      "not": ["golang-security-guide"]
+    },
+    {
+      "id": 2,
+      "query": "Is there a cleaner way to handle errors here? `if err != nil { log.Println(err); return nil }` shows up all over pkg/sync/worker.go.",
+      "expect": "go-review-criteria"
+    },
+    {
+      "id": 3,
+      "query": "Audit the Go webhook handler in api/hooks.go for SQL injection and command injection. It builds queries with fmt.Sprintf and shells out with exec.Command.",
+      "expect": "golang-security-guide",
+      "not": ["go-review-criteria"]
+    },
+    {
+      "id": 4,
+      "query": "We hash API tokens with md5 in auth/tokens.go. What should a Go service use instead, and what other crypto mistakes should I check for while I'm in there?",
+      "expect": "golang-security-guide"
+    },
+    {
+      "id": 5,
+      "query": "Write table-driven tests for ParseDuration in internal/timeutil/parse.go, including the error cases.",
+      "expect": "go-testing-patterns",
+      "not": ["go-review-criteria"]
+    },
+    {
+      "id": 6,
+      "query": "How should I mock the S3 client in my Go unit tests without pulling in a big mocking framework?",
+      "expect": "go-testing-patterns"
+    },
+    {
+      "id": 7,
+      "query": "Add godoc comments to every exported function and type in pkg/config so `go doc` output is actually useful.",
+      "expect": "go-documentation-standards",
+      "not": ["go-review-criteria"]
+    },
+    {
+      "id": 8,
+      "query": "Does this doc comment follow Go conventions? `// This function returns the user.` above `func GetUser(id string) (*User, error)`",
+      "expect": "go-documentation-standards"
+    },
+    {
+      "id": 9,
+      "query": "Our Cobra CLI uses Run everywhere and calls os.Exit inside commands. Audit cmd/ and tell me what a proper Cobra/Viper setup should look like.",
+      "expect": "cobra-viper-best-practices",
+      "not": ["go-review-criteria"]
+    },
+    {
+      "id": 10,
+      "query": "Values in config.yaml aren't overriding flag defaults in my Cobra app. How do I bind Viper to the persistent flags properly?",
+      "expect": "cobra-viper-best-practices"
+    },
+    {
+      "id": 11,
+      "query": "Run the full Go pipeline on this module: CLI review, code review, tests, then doc comments, with build gates between the stages.",
+      "expect": "go-pipeline",
+      "not": ["go-review-criteria"]
+    },
+    {
+      "id": 12,
+      "query": "Take this Go module end to end: clean up the CLI, review it, get the tests up, and document it.",
+      "expect": "go-pipeline"
+    },
+    {
+      "id": 13,
+      "query": "Security-audit this whole Go repo with the injection and resources auditors and fix what they find.",
+      "expect": "go-security-audit"
+    },
+    {
+      "id": 14,
+      "query": "Scan the Go codebase for vulnerabilities in readonly mode. I just want the audit report, no fixes.",
+      "expect": "go-security-audit"
+    },
+    {
+      "id": 15,
+      "query": "What's the difference between a buffered and an unbuffered channel in Go?",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Write pytest tests for utils/dates.py.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Bump the Go version in go.mod from 1.25 to 1.26 and run go mod tidy.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Review src/cache.rs for ownership problems and needless clones.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Add JSDoc comments to the exported functions in src/api.ts.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Rename the package util to strutil across this Go repo and fix the imports.",
+      "expect": null
+    }
+  ]
+}

@@ -18,12 +18,30 @@ eval cases. The skill-evals workflow calls this script in two jobs:
               printed or uploaded; on a hit, delete the results and fail
     judge     score the results and write the step summary
 
-  validate  check every evals.json, the allowlist, the workflow triggers, and
-            that every case can read its staged inputs but not its
-            expectations (no secrets needed; runs in Validate Skills on every
-            pull request)
+  validate  check every evals.json and trigger suite, the allowlist, the
+            workflow triggers, and that every case can read its staged inputs
+            but not its expectations (no secrets needed; runs in Validate
+            Skills on every pull request)
 
 The allowlist of skills that can run in CI lives in .github/skill-evals.json.
+
+Trigger suites live in <category>/_trigger-evals/<family>.json, one per family
+of skills whose descriptions overlap. Each query names the one skill it should
+load (or null for none) and, optionally, siblings it must not load. A suite is
+staged as one plugin holding every skill in the repository, so the model picks
+from the same listing users see, and is graded only on which skills the Skill
+tool loaded. Trigger suites always run with --ablation none: a no-plugin arm
+cannot load any skill.
+
+Skill suites can also run with --ablation with-without, which adds a no-skill
+baseline arm and reports the score delta: the evidence for whether a
+knowledge skill earns its tokens.
+
+An allowlisted skill with "suite": "knowledge-1" or "knowledge-2" runs only
+in that half of the knowledge suite (plan --suite knowledge-1), never with
+--suite skills or all, so the schedule never runs it: the engineering
+knowledge skills cost a run only when someone dispatches a half. The suite is
+split in two so each half fits the eval job's timeout with both arms.
 """
 
 from __future__ import annotations
@@ -53,6 +71,9 @@ EVALS_DIR = "evals"
 # Case input files are staged here, outside every directory claude plugin eval
 # fences off from the agent (see FENCED_DIRS).
 INPUTS_DIR = "eval-inputs"
+# A link inside each case directory to INPUTS_DIR, granted with
+# context.add_dirs so the no-skill arm of an ablation can read the inputs too.
+CASE_INPUTS = "inputs"
 CANARY = "skill-evals-canary"
 BASE_TOOLS = ["Read", "Glob", "Grep", "Skill"]
 GRANTABLE_TOOLS = {"Bash", "Edit", "Write"}
@@ -101,6 +122,32 @@ CHILD_ENV = [
     "USER",
 ]
 TRIGGERS = {"workflow_dispatch", "schedule"}
+# Trigger suites: <category>/_trigger-evals/<family>.json. The leading
+# underscore keeps the folder out of the skill scans (it holds no SKILL.md).
+TRIGGER_DIR = "_trigger-evals"
+TRIGGER_PREFIX = "triggers-"
+TRIGGER_MIN_QUERIES = 20
+TRIGGER_MIN_NEGATIVES = 5
+TRIGGER_MAX_TURNS = 3
+TRIGGER_TIMEOUT_SECONDS = 180
+TRIGGER_TOOLS = ["Skill"]
+# The queries name files and packages that are not in the eval's empty
+# workspace. Left alone, the model spends its turns searching for them and
+# never routes, so every case scores as "loaded nothing". The preamble turns
+# each case into the routing decision itself, the same for every query, and
+# only the Skill tool is allowed.
+TRIGGER_PREAMBLE = (
+    "The repository this request is about is not checked out here, so do not "
+    "look for files. Decide how you would start: if one of your skills fits "
+    "the request, load it now with the Skill tool; if none fits, answer "
+    "directly without loading a skill.\n\nRequest:\n\n"
+)
+SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ABLATIONS = ("none", "with-without")
+SKILL_SUITES = ("skills", "knowledge-1", "knowledge-2")
+SUITES = SKILL_SUITES + ("triggers", "all")
+QUOTE_OR_COLON = "[\"':]"
+QUOTE = "[\"']"
 
 
 def load_config() -> dict:
@@ -115,8 +162,8 @@ def skipped() -> dict[str, str]:
     return load_config().get("ci_skipped", {})
 
 
-def skill_dirs() -> dict[str, Path]:
-    """Map each skill name to its folder, from every plugin's category list.
+def category_dirs() -> list[Path]:
+    """Every category folder, from every plugin's category list.
 
     The main plugin lists its categories in "skills"; any other plugin in the
     marketplace (the music cut) is a category folder named by its "source".
@@ -126,13 +173,45 @@ def skill_dirs() -> dict[str, Path]:
     categories = list(plugin["skills"]) + [
         str(p["source"]) for p in market["plugins"] if str(p["source"]) not in (".", "./")
     ]
+    return [ROOT / category.removeprefix("./") for category in categories]
+
+
+def skill_dirs() -> dict[str, Path]:
+    """Map each skill name to its folder, from every plugin's category list."""
     found = {}
-    for category in categories:
-        base = ROOT / category.removeprefix("./")
+    for base in category_dirs():
         for skill_md in sorted(base.glob("*/SKILL.md")):
             if not skill_md.parent.name.startswith((".", "_")):
                 found[skill_md.parent.name] = skill_md.parent
     return found
+
+
+def trigger_suites() -> dict[str, list[Path]]:
+    """Map each trigger family to its suite file(s); more than one is an error."""
+    found: dict[str, list[Path]] = {}
+    for base in category_dirs():
+        for path in sorted((base / TRIGGER_DIR).glob("*.json")):
+            found.setdefault(path.stem, []).append(path)
+    return found
+
+
+def is_trigger(name: str) -> bool:
+    return name.startswith(TRIGGER_PREFIX)
+
+
+def skill_loaded(name: str) -> str:
+    """Regex for a Skill tool input that loads skill `name`.
+
+    The input is JSON such as {"skill": "name"} or, for a plugin skill,
+    {"skill": "plugin:name"}, so the name sits after a quote or a colon and
+    before a closing quote. Names are validated as [a-z0-9-], which need no
+    escaping in a JavaScript regex.
+    """
+    return QUOTE_OR_COLON + name + QUOTE
+
+
+def skills_loaded(names: list[str]) -> str:
+    return QUOTE_OR_COLON + "(?:" + "|".join(names) + ")" + QUOTE
 
 
 def output(name: str, value: str) -> None:
@@ -209,6 +288,94 @@ def check_evals(skill: Path) -> list[str]:
     return errors
 
 
+def check_trigger_suite(path: Path, skills: dict[str, Path]) -> list[str]:
+    """Return the problems with one trigger suite (empty when valid)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    if not isinstance(data, dict):
+        return ["top level must be an object"]
+
+    errors = []
+    if data.get("family") != path.stem:
+        errors.append(f"family {data.get('family')!r} does not match file name {path.stem!r}")
+    if not nonempty_str(data.get("description")):
+        errors.append("description is missing or empty")
+    members = data.get("skills")
+    if not isinstance(members, list) or not members or not all(nonempty_str(m) for m in members):
+        return errors + ["'skills' must be a non-empty list of skill names"]
+    for name in members:
+        if name not in skills:
+            errors.append(f"skills: no skill folder is named {name!r}")
+    if len(set(members)) != len(members):
+        errors.append("skills: lists a skill twice")
+
+    queries = data.get("queries")
+    if not isinstance(queries, list) or len(queries) < TRIGGER_MIN_QUERIES:
+        return errors + [f"'queries' must be a list of at least {TRIGGER_MIN_QUERIES} queries"]
+    seen_ids, seen_text, fired, negatives = set(), set(), set(), 0
+    for i, q in enumerate(queries):
+        where = f"queries[{i}]"
+        if not isinstance(q, dict):
+            errors.append(f"{where} must be an object")
+            continue
+        unknown = set(q) - {"id", "query", "expect", "not"}
+        if unknown:
+            errors.append(f"{where} has unknown keys {sorted(unknown)}")
+        qid = q.get("id")
+        if not isinstance(qid, int) or isinstance(qid, bool) or qid < 1:
+            errors.append(f"{where} id must be a positive integer")
+        elif qid in seen_ids:
+            errors.append(f"{where} duplicate id {qid}")
+        else:
+            seen_ids.add(qid)
+        text = q.get("query")
+        if not nonempty_str(text):
+            errors.append(f"{where} query is missing or empty")
+        elif text.strip().lower() in seen_text:
+            errors.append(f"{where} repeats an earlier query")
+        else:
+            seen_text.add(text.strip().lower())
+        if "expect" not in q:
+            errors.append(f"{where} needs 'expect': a family skill, or null for none")
+            continue
+        expect = q["expect"]
+        if expect is None:
+            negatives += 1
+        elif expect not in members:
+            errors.append(f"{where} expects {expect!r}, which is not in this family's skills")
+        else:
+            fired.add(expect)
+        avoid = q.get("not", [])
+        if not isinstance(avoid, list) or not all(nonempty_str(a) for a in avoid):
+            errors.append(f"{where} 'not' must be a list of skill names")
+            continue
+        if expect is None and avoid:
+            errors.append(f"{where} has 'not' but expects nothing; every family skill is already forbidden")
+        for name in avoid:
+            if name not in skills:
+                errors.append(f"{where} 'not' names {name!r}, which has no skill folder")
+            elif name == expect:
+                errors.append(f"{where} both expects and forbids {name!r}")
+    for name in members:
+        if name in skills and name not in fired:
+            errors.append(f"{name} has no query that should load it")
+    if negatives < TRIGGER_MIN_NEGATIVES:
+        errors.append(
+            f"only {negatives} queries expect no family skill; at least "
+            f"{TRIGGER_MIN_NEGATIVES} should-not-trigger cases are required"
+        )
+    named = set(members)
+    for q in queries:
+        if isinstance(q, dict) and isinstance(q.get("not"), list):
+            named.update(a for a in q["not"] if nonempty_str(a))
+    for name in sorted(named):
+        if not SKILL_NAME.match(name):
+            errors.append(f"{name!r} is not a plain skill name ([a-z0-9-])")
+    return errors
+
+
 def workflow_triggers() -> set[str]:
     import yaml
 
@@ -237,6 +404,9 @@ def cmd_validate(_args) -> int:
     cost = config.get("max_cost_usd")
     if not isinstance(cost, (int, float)) or cost <= 0:
         error(where, "max_cost_usd must be a positive number")
+    trigger_limit = config.get("trigger_threshold")
+    if not isinstance(trigger_limit, (int, float)) or not 0 <= trigger_limit <= 1:
+        error(where, "trigger_threshold must be a number from 0 to 1")
 
     skills = skill_dirs()
     runnable, skip = allowlist(), skipped()
@@ -273,6 +443,8 @@ def cmd_validate(_args) -> int:
         for key in ("max_turns", "timeout_seconds"):
             if key in opts and (not isinstance(opts[key], int) or opts[key] <= 0):
                 error(where, f"ci_runnable.{name}.{key} must be a positive integer")
+        if opts.get("suite", "skills") not in SKILL_SUITES:
+            error(where, f"ci_runnable.{name}.suite must be one of {list(SKILL_SUITES)}")
 
     for name, skill in sorted(skills.items()):
         if not (skill / "evals" / "evals.json").is_file():
@@ -301,6 +473,23 @@ def cmd_validate(_args) -> int:
                 error(f"{rel}/evals/evals.json", f"staged for CI: {problem}")
             if not problems:
                 print(f"  ✓ {name}: every case can read its staged inputs")
+
+        for family, paths in sorted(trigger_suites().items()):
+            rels = [str(p.relative_to(ROOT)) for p in paths]
+            if len(paths) > 1:
+                error(rels[0], f"trigger family {family!r} is defined more than once: {', '.join(rels)}")
+                continue
+            errors = check_trigger_suite(paths[0], skills)
+            for err in errors:
+                error(rels[0], err)
+            if errors:
+                continue
+            with contextlib.redirect_stdout(io.StringIO()):
+                problems = stage_triggers(family, paths[0], staged)
+            for problem in problems:
+                error(rels[0], f"staged for CI: {problem}")
+            if not problems:
+                print(f"  ✓ {rels[0]}: {count_cases(staged / (TRIGGER_PREFIX + family))} trigger cases")
 
     try:
         json.loads(POLICY.read_text(encoding="utf-8"))
@@ -332,20 +521,38 @@ def cmd_plan(args) -> int:
         print("Canary only: no skill evals were requested")
         output("skills", "[]")
         return 0
-    if args.skill:
-        if args.skill not in skills:
-            print(f"::error::No skill named {args.skill!r} in this repository")
-            return 1
-        requested = [args.skill]
-    else:
-        requested = sorted(skills)
-
+    suite = getattr(args, "suite", "skills")
+    if args.skill and suite == "all":
+        print("::error::--skill picks one skill or trigger family; use it with --suite skills, triggers, or a knowledge half, not all")
+        return 1
+    families = sorted(trigger_suites())
     selected = []
-    for name in requested:
-        if name in runnable:
-            selected.append(name)
+    if suite in SKILL_SUITES or suite == "all":
+        group = "skills" if suite == "all" else suite
+        if args.skill and suite in SKILL_SUITES:
+            if args.skill not in skills:
+                print(f"::error::No skill named {args.skill!r} in this repository")
+                return 1
+            requested = [args.skill]
+        elif group != "skills":
+            requested = sorted(n for n in runnable if runnable[n].get("suite") == group)
         else:
-            print(f"::notice::Skipping {name}: {skip.get(name) or UNLISTED_REASON}")
+            requested = sorted(skills)
+        for name in requested:
+            if name not in runnable:
+                print(f"::notice::Skipping {name}: {skip.get(name) or UNLISTED_REASON}")
+            elif runnable[name].get("suite", "skills") != group:
+                other = runnable[name].get("suite", "skills")
+                print(f"::notice::Skipping {name}: it runs only with --suite {other}")
+            else:
+                selected.append(name)
+    if suite in ("triggers", "all"):
+        if args.skill and suite == "triggers":
+            if args.skill not in families:
+                print(f"::error::No trigger family named {args.skill!r}; families: {', '.join(families)}")
+                return 1
+            families = [args.skill]
+        selected += [TRIGGER_PREFIX + family for family in families]
     output("skills", json.dumps(selected))
     return 0
 
@@ -419,6 +626,57 @@ def write_case(
         (case_dir / "graders" / f"{name}.md").write_text(body, encoding="utf-8")
 
 
+def write_case_yaml(
+    case_dir: Path,
+    prompt: str,
+    tools: list[str],
+    criteria: list[str],
+    max_turns: int,
+    timeout: int,
+    add_dirs: list[str],
+) -> None:
+    """Write a case.yaml (as JSON, which YAML reads) for a case with inputs.
+
+    prompt.md frontmatter cannot carry context.add_dirs, and without it the
+    no-skill arm of --ablation with-without is denied every read inside the
+    plugin, so it never sees its inputs and the delta measures nothing. Only
+    inputs staged under INPUTS_DIR are granted; a case input kept elsewhere in
+    the skill (a bundled script) stays readable to the skill arm alone, which
+    is what the ablation should measure.
+    """
+    case_dir.mkdir(parents=True)
+    case = {
+        "schema_version": "1.0",
+        "name": case_dir.name,
+        "context": {"add_dirs": add_dirs},
+        "execution": {
+            "prompt": prompt,
+            "max_turns": max_turns,
+            "timeout_seconds": timeout,
+            "allowed_tools": tools,
+        },
+        "graders": [
+            {"name": f"expectation-{n}", "type": "llm", "weight": 1, "criteria": text}
+            for n, text in enumerate(criteria, 1)
+        ],
+    }
+    (case_dir / "case.yaml").write_text(json.dumps(case, indent=2) + "\n", encoding="utf-8")
+
+
+def read_case(case_dir: Path) -> tuple[str, list[str]]:
+    """Return (prompt, LLM grader criteria) of a staged case in either format."""
+    yaml_case = case_dir / "case.yaml"
+    if yaml_case.is_file():
+        case = json.loads(yaml_case.read_text(encoding="utf-8"))
+        criteria = [
+            g["criteria"].strip()
+            for g in case.get("graders", [])
+            if g.get("type") == "llm" and nonempty_str(g.get("criteria"))
+        ]
+        return case["execution"]["prompt"], criteria
+    return (case_dir / "prompt.md").read_text(encoding="utf-8"), grader_bodies(case_dir)
+
+
 def input_path(f: str) -> Path:
     """Where a case input file is staged, relative to the staged skill.
 
@@ -468,6 +726,21 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
         if case.get("files"):
             listed = "\n".join(f"- {staged / input_path(f)}" for f in case["files"])
             prompt += f"\n\n{INPUT_LIST_HEADER}\n{listed}"
+        if any(input_path(f) != Path(f) for f in case.get("files", [])):
+            case_dir = staged / CASE_DIR / f"case-{case['id']}"
+            write_case_yaml(
+                case_dir,
+                prompt,
+                tools,
+                case["expectations"],
+                opts.get("max_turns", MAX_TURNS),
+                opts.get("timeout_seconds", TIMEOUT_SECONDS),
+                [CASE_INPUTS],
+            )
+            # add_dirs must name a path inside the case directory, but may
+            # resolve through a link into the plugin under test.
+            (case_dir / CASE_INPUTS).symlink_to(Path("..", "..", INPUTS_DIR))
+            continue
         graders = {
             f"expectation-{n}": f"---\ntype: llm\nweight: 1\n---\n\n{expectation}\n"
             for n, expectation in enumerate(case["expectations"], 1)
@@ -481,6 +754,62 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
             opts.get("timeout_seconds", TIMEOUT_SECONDS),
         )
     return []
+
+
+def tool_used_grader(pattern: str, *, at_least: int | None = None, at_most: int | None = None) -> str:
+    """A tool_used grader on the Skill tool."""
+    front = ["type: tool_used", "tool: Skill", f"input_match: {json.dumps(pattern)}"]
+    if at_least is not None:
+        front.append(f"min: {at_least}")
+    if at_most is not None:
+        front.append(f"max: {at_most}")
+    return "---\n" + "\n".join(front) + "\n---\n"
+
+
+def stage_triggers(family: str, suite: Path, dest: Path) -> list[str]:
+    """Stage one trigger suite as a plugin holding every skill, plus its cases.
+
+    Every skill in the repository is copied under skills/, so the model routes
+    against the same listing a user of the plugins sees. Each query becomes a
+    case graded only on the Skill tool's inputs: the expected skill loaded at
+    least once and each forbidden sibling never, or, for a should-not-trigger
+    query, no skill of the family at all.
+    """
+    staged = dest / (TRIGGER_PREFIX + family)
+    problems = []
+    for name, src in sorted(skill_dirs().items()):
+        problems += copy_skill(src, staged / "skills" / name)
+    if problems:
+        return problems
+    # claude plugin eval resolves a directory of skills/ as a plugin only
+    # with a manifest. This one names the plugin and nothing else: no hooks,
+    # MCP servers, agents, or commands.
+    (staged / ".claude-plugin").mkdir()
+    (staged / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": staged.name}) + "\n", encoding="utf-8"
+    )
+    data = json.loads(suite.read_text(encoding="utf-8"))
+    members = data["skills"]
+    for q in data["queries"]:
+        if q["expect"] is None:
+            graders = {"loads-no-family-skill": tool_used_grader(skills_loaded(members), at_least=0, at_most=0)}
+        else:
+            graders = {f"loads-{q['expect']}": tool_used_grader(skill_loaded(q["expect"]), at_least=1)}
+            for name in q.get("not", []):
+                graders[f"does-not-load-{name}"] = tool_used_grader(skill_loaded(name), at_least=0, at_most=0)
+        write_case(
+            staged / CASE_DIR / f"case-{q['id']:02d}",
+            TRIGGER_PREAMBLE + q["query"],
+            TRIGGER_TOOLS,
+            graders,
+            TRIGGER_MAX_TURNS,
+            TRIGGER_TIMEOUT_SECONDS,
+        )
+    return []
+
+
+def count_cases(plugin: Path) -> int:
+    return len({p.parent for pattern in ("*/prompt.md", "*/case.yaml") for p in (plugin / CASE_DIR).glob(pattern)})
 
 
 def holds_results(d: Path) -> bool:
@@ -558,10 +887,14 @@ def check_staged(plugin: Path) -> list[str]:
     which plugin eval fences as the eval directory, may.
     """
     problems, expectations = [], set()
-    for prompt_md in sorted((plugin / CASE_DIR).glob("*/prompt.md")):
-        case = prompt_md.parent.name
-        expectations.update(grader_bodies(prompt_md.parent))
-        listed, named = prompt_paths(prompt_md.read_text(encoding="utf-8"), plugin)
+    case_dirs = sorted(
+        {p.parent for pattern in ("*/prompt.md", "*/case.yaml") for p in (plugin / CASE_DIR).glob(pattern)}
+    )
+    for case_dir in case_dirs:
+        case = case_dir.name
+        prompt, criteria = read_case(case_dir)
+        expectations.update(criteria)
+        listed, named = prompt_paths(prompt, plugin)
         for path in listed:
             if path.is_symlink() or not path.is_file():
                 problems.append(f"{case}: input {path} was not staged as a regular file")
@@ -669,6 +1002,8 @@ def stage_canary(dest: Path) -> None:
 def requirements(names: list[str], skills: dict[str, Path]) -> list[str]:
     wanted = []
     for name in names:
+        if is_trigger(name):
+            continue
         opts = allowlist()[name]
         wanted += opts.get("python_packages", [])
         if opts.get("python_requirements"):
@@ -692,7 +1027,22 @@ def cmd_bundle(args) -> int:
     staged.mkdir(parents=True)
 
     failed = False
+    suites = trigger_suites()
     for name in names:
+        if is_trigger(name):
+            family = name.removeprefix(TRIGGER_PREFIX)
+            paths = suites.get(family, [])
+            if len(paths) != 1:
+                print(f"::error::{name}: no single trigger suite is named {family!r}")
+                failed = True
+                continue
+            problems = check_trigger_suite(paths[0], skills) or stage_triggers(family, paths[0], staged)
+            for problem in problems:
+                print(f"::error::{name}: {problem}; refusing to stage it")
+            failed = failed or bool(problems)
+            if not problems:
+                print(f"  ✓ staged {name} ({count_cases(staged / name)} cases)")
+            continue
         if name not in runnable or name not in skills:
             print(f"::error::{name} is not an allowlisted skill")
             failed = True
@@ -723,14 +1073,19 @@ def bundled_config(bundle: Path) -> dict:
 
 
 def eval_command(
-    claude: str, staged: Path, out: Path, name: str, config: dict, runs: int
+    claude: str, staged: Path, out: Path, name: str, config: dict, runs: int,
+    ablation: str = "none",
 ) -> list[str]:
     opts = config["ci_runnable"].get(name, {})
+    # The canary and the trigger suites always run one arm: the canary tests
+    # the sandbox, and a no-plugin arm has no skills to trigger.
+    if name == CANARY or is_trigger(name):
+        ablation = "none"
     cmd = [
         claude, "plugin", "eval", str(staged),
         "--eval-dir", CASE_DIR,
         "--trust-plugin",
-        "--ablation", "none",
+        "--ablation", ablation,
         "--no-publish",
         "--keep-temp",
         "--concurrency", "1",
@@ -768,10 +1123,11 @@ def child_env(bundle: Path) -> dict[str, str]:
     return env
 
 
-def run_one(bundle: Path, out: Path, name: str, runs: int) -> int:
+def run_one(bundle: Path, out: Path, name: str, runs: int, ablation: str = "none") -> int:
     config = bundled_config(bundle)
     cmd = eval_command(
-        str(bundle / "claude" / "bin" / "claude"), bundle / "staged" / name, out, name, config, runs
+        str(bundle / "claude" / "bin" / "claude"), bundle / "staged" / name, out, name, config, runs,
+        ablation,
     )
     (out / name).mkdir(parents=True, exist_ok=True)
     print(f"Running {name}:", " ".join(cmd[1:]), flush=True)
@@ -810,7 +1166,7 @@ def cmd_run(args) -> int:
         return 0
     print("  sandbox self-test passed", flush=True)
     for name in names:
-        run_one(bundle, out, name, args.runs)
+        run_one(bundle, out, name, args.runs, args.ablation)
     return 0
 
 
@@ -882,6 +1238,26 @@ def cmd_leak_check(args) -> int:
     return 0
 
 
+def run_problems(run: dict, types: dict) -> list[str]:
+    """Why one run says nothing about the skill: its error, and graders left ungraded.
+
+    A judge call that failed (refused, rate limited, timed out) leaves no
+    votes; it says nothing about the skill, so it is a harness failure. A
+    run's grader results carry no type; claude plugin eval records it only in
+    the case's grader definitions (types). A grader with no definition is
+    treated as an LLM grader, so it still needs judge votes.
+    """
+    problems = [run["error"]] if run.get("error") else []
+    problems += [
+        f"{g.get('name', '?')} could not be graded: {g.get('explanation', 'no judge votes')}"
+        for g in run.get("graders", [])
+        if (g.get("type") or types.get(g.get("name")) or "llm") == "llm"
+        and g.get("scored")
+        and "judgeVotes" not in g
+    ]
+    return problems
+
+
 def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
     """Score each case on the mean of its runs; return (exit code, summary)."""
     try:
@@ -890,7 +1266,7 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         print(f"::error::{name}: claude plugin eval wrote no readable result ({exc})")
         return 1, f"### {name}\n\nclaude plugin eval wrote no readable result; see plugin-eval.log in the artifact.\n"
 
-    broken, low = [], []
+    broken, low, deltas = [], [], []
     lines = [
         f"### {name}",
         "",
@@ -901,26 +1277,14 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
     ]
     for case in data.get("cases", []):
         cname = case.get("name", "?")
-        runs = case.get("arms", {}).get("with", [])
-        errors = [r["error"] for r in runs if r.get("error")]
-        # A run's grader results carry no type; claude plugin eval records it
-        # only in the case's grader definitions. A grader with no definition
-        # is treated as an LLM grader, so it still needs judge votes.
+        arms = case.get("arms", {})
+        runs = arms.get("with", [])
         types = {
             g.get("name"): g.get("type")
             for g in case.get("graders", [])
             if isinstance(g, dict)
         }
-        # A judge call that failed (refused, rate limited, timed out) leaves no
-        # votes; it says nothing about the skill, so it is a harness failure.
-        errors += [
-            f"{g.get('name', '?')} could not be graded: {g.get('explanation', 'no judge votes')}"
-            for r in runs
-            for g in r.get("graders", [])
-            if (g.get("type") or types.get(g.get("name")) or "llm") == "llm"
-            and g.get("scored")
-            and "judgeVotes" not in g
-        ]
+        errors = [e for r in runs for e in run_problems(r, types)]
         scores = [float(r.get("score", 0)) for r in runs]
         mean = sum(scores) / len(scores) if scores else 0.0
         failed = sorted({g.get("name", "?") for r in runs for g in r.get("graders", []) if not g.get("passed")})
@@ -941,19 +1305,50 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
             notes = ", ".join(failed)
         shown = ", ".join(f"{x:.2f}" for x in scores)
         lines.append(f"| {cname} | {mean:.2f} | {shown} | {result} | {notes} |")
-    if data.get("partial"):
-        broken.append("(partial run)")
+        clean_with, clean_without = (
+            [float(r.get("score", 0)) for r in arms.get(arm, []) if not run_problems(r, types)]
+            for arm in ("with", "without")
+        )
+        if clean_with and clean_without:
+            deltas.append(
+                (cname, sum(clean_with) / len(clean_with), sum(clean_without) / len(clean_without))
+            )
+    partial = bool(data.get("partial"))
+    if partial:
         reason = data.get("partialReason", "unknown")
         print(f"::error::{name}: the eval run stopped early ({reason}) and reported partial results")
         lines.append(f"\nThe run stopped early: `{reason}`.")
 
+    if deltas:
+        # Ablation (--ablation with-without): the no-skill arm is evidence,
+        # not a gate. A skill whose delta stays near zero is not earning the
+        # tokens it costs.
+        lines += [
+            "",
+            "Ablation: the same cases without the skill loaded.",
+            "",
+            "| Case | With skill | Without skill | Delta |",
+            "| --- | --- | --- | --- |",
+        ]
+        for cname, with_mean, base in deltas:
+            lines.append(f"| {cname} | {with_mean:.2f} | {base:.2f} | {with_mean - base:+.2f} |")
+        total_with = sum(d[1] for d in deltas) / len(deltas)
+        total_base = sum(d[2] for d in deltas) / len(deltas)
+        lines.append(f"| **mean** | {total_with:.2f} | {total_base:.2f} | {total_with - total_base:+.2f} |")
+    if is_trigger(name):
+        total = len(data.get("cases", []))
+        routed = total - len(broken) - len(low)
+        lines.append(f"\nRouting: {routed} of {total} queries met the threshold.")
+
     if broken:
         lines.append(f"\n**Failed:** {len(broken)} case(s) did not run.")
+    elif partial:
+        lines.append("\n**Failed:** the run stopped before every case ran.")
     elif low:
         lines.append(f"\n**Failed:** {len(low)} case(s) scored below the threshold.")
     else:
         lines.append("\nAll cases met the threshold.")
-    return (1 if broken or low else 0), "\n".join(lines) + "\n"
+    return (1 if broken or low or partial else 0), "\n".join(lines) + "\n"
 
 
 def cmd_judge(args) -> int:
@@ -972,10 +1367,11 @@ def cmd_judge(args) -> int:
     names = json.loads((bundle / "harness" / "skills.json").read_text(encoding="utf-8"))
     status = 0
     for name in names:
-        opts = config["ci_runnable"][name]
-        threshold = args.threshold if args.threshold is not None else float(
-            opts.get("threshold", config["threshold"])
-        )
+        if is_trigger(name):
+            default = config["trigger_threshold"]
+        else:
+            default = config["ci_runnable"][name].get("threshold", config["threshold"])
+        threshold = args.threshold if args.threshold is not None else float(default)
         code, text = judge(name, out / f"{name}.json", threshold)
         summary(text)
         status |= code
@@ -989,7 +1385,11 @@ def main() -> int:
     sub.add_parser("validate", help="check every evals.json, the allowlist, and the workflow")
 
     plan = sub.add_parser("plan", help="choose the allowlisted skills to evaluate")
-    plan.add_argument("--skill", help="evaluate just this skill")
+    plan.add_argument(
+        "--suite", choices=SUITES, default="skills",
+        help="skill evals, one half of the knowledge skills, trigger suites, or skills and triggers",
+    )
+    plan.add_argument("--skill", help="evaluate just this skill (or, with --suite triggers, this family)")
     plan.add_argument("--canary-only", action="store_true", help="run only the sandbox self-test")
 
     bundle = sub.add_parser("bundle", help="stage skills and the harness for the eval job")
@@ -1000,6 +1400,10 @@ def main() -> int:
     run.add_argument("--bundle", required=True)
     run.add_argument("--out", required=True, help="directory for results")
     run.add_argument("--runs", type=int, default=3, help="runs per case (scored on the mean)")
+    run.add_argument(
+        "--ablation", choices=ABLATIONS, default="none",
+        help="with-without adds a no-skill baseline arm to skill suites and reports the delta",
+    )
 
     leak = sub.add_parser("leak-check", help="fail and delete results that contain the secret")
     leak.add_argument("--env", required=True, help="variable that holds the secret")

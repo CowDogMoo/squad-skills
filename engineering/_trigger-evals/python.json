@@ -1,0 +1,116 @@
+{
+  "family": "python",
+  "description": "Python knowledge skills: review criteria, security guide, pytest patterns, and documentation standards.",
+  "skills": [
+    "python-review-criteria",
+    "python-security-guide",
+    "python-testing-patterns",
+    "python-documentation-standards"
+  ],
+  "queries": [
+    {
+      "id": 1,
+      "query": "Review app/services/billing.py for Python best-practice problems: bare excepts, mutable default arguments, missing type hints.",
+      "expect": "python-review-criteria",
+      "not": ["python-security-guide"]
+    },
+    {
+      "id": 2,
+      "query": "Should these config objects in settings.py be dataclasses or TypedDicts? Review the module and suggest changes.",
+      "expect": "python-review-criteria"
+    },
+    {
+      "id": 3,
+      "query": "The asyncio code in worker/poller.py sometimes hangs. Review it for async anti-patterns.",
+      "expect": "python-review-criteria"
+    },
+    {
+      "id": 4,
+      "query": "`except Exception: pass` is everywhere in sync/. Review the package's exception handling and tell me what to change.",
+      "expect": "python-review-criteria"
+    },
+    {
+      "id": 5,
+      "query": "Audit our Flask app for security issues: we pickle session data and build SQL with f-strings.",
+      "expect": "python-security-guide",
+      "not": ["python-review-criteria"]
+    },
+    {
+      "id": 6,
+      "query": "Is yaml.load safe in loaders.py? Check it and anything else in the package that deserializes untrusted input.",
+      "expect": "python-security-guide"
+    },
+    {
+      "id": 7,
+      "query": "Harden this Django project: secrets live in settings.py, DEBUG is on, and tasks.py calls subprocess with shell=True.",
+      "expect": "python-security-guide"
+    },
+    {
+      "id": 8,
+      "query": "Check requirements.txt and our Python code for supply-chain risks and hard-coded API keys.",
+      "expect": "python-security-guide"
+    },
+    {
+      "id": 9,
+      "query": "Write pytest tests for parse_invoice in billing/parse.py and parametrize the edge cases.",
+      "expect": "python-testing-patterns",
+      "not": ["python-review-criteria"]
+    },
+    {
+      "id": 10,
+      "query": "How do I share a database fixture across pytest modules without recreating it for every test?",
+      "expect": "python-testing-patterns"
+    },
+    {
+      "id": 11,
+      "query": "Add tests for the reports package. Use pytest fixtures and mock out the HTTP calls.",
+      "expect": "python-testing-patterns"
+    },
+    {
+      "id": 12,
+      "query": "Add Google-style docstrings to every public function in mylib/geometry.py.",
+      "expect": "python-documentation-standards",
+      "not": ["python-review-criteria"]
+    },
+    {
+      "id": 13,
+      "query": "Our docstrings mix reST and numpy style. Audit the package and make them consistent with PEP 257.",
+      "expect": "python-documentation-standards"
+    },
+    {
+      "id": 14,
+      "query": "What's the right way to document a generator's yields and the exceptions it raises in a docstring?",
+      "expect": "python-documentation-standards"
+    },
+    {
+      "id": 15,
+      "query": "Convert this Python 2 print statement to Python 3: `print \"done\"`",
+      "expect": null
+    },
+    {
+      "id": 16,
+      "query": "Write a Go test for the handler in server.go.",
+      "expect": null
+    },
+    {
+      "id": 17,
+      "query": "Explain what a Python decorator is, with a short example.",
+      "expect": null
+    },
+    {
+      "id": 18,
+      "query": "Set up a virtualenv and install the requirements for this repo.",
+      "expect": null
+    },
+    {
+      "id": 19,
+      "query": "Write Jest tests for the cart reducer in src/cart.ts.",
+      "expect": null
+    },
+    {
+      "id": 20,
+      "query": "Format this file with black and sort the imports.",
+      "expect": null
+    }
+  ]
+}

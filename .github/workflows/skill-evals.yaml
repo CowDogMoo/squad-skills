@@ -3,7 +3,7 @@ name: Skill Evals
 
 # Runs each allowlisted skill's evals/evals.json with Claude Code headless
 # (`claude plugin eval`), on main only. It never runs on pull request content:
-# the only triggers are a manual dispatch and an optional weekly schedule, the
+# the only triggers are a manual dispatch and a monthly schedule, the
 # token lives only in the skill-evals environment (deployment branch: main;
 # required reviewer: the repository owner), and Validate Skills fails any
 # change that gives this workflow another trigger. Regressions therefore show
@@ -21,10 +21,31 @@ name: Skill Evals
 # skill-evals. Which skills run is set by .github/skill-evals.json; skills
 # that need live services are skipped with their reason in the plan log.
 #
+# Two more modes:
+#   -f suite=triggers   runs the trigger suites (<category>/_trigger-evals/),
+#                       which check that each request loads the right skill of
+#                       an overlapping family (-f skill=<family> for one);
+#                       -f suite=all runs skills and triggers.
+#   -f ablation=true    adds a no-skill baseline arm to every skill case and
+#                       reports the delta, which shows whether a skill earns
+#                       its tokens. It doubles the cost of the skill suites.
+#   -f suite=knowledge-1 (or knowledge-2) runs one half of the engineering
+#                       knowledge skills (marked "suite": "knowledge-1" or
+#                       "knowledge-2" in .github/skill-evals.json), always
+#                       with the no-skill baseline and one run per case, so
+#                       both arms fit in the job's timeout; the runs input is
+#                       ignored. Only a dispatch runs them: suite=all and the
+#                       schedule leave them out.
+# The monthly schedule runs both (suite all, ablation on) at one run per
+# case, and still waits for the owner to approve the deployment.
+#
 # How the token is kept away from skill content:
 #   prepare (no secret) checks out main, stages each skill as data into a
-#     plugin the harness builds itself (no symlinks; no plugin.json, hooks,
-#     MCP servers, or monitors), and downloads every tool the eval job needs:
+#     plugin the harness builds itself (no hooks, MCP servers, or monitors;
+#     the only symlink is the `inputs` link a case directory gets when its
+#     case has input files, pointing at the staged inputs in the same plugin;
+#     the only plugin.json is the bare name-only manifest a trigger suite
+#     needs to load as a plugin), and downloads every tool the eval job needs:
 #     bubblewrap and socat .debs, a Python venv, and Claude Code.
 #   eval (token, after approval) blocks egress to everything but
 #     api.anthropic.com with harden-runner, installs that bundle offline,
@@ -63,10 +84,28 @@ on:
         type: boolean
         required: false
         default: false
-  # Off by default. A scheduled run still waits for the owner to approve the
-  # skill-evals deployment. To turn it on, uncomment:
-  # schedule:
-  #   - cron: "0 6 * * 1"
+      suite:
+        description: Skill evals, one half of the knowledge skills (dispatch only, with ablation, one run), trigger suites, or skills and triggers
+        type: choice
+        required: false
+        default: skills
+        options:
+          - skills
+          - knowledge-1
+          - knowledge-2
+          - triggers
+          - all
+      ablation:
+        description: Add a no-skill baseline arm and report the delta (skill suites only)
+        type: boolean
+        required: false
+        default: false
+  # Periodic regression and ablation run (rec. 8 of the agents/skills audit):
+  # the skill and trigger suites (suite all, never the knowledge halves), with
+  # the no-skill baseline. It still waits for the owner to approve the
+  # skill-evals deployment, so an unapproved run costs nothing.
+  schedule:
+    - cron: "0 6 1 * *"
 
 permissions: {}
 
@@ -109,8 +148,10 @@ jobs:
         env:
           SKILL: ${{ inputs.skill }}
           CANARY_ONLY: ${{ inputs.canary_only }}
+          # A scheduled run has no inputs: it runs suite all (skills and triggers).
+          SUITE: ${{ inputs.suite || 'all' }}
         run: |
-          args=()
+          args=(--suite "${SUITE}")
           if [ "${CANARY_ONLY}" = "true" ]; then
             args+=(--canary-only)
           elif [ -n "${SKILL}" ]; then
@@ -240,8 +281,14 @@ jobs:
         id: run
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          RUNS: ${{ inputs.runs || '3' }}
-        run: /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" run --bundle "${BUNDLE}" --out "${RUNNER_TEMP}/skill-evals-out" --runs "${RUNS}"
+          # A dispatch always carries runs (default 3). The scheduled run has no
+          # inputs and, like a knowledge half, uses one run per case: both arms
+          # at three runs would not fit in the job's timeout.
+          RUNS: ${{ startsWith(inputs.suite, 'knowledge-') && '1' || inputs.runs || '1' }}
+          # The scheduled run and the knowledge halves always measure the
+          # no-skill baseline.
+          ABLATION: ${{ (github.event_name == 'schedule' || inputs.ablation || startsWith(inputs.suite, 'knowledge-')) && 'with-without' || 'none' }}
+        run: /usr/bin/python3 -I "${BUNDLE}/harness/skill_evals.py" run --bundle "${BUNDLE}" --out "${RUNNER_TEMP}/skill-evals-out" --runs "${RUNS}" --ablation "${ABLATION}"
 
       - name: Leak check
         id: leak

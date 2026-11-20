@@ -107,6 +107,12 @@ class VersionBumpTest(unittest.TestCase):
         self.commit("skill change and bump")
         self.assertEqual(check_skills.version_bump(self.root, "main"), [])
 
+    def test_eval_cases_need_no_bump(self) -> None:
+        for rel in ("engineering/_trigger-evals/go.json", "testing/test-writer-honesty/evals/evals.json"):
+            self.assertIsNone(check_skills.BUMP_PATHS.match(rel), rel)
+        for rel in ("engineering/go-review-criteria/SKILL.md", "engineering/_trigger-evals.md"):
+            self.assertIsNotNone(check_skills.BUMP_PATHS.match(rel), rel)
+
     def test_unrelated_change_needs_no_bump(self) -> None:
         self.git("checkout", "-q", "-b", "pr")
         (self.root / "NOTES.md").write_text("x\n", encoding="utf-8")
