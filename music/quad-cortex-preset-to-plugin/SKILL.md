@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-preset-to-plugin
-description: Port a Quad Cortex preset into a Neural DSP plugin chain in the DAW and prove the match (the reverse of quad-cortex-plugin-capture) by mapping QC blocks to plugin settings, writing preset files, re-amping the DI offline, and scoring against the QC. Trigger on "match my Quad tone in the plugin", "port this QC preset to Neural DSP". Do NOT use for capturing a plugin into the QC (quad-cortex-plugin-capture), measuring a capture (quad-cortex-capture-measurement), or editing the QC grid (quad-cortex-preset-editing).
+description: Port a Quad Cortex preset into a Neural DSP plugin chain in the DAW and prove the match (the reverse of capturing a plugin with quad-cortex-neural-capture) by mapping QC blocks to plugin settings, writing preset files, re-amping the DI offline, and scoring against the QC. Trigger on "match my Quad tone in the plugin", "port this QC preset to Neural DSP". Do NOT use for capturing a plugin into the QC, measuring a capture, or editing the QC grid (all quad-cortex-neural-capture).
 ---
 
 # Quad Cortex preset to plugin tone match
@@ -16,7 +16,8 @@ Nameless Suite X; the file format and render path are shared by the Neural
 DSP plugin family, but the key names below are only verified for those two.
 
 Measurement method, thresholds, and the claim ladder are owned by
-`quad-cortex-capture-measurement`. Read its "Recording the take", "Reading
+`quad-cortex-neural-capture`: the ladder is in its `SKILL.md`, the method in
+`references/measurement.md`. Read that file's "Recording the take", "Reading
 the numbers", and "What EQ moves" sections before step 5; this skill does
 not restate them.
 
@@ -27,7 +28,8 @@ not restate them.
 3. Write the plugin presets with `scripts/write_preset.py`.
 4. Record one take that holds the DI and the QC's wet signal together.
 5. Render the DI through the chain offline with `scripts/render_chain.py`.
-6. Score the render against the QC with the measurement skill's `analyze.py`.
+6. Score the render against the QC with `quad-cortex-neural-capture`'s
+   `analyze.py`.
 7. Fit what is left with EQ and output level, one render per variant.
 8. Re-check on a second take without changing the fitted values.
 9. Check the chain is cheap enough to track through (`scripts/chain_cost.py`).
@@ -36,7 +38,8 @@ not restate them.
 ## Guardrails
 
 - **Reading the Quad is yours; changing it is not.** Read block values in
-  Cortex Control (screen control is covered by `quad-cortex-preset-editing`)
+  Cortex Control (screen control is covered by `quad-cortex-neural-capture`,
+  `references/preset-editing.md`)
   or ask the player to read them. The QC preset is the reference: do not
   "fix" it to make the plugins easier to match.
 - **Never overwrite a preset the player uses.** Write new names into the
@@ -136,7 +139,7 @@ samples, not the files: the float wav's PEAK chunk carries a timestamp, so
 
 ## 4. Record the reference take
 
-Use `quad-cortex-capture-measurement`'s one-cable method: guitar → QC
+Use `quad-cortex-neural-capture`'s one-cable method: guitar → QC
 Input 1, Live's audio **input** device = Quad Cortex, output device stays on
 the interface. One take records QC USB channel 1 (Dry Input 1, the DI, pre
 grid) and channels 3/4 (Wet Signal L/R) together, sample-locked. Two
@@ -176,11 +179,11 @@ settings offline, and use Live only for the final listen and for tracking.
 
 ## 6. Score against the QC
 
-Run the measurement skill's analyzer with the render in the plugin slot:
+Run quad-cortex-neural-capture's analyzer with the render in the plugin slot:
 
 ```bash
 uv run --with numpy --with scipy --with soundfile --with pyloudnorm --with matplotlib \
-  python -I <quad-cortex-capture-measurement>/scripts/analyze.py \
+  python -I <quad-cortex-neural-capture>/scripts/analyze.py \
   "<DI>.wav" "<render>.wav" "<QC wet>.wav" --out-dir <dir> --label "<what is compared>"
 ```
 
@@ -202,7 +205,8 @@ python3 -I $S/write_preset.py "<gojira preset>.xml" "<scratch>/v1.xml" \
 ```
 
 then render and analyze `v1.xml`. Predict each move with the band-mean gain
-rule in `quad-cortex-capture-measurement` ("What EQ moves") rather than by
+rule in `quad-cortex-neural-capture` (`references/measurement.md`, "What
+EQ moves") rather than by
 the band's peak gain. Level last, with `outputGain`. Write the winning
 values into a new User preset once.
 
@@ -210,8 +214,9 @@ values into a new User preset once.
 
 The values from step 7 were fitted to one performance. Record a second take
 (different playing, same rig and levels), render it with the fitted presets
-unchanged, analyze. If the band deltas hold within the cross-take noise the
-measurement skill gives (about ±0.8 dB around 250–500 Hz), the fit is the
+unchanged, analyze. If the band deltas hold within the cross-take noise
+`quad-cortex-neural-capture` gives (`references/measurement.md`, "What this
+method cannot decide": about ±0.8 dB around 250–500 Hz), the fit is the
 chain, not that take. If not, report both takes and fit to neither.
 
 ## 9. Check the cost
@@ -230,7 +235,8 @@ so read the average and the latency.
 
 ## 10. Report
 
-State the rung from the measurement skill's claim ladder:
+State the rung from the claim ladder in `quad-cortex-neural-capture`'s
+`SKILL.md`:
 
 - **Configured** — presets written and load in the plugin.
 - **Structurally faithful** — every QC block is mapped or listed as not
@@ -247,7 +253,9 @@ judged by ear, by the player, through the actual monitoring path.
 
 If tracking will go through the interface's instrument input rather than the
 QC's dry USB channel, say that the input path changes how hard the chain is
-driven and gain staging must be re-checked (see the measurement skill).
+driven and gain staging must be re-checked (see
+`quad-cortex-neural-capture`, `references/measurement.md`, "Recording the
+take").
 
 ## Troubleshooting
 
@@ -258,7 +266,7 @@ driven and gain staging must be re-checked (see the measurement skill).
 | Render silent (`out peak 0.000`), zero mismatches | The preset's custom IR path does not exist (the IR was moved) | `repoint_ir.py PRESET OLD_PREFIX NEW_PREFIX`, then re-render |
 | Read-back mismatch `'1'` vs `'1.0'` | Number formatting | Not counted; nothing to fix |
 | Coherence < 0.8 everywhere, deltas small | Drive stage differs (a stand-in pedal, wrong amp gain) | Back to step 2; EQ cannot fix it |
-| QC wet file silent | Wet follows the preset's output routing | Out tile → Multi Out, USB Output 3/4 on, save (measurement skill) |
+| QC wet file silent | Wet follows the preset's output routing | Out tile → Multi Out, USB Output 3/4 on, save (`quad-cortex-neural-capture`, `references/measurement.md`) |
 | Live refuses the Quad as input | Live is not at 48 kHz | Set 48 kHz; the QC has no other rate |
 | Render and Live re-amp disagree | Different preset state in Live, or Live's input feeding the wrong channel | Reload the preset in Live; check the track input is QC channel 1, not 3/4 |
 

@@ -35,7 +35,7 @@ out — see "Section switches are blunt" below.
 Next to Input Gain in the UI is **Auto Gain**: "Click and play hard for 5
 seconds to have the plugin automatically set your input gain." It is the
 plugin's own version of the level calibration in
-`quad-cortex-plugin-capture`, and it moves a parameter that gets baked into
+`references/capture.md`, and it moves a parameter that gets baked into
 the capture — so run it *before* the capture, never between the capture and
 a measurement take.
 
@@ -57,7 +57,7 @@ Three buttons live with it, none of them automatable:
 
 - **Tone Lock** — "When locked, prevents tone match and input gain
   parameters from changing when switching presets." Read the trap in
-  `SKILL.md`; it is the single biggest reason a preset does not sound the
+  `references/thall-amp.md`; it is the single biggest reason a preset does not sound the
   way its file says it should.
 - **Save / Reset Tone Profile** — writes or clears a `.odtp` file in
   `~/Library/Odeholm Audio/thall amp/Tone Match Presets/`. A profile stores
@@ -85,7 +85,7 @@ value the capture workflow needs.
 
 "Emphasis on pick attack" is the whole story for why Chug cannot be
 captured: emphasis that follows the attack is a function of time, and a
-Neural Capture is a static model. See `SKILL.md`.
+Neural Capture is a static model. See `references/thall-amp.md`.
 
 ## Pitch (and Low Dirt)
 
@@ -141,7 +141,7 @@ There is **one** internal cab. "Cab Load" swaps in a third-party IR, "Cab
 Remove" resets "back to the default cabinet", and the loaded IR's path is
 stored in the preset as an absolute path — which is why presets from other
 people can arrive pointing at a file that does not exist on this machine.
-See `factory-presets.md`.
+See `references/thall-amp-factory-presets.md`.
 
 Cab Power decides the capture type: **off → capture as "Amp"** and put an IR
 after it on the QC; **on → capture as "Amp and Cab"**, which is the only way

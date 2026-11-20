@@ -1,6 +1,6 @@
 ---
 name: ableton-live-computer-use
-description: Drive Ableton Live 12 by screen control when the ableton-mcp API cannot, such as export or bounce, Save As, Collect All, Settings (audio device, buffer), plug-in windows, warp markers, freeze, consolidate, dialogs, and Live manual lookup. Use for "click in Ableton", "export the track from Live", "change the buffer size". Do NOT use for jobs the API covers (tracks, clips, notes, tempo, device parameters), Cortex Control or TotalMix work (quad-cortex-preset-editing), or transcribing audio (transcribe-guitar-riff).
+description: Drive Ableton Live 12 by screen control when the ableton-mcp API cannot, such as export or bounce, Save As, Collect All, Settings (audio device, buffer), plug-in windows, warp markers, freeze, consolidate, dialogs, and Live manual lookup. Use for "click in Ableton", "export the track from Live", "change the buffer size". Do NOT use for jobs the API covers (tracks, clips, notes, tempo, device parameters), Cortex Control or TotalMix work (quad-cortex-neural-capture), or transcribing audio (transcribe-guitar-riff).
 ---
 
 # Ableton Live via screen control

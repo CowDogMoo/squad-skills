@@ -17,13 +17,13 @@
     {
       "id": 2,
       "prompt": "I've got a DI and the Quad's wet signal from one take, and two Neural DSP presets (a Nameless pedal preset into Gojira). How close is the plugin chain to the Quad? Don't make me open the plugins.",
-      "expected_output": "Renders the DI through the two-plugin chain offline with scripts/render_chain.py (pedalboard, no plugin windows), checks the read-back mismatch line, runs quad-cortex-capture-measurement's analyze.py with DI, render, QC wet, reports the numbers against that skill's thresholds, and names the rung (measured, one take) plus the caveats: EQ fitted on the same take needs a second take, reverb on both sides, no A/B listening yet.",
+      "expected_output": "Renders the DI through the two-plugin chain offline with scripts/render_chain.py (pedalboard, no plugin windows), checks the read-back mismatch line, runs quad-cortex-neural-capture's analyze.py with DI, render, QC wet, reports the numbers against that skill's thresholds, and names the rung (measured, one take) plus the caveats: EQ fitted on the same take needs a second take, reverb on both sides, no A/B listening yet.",
       "files": [],
       "expectations": [
         "scripts/render_chain.py is used with each PLUGIN.vst3=PRESET.xml pair in chain order, and no plugin window is opened",
         "The state read-back output is checked before trusting the render",
-        "analyze.py from quad-cortex-capture-measurement is run with the DI, the render in the plugin slot, and the QC wet file",
-        "Results are read against the measurement skill's thresholds (bands within 0.5 dB from 250 Hz up, coherence, ESR ladder)",
+        "analyze.py from quad-cortex-neural-capture is run with the DI, the render in the plugin slot, and the QC wet file",
+        "Results are read against quad-cortex-neural-capture's thresholds (bands within 0.5 dB from 250 Hz up, coherence, ESR ladder)",
         "The verdict names the claim-ladder rung and says a second take is needed before claiming the match holds across performances"
       ]
     },

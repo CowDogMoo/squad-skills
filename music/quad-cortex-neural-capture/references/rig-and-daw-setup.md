@@ -32,8 +32,8 @@ Since 2026-09-08 the rig has two projects side by side under
 
 | Project | Set | Used for |
 | ------- | --- | -------- |
-| `amp-sim-neural-capture Project` | `amp-sim-neural-capture.als` | Neural Capture runs (`quad-cortex-plugin-capture`); home of `CAPTURE-TEST-STATE*.md`, `NOTES.md`, the historic `null-test-*.png` plots |
-| `amp-sim-measurement Project` | `amp-sim-measurement.als` | Measurement takes only. Three audio tracks, routed and armed as this skill wants, no clips |
+| `amp-sim-neural-capture Project` | `amp-sim-neural-capture.als` | Neural Capture runs (`references/capture.md`); home of `CAPTURE-TEST-STATE*.md`, `NOTES.md`, the historic `null-test-*.png` plots |
+| `amp-sim-measurement Project` | `amp-sim-measurement.als` | Measurement takes only. Three audio tracks, routed and armed as `references/measurement.md` wants, no clips |
 
 The measurement set was built from the capture set by XML patch (see
 "Stripping clips from a set" below), so both share the same thall amp
@@ -48,7 +48,7 @@ What the split does and does not fix:
 - Track routing, arm, monitor and solo are per set, so they are now right the
   moment the measurement set opens. No more Ext. In 1 / Ext. In 4 juggling on
   the plugin track after a capture.
-- The audio input device is a **global Live preference**. The capture skill
+- The audio input device is a **global Live preference**. Capturing
   leaves it on the Fireface; the measurement set cannot switch it back. That
   is the one manual step left before a take.
 - A `Utility` on the QC track is not in the recorded file (Live records

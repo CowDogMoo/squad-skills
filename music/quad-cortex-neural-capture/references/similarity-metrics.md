@@ -79,8 +79,9 @@ pairs it with banded deltas.
    `auraloss.freq.MultiResolutionSTFTLoss`) — pure tone match. Per-band
    coherence sits alongside this rung as the localizer: level- and
    EQ-independent, it says *where* the residual is nonlinear mismatch
-   rather than fixable tone difference (the SKILL's coherence-gated EQ rule
-   comes from exactly this).
+   rather than fixable tone difference (the coherence-gated EQ rule in
+   `references/measurement.md`, "What EQ moves, and what coherence tells
+   you", comes from exactly this).
 4. **Perceptually weighted views** (DeltaWave's PK metric: equal-loudness
    weighting + ERB smoothing; ≤ −70 dB ≈ "unlikely audible") — map residual
    to audibility.

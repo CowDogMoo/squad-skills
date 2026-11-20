@@ -96,4 +96,4 @@ predicts.
 
 None of this touches the Chug diagnosis. That the 60–120 Hz deficit is a
 dynamic-process signature rests on the V4/V5 control take in
-`thall-amp-neural-capture`, not on the EQ argument, and it stands.
+`references/thall-amp.md`, not on the EQ argument, and it stands.

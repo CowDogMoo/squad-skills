@@ -38,11 +38,12 @@ How it got there, four takes at one variant each: lo shelf +3 @ 75 → peak +3 @
 90 Q1.5 → peak +4 @ 90 Q3 plus HPF 50 → peak +3 @ 90 Q1.5 plus HPF 65. The
 four shapes differ by only about a dB in band-mean gain across 60–120 Hz, which
 is the whole spread these takes show — the bell moved the band every time, by
-the amount its shape predicts (see `quad-cortex-capture-measurement`, "What EQ
+the amount its shape predicts (see `references/measurement.md`, "What EQ
 moves, and what coherence tells you"). The HPF is what improved the null and the
 coherence. Do not add more low-end EQ to this preset: at coherence ~0.5 it would
-flatten the number without improving the match. The residual 80–100 Hz gap is a
-recapture item.
+flatten the number without improving the match. The residual 80–100 Hz gap is
+neither an EQ item nor a recapture item: it is the Tighten Chug signature, and
+it is permanent (`references/calibration-baseline.md`).
 
 ## 1D Thall Experimental, 2026-08-23 (rung 2)
 

@@ -105,10 +105,7 @@
   "ci_skipped": {
     "extract-recipe-grocery-list": "its evals fetch live recipe pages, and the eval job blocks every host but api.anthropic.com",
     "ableton-live-computer-use": "drives a running Ableton Live through screen control",
-    "quad-cortex-capture-measurement": "needs a Quad Cortex, an audio interface, and a DAW",
-    "quad-cortex-plugin-capture": "needs a Quad Cortex, Cortex Control, and an audio interface",
-    "quad-cortex-preset-editing": "drives the Cortex Control desktop app through screen control",
-    "thall-amp-neural-capture": "needs a Quad Cortex and the amp-sim plugin it captures",
+    "quad-cortex-neural-capture": "needs a Quad Cortex, Cortex Control, an audio interface, and the amp-sim plugin it captures",
     "quad-cortex-preset-to-plugin": "needs a Quad Cortex and licensed Neural DSP plugins to render through",
     "organize-iphone-home-screen": "drives a USB-connected iPhone through the macOS-only Unjiggle CLI"
   }

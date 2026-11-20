@@ -1,6 +1,6 @@
 ---
 name: tab-vs-recording
-description: Score how faithful a MIDI guitar tab is to a real recording with the bundled scripts/compare_tab.py (chroma DTW alignment, same-song confidence, and note-level F-measure with per-quarter scores). Trigger on "how accurate is this tab", "score my tab", "compare this MIDI to the recording". Get the MIDI from a Guitar Pro file with guitar-pro first. Do NOT use for writing or editing tabs (guitar-pro), or for comparing two recordings of one performance (quad-cortex-capture-measurement).
+description: Score how faithful a MIDI guitar tab is to a real recording with the bundled scripts/compare_tab.py (chroma DTW alignment, same-song confidence, and note-level F-measure with per-quarter scores). Trigger on "how accurate is this tab", "score my tab", "compare this MIDI to the recording". Get the MIDI from a Guitar Pro file with guitar-pro first. Do NOT use for writing or editing tabs (guitar-pro), or for comparing two recordings of one performance (quad-cortex-neural-capture).
 ---
 
 # Tab vs. recording

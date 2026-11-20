@@ -32,4 +32,5 @@ what improved the null and lifted coherence in every band.
 The residual 80–100 Hz deficit is neither an EQ item nor a recapture item.
 It is the Tighten Chug signature — a dynamic control a static Neural
 Capture cannot model — and it is permanent. Do not chase it.
-`thall-amp-neural-capture` holds the control take and the V4/V5 verdict.
+`references/thall-amp.md` holds the control take; `references/lab-history.md`
+holds the V4/V5 verdict.
