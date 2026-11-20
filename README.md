@@ -414,8 +414,8 @@ holds an expectation.
 reports the score delta, which is the evidence that a skill earns its
 tokens. A case with inputs grants them to both arms (`context.add_dirs`),
 so the baseline sees the same files. The workflow also runs on a monthly
-schedule with every suite and the baseline arm, one run per case; it
-still waits for the owner's approval.
+schedule with the skill and trigger suites and the baseline arm, one
+run per case; it still waits for the owner's approval.
 
 The `engineering/` knowledge skills are allowlisted in two halves,
 `"suite": "knowledge-1"` and `"suite": "knowledge-2"`, which keeps them

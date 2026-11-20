@@ -101,8 +101,9 @@ on:
         required: false
         default: false
   # Periodic regression and ablation run (rec. 8 of the agents/skills audit):
-  # every suite, with the no-skill baseline. It still waits for the owner to
-  # approve the skill-evals deployment, so an unapproved run costs nothing.
+  # the skill and trigger suites (suite all, never the knowledge halves), with
+  # the no-skill baseline. It still waits for the owner to approve the
+  # skill-evals deployment, so an unapproved run costs nothing.
   schedule:
     - cron: "0 6 1 * *"
 
@@ -147,7 +148,7 @@ jobs:
         env:
           SKILL: ${{ inputs.skill }}
           CANARY_ONLY: ${{ inputs.canary_only }}
-          # A scheduled run has no inputs: it runs every suite.
+          # A scheduled run has no inputs: it runs suite all (skills and triggers).
           SUITE: ${{ inputs.suite || 'all' }}
         run: |
           args=(--suite "${SUITE}")
