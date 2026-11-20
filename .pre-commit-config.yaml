@@ -69,3 +69,28 @@ repos:
         language: system
         files: '(^|/)SKILL\.md$'
         pass_filenames: true
+
+  # Repo policy for shared skills and plugin manifests: no `allowed-tools`,
+  # matching plugin versions, each skill in one plugin, README lists every
+  # skill. CI also runs the version-bump check, which needs the PR base.
+  - repo: local
+    hooks:
+      - id: skill-policy
+        name: Check skill and plugin policy
+        entry: python3 .github/scripts/check_skills.py policy
+        language: system
+        files: '(^|/)(SKILL\.md|plugin\.json|marketplace\.json|README\.md)$|^\.github/scripts/check_skills\.py$'
+        pass_filenames: false
+
+  # The bundled script suites (gp_tab, transcription selftest, quorum
+  # harness). Slow (about a minute), so it only runs when one of those
+  # skills' files changes. CI runs the same script in the Script Tests job
+  # of validate-skills.yaml, so the Pre-Commit workflow skips this hook.
+  - repo: local
+    hooks:
+      - id: script-tests
+        name: Run bundled script tests
+        entry: .hooks/run-script-tests.sh
+        language: script
+        files: '^(music/(guitar-pro|transcribe-guitar-riff)|testing/quorum)/|^\.hooks/run-script-tests\.sh$'
+        pass_filenames: false

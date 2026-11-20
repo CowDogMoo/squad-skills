@@ -1,6 +1,6 @@
 ---
 name: transcribe-guitar-riff
-description: Work out the actual notes of a recorded guitar riff - from an Ableton Live track/clip or a WAV - and deliver them as a per-beat reading, a cleaned MIDI, a MIDI A/B reference track in the DAW, and a Guitar Pro tab in the player's tuning (8-string and drop tunings included), using the bundled scripts (als_clip_region.py to find the exact sample region a clip plays, riff_salience.py for CQT harmonic-salience pitch estimation that survives high-gain tremolo picking where pYIN fails, riff_midi.py, compare_rolls.py). Trigger on "what notes is this", "figure out the notes for this track", "transcribe this riff", "tab out this recording", "what is he playing here", "get the isolated guitar out of Ableton and transcribe it", or any request to turn guitar audio into notes, MIDI, or tab. Do NOT use for writing a tab from an idea with no audio (guitar-pro), for scoring an existing tab against a recording (tab-vs-recording), or for vocals, drums, or full mixes.
+description: Work out the notes of a recorded guitar riff, from an Ableton Live clip or a WAV, and deliver a per-beat reading, cleaned MIDI, an A/B reference track in Live, and a Guitar Pro tab in the player's tuning (8-string and drop included). Trigger on "what notes is this", "transcribe this riff", "tab out this recording". Do NOT use for writing a tab with no audio (guitar-pro), scoring a tab against a recording (tab-vs-recording), or for vocals, drums, or full mixes.
 ---
 
 # Transcribe a guitar riff

@@ -1,7 +1,6 @@
 ---
 name: doc-comments-discovery-and-fix-loop
-description: Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify the result compiles, and report. Use from any language-specific doc-comments agent, or when asked to document a package's public API or audit doc-comment coverage; the caller supplies language style and verify command. Do NOT use to delete useless or LLM-generated comments — that is comment-scrub-playbook.
-allowed-tools: Read, Glob, Edit, Bash
+description: Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify the result compiles, and report. Use when asked to document a package's public API or audit doc-comment coverage. Do NOT use to delete useless or LLM-generated comments — that is comment-scrub-playbook.
 metadata:
   author: Jayson Grace
   version: 1.1.0
