@@ -36,7 +36,7 @@ Nameless one reproduces the saved preset exactly; the Gojira one matches
 except the custom IR fields (and the knobs of the OD, which is off), so the
 IR still has to be loaded and saved in the plugin before its render matches.
 
-Result on the same take, scored with `quad-cortex-capture-measurement`'s
+Result on the same take, scored with `quad-cortex-neural-capture`'s
 `analyze.py` (deltas QC − plugin, bands 60–120, 120–250, 250–500, 500–1k,
 1–2k, 2–4k, 4–5k, 5–8k, 8–12k Hz):
 

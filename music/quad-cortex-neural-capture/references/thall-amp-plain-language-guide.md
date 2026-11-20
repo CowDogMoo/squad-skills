@@ -65,7 +65,7 @@ follow the general shape.
 carries that profile's EQ forever, tuned to one guitar. That is fine if it is
 your guitar; it is a permanent mismatch if it came from someone else's.
 
-Two traps live here, both covered in `SKILL.md`: **Tone Lock** stops presets
+Two traps live here, both covered in `references/thall-amp.md`: **Tone Lock** stops presets
 from loading their own tone-match settings, and the UI reading **"No Tone
 Profile"** means nothing is loaded no matter what the Amount knob says.
 
@@ -105,7 +105,7 @@ settles it in ten minutes.
 
 **Pitch Power** — *the octave/whammy section on/off.* Also takes Low Dirt's
 neighbourhood with it; whether it mutes Low Dirt itself is untested and is
-open item 2 in `SKILL.md`.
+open item 2 in `references/lab-history.md`.
 
 **Pitch Whammy** — *a pitch shifter on the whole signal*, ±24 semitones.
 −12 is an octave down, +12 an octave up. It transposes rather than blending.
@@ -202,7 +202,7 @@ One installed preset uses it.
 default. A tuner left open feeds the capture loop silence.
 
 **Tone Lock** — *keep my tone-match and my input gain when I change presets.*
-On for this rig. See `SKILL.md`.
+On for this rig. See `references/thall-amp.md`.
 
 **Auto Gain** — *set my input gain for me.* Sets a baked-in parameter, so run
 it before a capture and never between a capture and its measurement take.
@@ -217,7 +217,7 @@ Input (gate)  →  Wham / Pitch Shifter  →  Neural Capture  →  IR Loader
 The pitch block sits **before** the capture because that is where Thicken
 sits in the plugin when Thicken Parallel is off. The IR Loader is bypassed or
 empty for an Amp-and-Cab capture. This is the canonical order from
-`quad-cortex-preset-editing`; keep it so switching between an amp-only and an
+`references/preset-editing.md`; keep it so switching between an amp-only and an
 amp-and-cab capture is one block change.
 
 ## What "sounds like the preset" can actually mean
@@ -240,4 +240,4 @@ Three honest outcomes, worth naming before starting:
   ear, so this is a project rather than a recipe.
 
 Whichever you pick, say which one you reached. The claim ladder in
-`quad-cortex-capture-measurement` is the vocabulary for that.
+`SKILL.md` is the vocabulary for that.

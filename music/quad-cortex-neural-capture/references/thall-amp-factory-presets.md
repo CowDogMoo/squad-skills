@@ -114,7 +114,7 @@ Whammy 0:
 
 Everything else carries Chug, Thicken, Whammy or several at once. That is not
 a reason to avoid capturing them — it is the reason to expect and record the
-deficit rather than treat it as a fault. See `SKILL.md`.
+deficit rather than treat it as a fault. See `references/thall-amp.md`.
 
 Six presets use **Pitch Whammy** and cannot be captured meaningfully at all:
 Kahney DoIt (+1 st), Big Chungus, RDS 220, browner, Octave Thall Doom
@@ -139,4 +139,4 @@ Kahney DoIt (+1 st), Big Chungus, RDS 220, browner, Octave Thall Doom
 
 **Mirar – Leo** is the source of the standing V4 capture. **Jesse Zuretti –
 Monomythic** is the source of V1. Their factory values, and the deliberate
-changes made before capturing Leo, are in `SKILL.md`.
+changes made before capturing Leo, are in `references/lab-history.md`.

@@ -88,7 +88,7 @@ accounts for the whole "refuses every input form" observation. Look for a
 stray Data Edit Window before concluding a control is dead. When a capture
 needs analog input gain you cannot set this way, put the same dB into
 the plugin's Input Gain via `ableton-mcp` and reset it afterwards — it is
-equivalent pre-nonlinearity gain. See `quad-cortex-plugin-capture`.
+equivalent pre-nonlinearity gain. See `references/totalmix-routing.md`.
 
 ## Focus and monitor problems
 

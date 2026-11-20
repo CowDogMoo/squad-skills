@@ -91,7 +91,8 @@ stray Data Edit Window swallowing the input — not this app and not this rig.
 Diagnose both before writing a control off.
 
 For a one-off exact value, double-click the control and use the Data Edit
-Window — see `quad-cortex-plugin-capture`, "Screen control during a capture".
+Window — see `references/rig-and-automation.md`, "Screen control during a
+capture".
 That works on a **knob**. On a **fader's** dB value text it does not: on
 2026-09-01 a double-click there opened no editor and toggled TotalMix's Info
 View instead. Drag the fader for that case, or mute the channel. Buttons —
@@ -113,7 +114,7 @@ presented refusal as the expected state; it is not. Check, in order:
 1. **A stray Data Edit Window holding focus.** A double-click anywhere opens
    one, it appears away from the control, and it swallows everything aimed at
    the knob until dismissed. This is the most common cause.
-2. **The click-offset session bug** in `quad-cortex-preset-editing`.
+2. **The click-offset session bug** in `references/screen-control-workarounds.md`.
 
 If neither explains it, put the same dB into the plugin's Input Gain via
 `ableton-mcp` (`set_device_parameter`, param 3 on the thall amp;

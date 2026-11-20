@@ -1,19 +1,11 @@
----
-name: quad-cortex-capture-measurement
-description: Measure how close a Quad Cortex Neural Capture (or the preset hosting it) is to the plugin it was captured from, using a one-cable QC-over-USB method - record DI, plugin, and QC in one pass, analyze with the bundled scripts/analyze.py (LUFS offset, banded spectral deltas, per-band coherence, null depth, ESR), and interpret against known-good thresholds. Canonical home of the claim ladder (configured / structurally faithful / measured) shared with quad-cortex-plugin-capture and quad-cortex-preset-editing. Trigger on "compare my capture", "how close is my capture", "null test", "measure capture accuracy", "reamp test my capture", "run the comparison", "is my capture accurate", "why does my capture sound different", or any request to verify a capture or preset against its plugin reference with numbers. Do NOT use for making a Neural Capture (quad-cortex-plugin-capture), for editing the preset grid (quad-cortex-preset-editing), or for matching plugins to a QC preset (quad-cortex-preset-to-plugin).
----
-
-# Quad Cortex capture measurement
+# Measuring a capture against its plugin
 
 Decide — with numbers, from one recorded performance — how close a Neural
-Capture or the preset hosting it is to the plugin it was captured from.
-`quad-cortex-plugin-capture` sends captures here to be verified;
-`quad-cortex-preset-editing` sends presets here to reach rung 3.
-`quad-cortex-preset-to-plugin` runs the other direction — a plugin chain
-built to match a QC preset — and uses this method and `scripts/analyze.py`
-with an offline render of the DI in the plugin slot.
-
-Rig: Quad Cortex, RME Fireface UCX II, Ableton Live 12, Cortex Control.
+Capture or the preset hosting it is to the plugin it was captured from. This
+is how a capture or a preset reaches rung 3 of the claim ladder in
+`SKILL.md`. `quad-cortex-preset-to-plugin` runs the other direction — a
+plugin chain built to match a QC preset — and uses this method and
+`scripts/analyze.py` with an offline render of the DI in the plugin slot.
 
 ## Workflow
 
@@ -22,27 +14,6 @@ Rig: Quad Cortex, RME Fireface UCX II, Ableton Live 12, Cortex Control.
 3. Run `scripts/analyze.py` on the three files.
 4. Read the numbers against the thresholds below.
 5. Report the claim-ladder rung reached, and never a higher one.
-
-## The claim ladder (canonical)
-
-Every capture or preset job ends on one of these rungs, and the report must
-say which. Both sibling skills defer to this definition.
-
-1. **Configured** — the capture is saved or loaded in a preset. No claim
-   about sound. Allowed words: "loaded", "saved".
-2. **Structurally faithful** — the signal path contains nothing the plugin
-   reference did not, and nothing from the reference is missing. Reasoning
-   alone gets you here. Allowed words: "clean", "faithful to the capture",
-   "nothing extra in the path".
-3. **Measured** — the one-pass comparison below has been run and analyzed.
-   Only here may you say "closer", "matches", "within N dB", "nulls to
-   −X dB". Drive, attack, and feel beyond what the null shows are judged by
-   ear (Cortex Control A/B screen, and by the player); say so once, briefly, not
-   as a caveat.
-
-**Never use rung-3 language for rung-1/2 work.** A structural cleanup is not
-evidence about sound, and describing one as "optimized for the amp sound"
-is a rung-3 claim with no measurement behind it.
 
 ## Recording the take — one cable, QC over USB, one pass
 
@@ -58,8 +29,8 @@ sample-locked, from the same performance:
   Input 1), plugin on that track, Monitor Auto; "REC plugin post FX" ←
   Thall track Post FX; "QC amp and cab" ← Ext. In 3/4 (QC Wet Signal L/R).
 - Those tracks live in their own set: `~/Music/Ableton/Recording Projects/
-  amp-sim-measurement Project/amp-sim-measurement.als`, built 2026-09-08 from
-  the capture set with every clip stripped and the routing above saved in.
+  amp-sim-measurement Project/amp-sim-measurement.als`, built from the
+  capture set with every clip stripped and the routing above saved in.
   Its `README.md` carries the pre-flight, takes land in its
   `Samples/Recorded/`, and the `null-test-*.png` plots go in its folder. The
   capture project next to it (`amp-sim-neural-capture Project`) is only for
@@ -77,8 +48,7 @@ don't build a Fireface-input variant around it.
 Then:
 
 1. Put the plugin in its capture-time reference state. Read it from the
-   project's `CAPTURE-TEST-STATE.md`, which `quad-cortex-plugin-capture`
-   writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, and the
+   project's `CAPTURE-TEST-STATE.md`, which the capture session writes (cab ON if the capture is Amp+Cab, Lo/Hi Cut, In/Out gain, and the
    capture mode: the current recipe is as played with only the gate at
    −100 dB, so the play state IS the reference and the gate is the one
    override; older captures may record capture-safe — gate off, pitch off,
@@ -115,30 +85,22 @@ measuring.
 
 ### Whose call it is
 
-The plugin and the preset are the user's instrument, and the two controls
-this method most often has to move — **Tighten Gate off**, and for older
-capture-safe captures **Pitch Power off** — are the two the user is most
-likely to be playing through right now. (For a current gate-only capture
-only the gate moves; for a fully organic one nothing does.) Reading state is
-yours. Writing it is theirs.
-
-- Name the controls, say what each costs the measurement if left as-is, and
-  wait for a yes. One question covers the whole set.
-- Restore every one of them the moment the take is recorded, and say so.
-- Working unattended, leave them alone, take the pass as configured, and
-  report which bands the contamination makes unreadable.
-
-A contaminated take you can explain is a smaller failure than a silent edit
-to somebody's rig. Both are avoidable by asking.
+The rule is in `SKILL.md` ("The user's instrument"). Here it bites on two
+controls: **Tighten Gate off**, and for older capture-safe captures **Pitch
+Power off** — the two the user is most likely to be playing through right
+now. (For a current gate-only capture only the gate moves; for a fully
+organic one nothing does.) Ask once for the set, restore each the moment the
+take is recorded, and say so. A contaminated take you can explain is a
+smaller failure than a silent edit to somebody's rig.
 
 ### Do NOT bypass the post-capture EQ for a measurement take
 
 Step 2 lists reverb and delay. It stops there on purpose.
 
 Every take in `references/calibration-baseline.md` was measured with a
-post-capture EQ **active** — the four 2026-08-24 takes are an EQ sweep, and
-the standing-preset envelope in `thall-amp-neural-capture` was measured
-through its Parametric-3. Bypass the EQ and the numbers compare to nothing;
+post-capture EQ **active** — its four takes are an EQ sweep, and the
+standing-preset envelope in `references/lab-history.md` was measured through
+its Parametric-3. Bypass the EQ and the numbers compare to nothing;
 there is no stored raw-capture baseline to land them against.
 
 The same holds for the preset's input gate, its capture Volume, and its lane
@@ -154,9 +116,9 @@ Check these with tools before the user plays, not by asking them.
 1. **Which set Live has open.** Read the last `Loading document` line in
    Live's log and cross-check the track names `ableton-mcp` `get_track_info`
    returns against the three measurement tracks. A hand-off that says "the
-   measurement set is open" describes the moment it was written: on
-   2026-09-08 Live had been relaunched since and was showing the band's live
-   template, whose own thall amp instance is not the reference. Every later
+   measurement set is open" describes the moment it was written: Live has
+   been found relaunched since, showing the band's live template, whose own
+   thall amp instance is not the reference. Every later
    check reads the wrong set if this one is skipped.
 2. **Sanity-check the newest take, if one exists.** Stage the three newest
    WAVs and compare them sample-for-sample. DI == REC (plugin post FX) means
@@ -177,8 +139,7 @@ Check these with tools before the user plays, not by asking them.
    Tighten Gate to −100 dB (and Pitch Power off, only when the capture's
    recorded state says so).
 4. **Live's audio input device must be "Quad Cortex".** After a capture
-   session it stays on the Fireface, because `quad-cortex-plugin-capture`
-   switches it there, and the measurement set cannot carry it — audio devices
+   session it stays on the Fireface, because capturing switches it there, and the measurement set cannot carry it — audio devices
    are a global Live preference, not part of the set — so opening the right
    set fixes nothing here. Read the `Audio In Out: Input Device:` line from
    Live's log first; when it says Fireface, switch it in Settings > Audio
@@ -188,8 +149,8 @@ Check these with tools before the user plays, not by asking them.
    choosing it at 44.1 kHz gives "Selected audio device is not available"
    and Live comes back at 48 kHz.
 5. **Track routing, arm, and solo** — read from the `.als`, not the screen.
-   The measurement set was verified 2026-09-08: M0 / Track.8 PostFxOut / S1,
-   all armed, nothing soloed, no take lanes, no clips.
+   Expected in the measurement set: M0 / Track.8 PostFxOut / S1, all armed,
+   nothing soloed, no take lanes, no clips.
 
 For steps 4 and 5, and for changing anything Live's UI refuses to change,
 see `references/rig-and-daw-setup.md`.
@@ -241,8 +202,8 @@ across sessions:
   −1.5 to −2.5 dB is therefore expected and is NOT a failed capture; the
   residual is drive character, judged by ear.
 - An **organic** capture (gate and pitch left as played) is not held to those
-  baselines. The one measured so far (Brutal Death Thall, 2026-09-05, one
-  capture, clean takes only) read 0.68–0.81 through the body — level with the
+  baselines. The one measured so far (Brutal Death Thall, one capture, clean
+  takes only) read 0.68–0.81 through the body — level with the
   capture-safe capture of the same preset (V2b, 0.67–0.77) and inside the
   spread two capture-safe draws of identical state showed (V2 vs V2b). So no
   organic penalty has been measured. If one shows up, the leading explanation
@@ -271,8 +232,8 @@ across sessions:
 
 ### What EQ moves, and what coherence tells you
 
-These are two different questions. This skill used to answer the first with
-the second, and they come apart.
+These are two different questions. They used to be answered as one, and
+they come apart.
 
 **What EQ moves.** A linear EQ placed after the capture block shifts a
 reported band delta by
@@ -332,14 +293,12 @@ of the two you achieved. Then work out which of three things the deficit is:
    it flattens the average of something that was never static.
 
 Derivation, the controlled measurements, and the worked re-analysis of the
-2026-08-24 bells: `references/eq-and-coherence.md`.
+calibration-baseline bells: `references/eq-and-coherence.md`.
 
-**Never recommend zeroing a dynamic control to improve a measurement.** It
-changes the sound being captured rather than cleaning it up. When the
-numbers and the ears disagree about which capture is better, the ears win
-and the measurement's job is to explain why. For the worked case that
+**Never recommend zeroing a dynamic control to improve a measurement**
+(`SKILL.md`, "The capture recipe"). For the worked case that
 established diagnosis 3 — the thall amp's Tighten Chug control — see
-`thall-amp-neural-capture`.
+`references/thall-amp.md`.
 
 Conversely, a high-pass below the plugin's own low cut is always worth
 having: the capture reproduces the plugin's Lo Cut less steeply than the
@@ -362,7 +321,7 @@ Absolute plugin spectra are not comparable across takes better than about
   DI clip through the plugin at both settings and compare those two renders.
   Same performance, one variable.
 
-This does not affect the QC−plugin deltas this skill reports: those compare
+This does not affect the QC−plugin deltas this method reports: those compare
 two signals from the same performance, so common-mode playing variation
 cancels. Supporting measurements: `references/cross-take-validity.md`.
 
@@ -381,23 +340,3 @@ cancels. Supporting measurements: `references/cross-take-validity.md`.
 | Measurement contradicts Cortex Control | The app can save locally while the device runs the old state | Idle-spectrum comparison (`references/idle-noise-diagnostic.md`) |
 | Level offset looks too negative | Idle time in the take | Re-read from continuous playing only |
 | Shallow null, low coherence everywhere | Take clipped | Reject the take, re-record at QC peaks ~−3 dBFS |
-
-## Reference files
-
-- `references/rig-and-daw-setup.md` — QC USB channel map, the two Live sets
-  (capture and measurement), Ableton device and routing facts, reading the
-  log and the `.als`, patching a set and stripping clips without crashing
-  Live, what screen control does and does not drive, recorded-file facts.
-- `references/idle-noise-diagnostic.md` — proving what the device is running
-  without a note being played.
-- `references/cross-take-validity.md` — why cross-take plugin comparison
-  fails, with the numbers.
-- `references/legacy-and-reamp-methods.md` — the two-cable method and the
-  reamp method. Don't propose either unprompted.
-- `references/calibration-baseline.md` — known-good calibration baseline
-  (2026-08-24 run).
-- `references/eq-and-coherence.md` — what a post-capture EQ does to a band
-  delta, what coherence does and does not govern, with the measurements.
-- `references/similarity-metrics.md` — the ESR ladder with sources, the
-  null-depth reconciliation, the strict-to-forgiving metric hierarchy, and
-  which perceptual/embedding metrics are worth running on guitar.

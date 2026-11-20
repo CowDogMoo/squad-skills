@@ -15,7 +15,7 @@ the live plugin, to diff two presets, or to survey the whole library:
     python3 read_preset.py --diff A.afx B.afx         # only what differs
     python3 read_preset.py --json "Mirar - Leo.afx"   # machine-readable
 
-Two things the file cannot tell you, both covered in SKILL.md: switch
+Two things the file cannot tell you, both covered in references/thall-amp.md: switch
 parameters saved by some plugin versions carry no value (reported as
 "not stored"), and with Tone Lock enabled the plugin ignores a preset's
 tone-match and input-gain values on load. Read those back from the live

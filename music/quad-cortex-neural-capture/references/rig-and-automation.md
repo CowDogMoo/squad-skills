@@ -24,8 +24,7 @@
 - **TotalMix faders and knobs both take `computer_left_click_drag`.** Verified
   2026-09-01 in a session with no click offset. There is no class of TotalMix
   control that drags refuse; when one seems dead, the cause is the click-offset
-  session bug (`quad-cortex-preset-editing`,
-  `references/screen-control-workarounds.md`) or a stray Data Edit Window
+  session bug (`references/screen-control-workarounds.md`) or a stray Data Edit Window
   holding focus — check those two, in that order, before recording a
   limitation.
 - **TotalMix knobs take the scroll wheel.** Measured 2026-08-31 on the Reverb
@@ -76,5 +75,5 @@
   clicks — Settings opens and reads, and both chooser popups render and take
   clicks (observed 2026-08-31). An earlier note here claimed they never
   responded; it was wrong. The `.als`-patch plus File → Open Recent route is
-  still in `quad-cortex-capture-measurement` for sessions that have no desktop
+  still in `references/rig-and-daw-setup.md` for sessions that have no desktop
   screen control at all.

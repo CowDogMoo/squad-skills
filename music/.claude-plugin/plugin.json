@@ -1,7 +1,7 @@
 {
   "name": "cowdogmoo-music",
   "displayName": "Cowdogmoo Music",
-  "description": "Quad Cortex Neural Capture workflow (capture, preset editing, measurement), Guitar Pro tablature authoring, riff transcription, and Ableton Live screen control with a searchable manual.",
+  "description": "Quad Cortex Neural Capture workflow (capture, preset editing, measurement, thall amp), Guitar Pro tablature authoring, riff transcription, and Ableton Live screen control with a searchable manual.",
   "author": {
     "name": "Jayson Grace",
     "url": "https://github.com/CowDogMoo"

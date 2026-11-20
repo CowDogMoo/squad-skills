@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-preset-to-plugin
-description: Port a Quad Cortex preset into a plugin chain in the DAW and prove the match - the reverse of quad-cortex-plugin-capture. Maps QC block values to plugin settings and handles blocks that do not carry over (e.g. the Fortin Grind chained in from Fortin Nameless Suite X ahead of Archetype Gojira X), writes Neural DSP preset files directly (custom-IR slot quirk included), re-amps the DI offline through the chain without opening plugin windows, scores it against the QC with quad-cortex-capture-measurement's analyzer, fits EQ, and re-checks on a second take. Trigger on "match my Quad tone in the plugin", "make Gojira sound like my QC preset", "port this Quad Cortex preset to Neural DSP", "align the amp sims with the quad", "re-amp the DI offline", or any request to rebuild a QC preset as plugins. Do NOT use for capturing a plugin into the QC (quad-cortex-plugin-capture), measuring a capture against its plugin (quad-cortex-capture-measurement), or editing the QC preset grid (quad-cortex-preset-editing).
+description: Port a Quad Cortex preset into a plugin chain in the DAW and prove the match - the reverse of capturing a plugin with quad-cortex-neural-capture. Maps QC block values to plugin settings and handles blocks that do not carry over (e.g. the Fortin Grind chained in from Fortin Nameless Suite X ahead of Archetype Gojira X), writes Neural DSP preset files directly (custom-IR slot quirk included), re-amps the DI offline through the chain without opening plugin windows, scores it against the QC with quad-cortex-neural-capture's analyzer, fits EQ, and re-checks on a second take. Trigger on "match my Quad tone in the plugin", "make Gojira sound like my QC preset", "port this Quad Cortex preset to Neural DSP", "align the amp sims with the quad", "re-amp the DI offline", or any request to rebuild a QC preset as plugins. Do NOT use for capturing a plugin into the QC, measuring a capture against its plugin, or editing the QC preset grid (all quad-cortex-neural-capture).
 ---
 
 # Quad Cortex preset to plugin tone match
@@ -16,7 +16,8 @@ Nameless Suite X; the file format and render path are shared by the Neural
 DSP plugin family, but the key names below are only verified for those two.
 
 Measurement method, thresholds, and the claim ladder are owned by
-`quad-cortex-capture-measurement`. Read its "Recording the take", "Reading
+`quad-cortex-neural-capture`: the ladder is in its `SKILL.md`, the method in
+`references/measurement.md`. Read that file's "Recording the take", "Reading
 the numbers", and "What EQ moves" sections before step 5; this skill does
 not restate them.
 
@@ -36,7 +37,8 @@ not restate them.
 ## Guardrails
 
 - **Reading the Quad is yours; changing it is not.** Read block values in
-  Cortex Control (screen control is covered by `quad-cortex-preset-editing`)
+  Cortex Control (screen control is covered by `quad-cortex-neural-capture`,
+  `references/preset-editing.md`)
   or ask the player to read them. The QC preset is the reference: do not
   "fix" it to make the plugins easier to match.
 - **Never overwrite a preset the player uses.** Write new names into the
@@ -136,7 +138,7 @@ samples, not the files: the float wav's PEAK chunk carries a timestamp, so
 
 ## 4. Record the reference take
 
-Use `quad-cortex-capture-measurement`'s one-cable method: guitar → QC
+Use `quad-cortex-neural-capture`'s one-cable method: guitar → QC
 Input 1, Live's audio **input** device = Quad Cortex, output device stays on
 the interface. One take records QC USB channel 1 (Dry Input 1, the DI, pre
 grid) and channels 3/4 (Wet Signal L/R) together, sample-locked. Two
@@ -176,11 +178,11 @@ settings offline, and use Live only for the final listen and for tracking.
 
 ## 6. Score against the QC
 
-Run the measurement skill's analyzer with the render in the plugin slot:
+Run quad-cortex-neural-capture's analyzer with the render in the plugin slot:
 
 ```bash
 uv run --with numpy --with scipy --with soundfile --with pyloudnorm --with matplotlib \
-  python -I <quad-cortex-capture-measurement>/scripts/analyze.py \
+  python -I <quad-cortex-neural-capture>/scripts/analyze.py \
   "<DI>.wav" "<render>.wav" "<QC wet>.wav" --out-dir <dir> --label "<what is compared>"
 ```
 
@@ -202,7 +204,8 @@ python3 -I $S/write_preset.py "<gojira preset>.xml" "<scratch>/v1.xml" \
 ```
 
 then render and analyze `v1.xml`. Predict each move with the band-mean gain
-rule in `quad-cortex-capture-measurement` ("What EQ moves") rather than by
+rule in `quad-cortex-neural-capture` (`references/measurement.md`, "What
+EQ moves") rather than by
 the band's peak gain. Level last, with `outputGain`. Write the winning
 values into a new User preset once.
 

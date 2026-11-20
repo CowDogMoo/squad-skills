@@ -1,12 +1,10 @@
----
-name: quad-cortex-preset-editing
-description: Edit a Quad Cortex preset from the Cortex Control desktop app via screen control - load a Neural Capture into a preset, put the blocks in the right order, bypass what should not be in the signal path, set makeup gain on the right knob, save, and report honestly which claim rung the result reached (configured, structurally faithful, or measured). Use for "set up this preset", "put my capture in a preset", "use the amp and cab capture", "fix the block order", "why is this preset laggy or thin", "clean up my QC preset", or any request to change what is on a Quad Cortex preset grid. Do NOT use for making a Neural Capture (that is quad-cortex-plugin-capture), for editing presets on the hardware touchscreen, for rebuilding a QC preset's tone as plugins in the DAW (quad-cortex-preset-to-plugin), or for tone advice with no preset to edit.
----
-
-# Quad Cortex preset editing (Cortex Control)
+# Editing a Quad Cortex preset (Cortex Control)
 
 Change what is on a Quad Cortex preset grid so a Neural Capture is used the
-way it was captured, then say exactly how much that proves.
+way it was captured, then say exactly how much that proves. The claim
+ladder, the user's-instrument rules, and `CAPTURE-TEST-STATE.md` are in
+`SKILL.md`. Not for the hardware touchscreen, and not for tone advice with
+no preset to edit.
 
 Rig: Cortex Control v4.0.0 on macOS, two monitors.
 
@@ -17,23 +15,17 @@ order is canonical, nothing sits in the path that is absent from the
 reference, and the final report names the claim rung reached and the
 measurement that would reach the next one.
 
-- **Never claim "closer", "sounds like", "matches", or "optimized for the
-  sound" without the measured same-performance comparison.** Structural
-  cleanup is rung 2, not rung 3.
+- **This job ends at rung 2.** Never claim "closer", "sounds like",
+  "matches", or "optimized for the sound" without the measured
+  same-performance comparison.
 - **Click every block and read its panel before changing anything.** Icon
   colour is not block type — yellow was Pitch, the teal cube was a Reverb.
 - **Bypass, don't delete**, unless the user says delete. Bypass is reversible
   and keeps the user's settings.
-- **Makeup gain goes on the capture block's Volume, never its Gain.** Gain
-  changes how hard the model is driven.
-- **Save is a real write to the user's preset.** Do it once, at the end, after
-  a screenshot confirms every change, and confirm the "Preset saved." toast.
-- **The preset and the plugin are the user's instrument. Editing either in
-  service of a *measurement* is their call, not yours.** This skill's remit is
-  the structural cleanup the user asked for. Anything you want to change only
-  so a number comes out cleaner — a gate, a pitch block, an EQ, a level — gets
-  named to the user with its cost, and waits for a yes. Restore it afterwards
-  and say so.
+- **Makeup on Volume, never Gain; Save once, at the end**, after a
+  screenshot confirms every change, and confirm the "Preset saved." toast.
+- **The remit is the structural cleanup the user asked for.** Edits made only
+  so a measurement comes out cleaner are the user's call (`SKILL.md`).
 - Stop and ask if: the capture the user named is not in MY CAPTURES; the
   preset has more than one row with an input assigned (parallel paths — the
   bucket sort below assumes one path); a block's panel shows something you
@@ -53,37 +45,17 @@ measurement that would reach the next one.
 
 ## Host-environment translation
 
-| Abstract action | Cowork / desktop bridge |
-| --- | --- |
-| Resolve + request app control | `computer_resolve_access` → `computer_request_access` with app "Cortex Control" (bundle `com.NeuralDSP.CortexControl`), entries passed verbatim |
-| Look | `computer_screenshot` (scale 0.6 for orientation, 1.0 before precise clicks), `computer_zoom` for panel values |
-| Click / drag / type | `computer_left_click`, `computer_double_click`, `computer_left_click_drag`, `computer_type`, `computer_key` |
-| Read the reference facts | connected project folder via `device_bash` / `device_stage_files` |
+| Abstract action | Cowork / desktop bridge | Claude Code |
+| --- | --- | --- |
+| Resolve + request app control | `computer_resolve_access` → `computer_request_access` with app "Cortex Control" (bundle `com.NeuralDSP.CortexControl`), entries passed verbatim | the computer-use access request for "Cortex Control" |
+| Look | `computer_screenshot` (scale 0.6 for orientation, 1.0 before precise clicks), `computer_zoom` for panel values | computer-use screenshot and zoom |
+| Click / drag / type | `computer_left_click`, `computer_double_click`, `computer_left_click_drag`, `computer_type`, `computer_key` | computer-use click, double-click, drag, type, key |
+| Read the reference facts | connected project folder via `device_bash` / `device_stage_files` | Read / Bash on the project folder |
 
 Granting Cortex Control hides every other app — Ableton, TotalMix, terminal —
 from screenshots. If you need one of those in the same job, request them in
 the same access call. Cortex Control may be on either monitor;
 `computer_request_access` reports which.
-
-## The claim ladder
-
-Every preset job ends on one of these rungs, and the report must say which.
-The canonical definition and the measurement method live in
-`quad-cortex-capture-measurement`; the short form:
-
-1. **Configured** — the named capture is loaded and the preset saved. No claim
-   about sound.
-2. **Structurally faithful** — every block in the audio path is either part of
-   the reference chain or sits after the capture as a deliberate addition;
-   nothing in front of or inside the reference chain is missing from the
-   reference; makeup gain is on Volume. Still no claim about sound. This is
-   where reasoning alone can get you, and where this skill's own work ends.
-3. **Measured** — the same-performance comparison has been run and analyzed.
-   Only here may you say "closer", "matches", or "differs by X".
-
-Words allowed per rung: rung 1 "loaded"; rung 2 "clean", "faithful to the
-capture", "nothing extra in the path"; rung 3 "closer", "within N dB", "nulls
-to −X dB". The report shape in step 6 enforces this.
 
 ## Step-by-step
 
@@ -91,13 +63,11 @@ to −X dB". The report shape in step 6 enforces this.
 
 The reference is what the capture was made of. Read it, don't guess.
 
-For a plugin capture, `quad-cortex-plugin-capture` records the capture-time
-plugin state in the project's `CAPTURE-TEST-STATE.md`: cab on/off, Lo/Hi Cut,
-tone-match profile, In/Out gain, and the capture mode — the current recipe
-is as played with only the gate off (the play state is the measurement
-reference); older captures may record capture-safe (gate off, pitch off,
-mono). An "Amp and Cab" capture has the cab and filters baked in; an "Amp"
-capture needs an IR after it.
+For a plugin capture, read the project's `CAPTURE-TEST-STATE.md` (`SKILL.md`
+lists its fields). The current recipe is as played with only the gate off, so
+the play state is the reference; older captures may record capture-safe (gate
+off, pitch off, mono). An "Amp and Cab" capture has the cab and filters baked
+in; an "Amp" capture needs an IR after it.
 
 Write the reference chain as one line, for example: `guitar → [thall amp: gate
 off, everything else as played, cab ON, LoCut 97, HiCut 8.6k] → out`.
@@ -191,12 +161,13 @@ Special cases:
   new curve; a parked Parametric-3 arrived with HP 99 Hz and a −12 dB hi
   shelf.
 
-Do one change, one screenshot. Batched blind clicks are how the capture
-skill's only real failure happened.
+Do one change, one screenshot. Batched blind clicks are how the only real
+failure in this rig's capture work happened.
 
 ### 5. Save
 
-Click the disk icon to the right of the preset name. Confirm the "Preset
+Confirm with the user first unless they asked for exactly this save. Click
+the disk icon to the right of the preset name. Confirm the "Preset
 saved." toast and that the `*` is gone. Screenshot. Do not save if any earlier
 screenshot showed something you did not intend.
 
@@ -211,6 +182,8 @@ Use this shape, in prose, and fill the rung honestly:
 > done" if below 3.
 > To reach rung 3: the measurement recipe below.
 
+The rung definitions and the words each allows are in `SKILL.md`.
+
 ## Canonical block order for a capture preset
 
 `Input → gate → (pitch / whammy, only when used) → [drives that were in the
@@ -223,16 +196,16 @@ capture in the block, toggle the IR Loader. Nothing else moves.
 
 ## Reaching rung 3
 
-Run `quad-cortex-capture-measurement`: one guitar cable, QC over USB, one pass
-records DI, plugin, and QC together, and its bundled `scripts/analyze.py` does
-the aligned comparison — LUFS offset, banded deltas, per-band coherence, null
-depth — plus the interpretation. The preset side of that job, which this skill
-must set up before the take:
+Run `measurement.md`: one guitar cable, QC over USB, one pass records DI,
+plugin, and QC together, and `scripts/analyze.py` does the aligned
+comparison — LUFS offset, banded deltas, per-band coherence, null depth —
+plus the interpretation. The preset side of that job, set up before the
+take:
 
 - Preset input block on In 1. Reverb and delay in the preset bypassed for the
   take. **Reverb and delay, and nothing else.** Do not bypass the post-capture
   EQ, the input gate, or the capture Volume for a measurement take: every take
-  in the measurement skill's `references/calibration-baseline.md` was measured
+  in `calibration-baseline.md` was measured
   with a post-capture EQ active, so a take with it bypassed compares to no
   stored baseline. Measure the preset the user plays. An EQ curve that is
   wrong for this preset — a bell carried over from an earlier capture, say —
@@ -245,10 +218,10 @@ must set up before the take:
 - Plugin in its capture-time reference state from `CAPTURE-TEST-STATE.md` (see
   step 0) — cab ON if the capture is Amp+Cab.
 
-The measurement skill owns everything after that, including what the numbers
-mean and how take content biases them. From a Cowork session, stage the three
-WAVs to the cloud workspace and run the analysis there — the local VM has run
-out of disk installing scipy.
+`measurement.md` owns everything after that, including what the numbers mean
+and how take content biases them. From a Cowork session, stage the three WAVs
+to the cloud workspace and run the analysis there; the local VM is short on
+disk for scipy.
 
 ## Troubleshooting
 
@@ -258,16 +231,10 @@ out of disk installing scipy.
 | An IR Loader panel is dimmed but still names an IR | Bypassed with the IR kept, not empty | Nothing to fix; that is the intended amp+cab state |
 | Unsure whether changes are saved | The header `*` is the only unsaved indicator | It clears on save, alongside the "Preset saved." toast |
 | A block looks active but the audio says otherwise | The filled look on the grid is selection, not state | Zoom the panel's top-right glyph and compare it with a block you know is bypassed; then confirm from the audio — an EQ really in the path leaves its HPF slope or bell in the next take's spectrum |
-| Clicks land far above where they were aimed | The click-offset bug | `references/screen-control-workarounds.md` |
-| Every click does nothing | An un-granted app is frontmost, or the cursor is parked on the other monitor | `references/screen-control-workarounds.md` |
+| Clicks land far above where they were aimed | The click-offset bug | `screen-control-workarounds.md` |
+| Every click does nothing | An un-granted app is frontmost, or the cursor is parked on the other monitor | `screen-control-workarounds.md` |
 | Coordinates from earlier in the session miss | The window moves and resizes, and the user is working in the same app | Re-screenshot at scale 1.0 before every action |
 
-## Reference files
-
-- `references/screen-control-workarounds.md` — the click-offset bug and its
-  two workarounds, value fields and TotalMix under the offset, focus and
-  monitor problems.
-- `references/cortex-control-ui-map.md` — v4.0.0 layout facts and two observed
-  coordinate maps, for rough orientation only.
-- `references/worked-examples.md` — finished presets and what they measured,
-  as calibration for a good result.
+Detail: `screen-control-workarounds.md` (click-offset bug, value fields,
+focus and monitors), `cortex-control-ui-map.md` (v4.0.0 layout, orientation
+only), `preset-worked-examples.md` (finished presets and what they measured).
