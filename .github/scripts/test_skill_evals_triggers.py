@@ -189,6 +189,11 @@ class PlanAndCommandTest(unittest.TestCase):
         code, _none = self.plan(suite="triggers", skill="no-such-family")
         self.assertEqual(code, 1)
 
+    def test_skill_with_suite_all_is_refused(self) -> None:
+        skill = next(iter(skill_evals.allowlist()))
+        code, planned = self.plan(suite="all", skill=skill)
+        self.assertEqual((code, planned), (1, []))
+
     def test_knowledge_halves_run_only_when_asked_for(self) -> None:
         runnable, skip = skill_evals.allowlist(), skill_evals.skipped()
         engineering = sorted(
@@ -267,6 +272,17 @@ class JudgeTest(unittest.TestCase):
         code, text = self.judge(skill_evals.TRIGGER_PREFIX + "demo", path, 0.6)
         self.assertEqual(code, 1)
         self.assertIn("Routing: 2 of 3 queries met the threshold.", text)
+
+    def test_partial_run_counts_only_real_cases(self) -> None:
+        path = self.result([(f"case-{n:02d}", [1.0], []) for n in range(1, 13)])
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.update(partial=True, partialReason="max cost reached")
+        path.write_text(json.dumps(data), encoding="utf-8")
+        code, text = self.judge(skill_evals.TRIGGER_PREFIX + "demo", path, 0.6)
+        self.assertEqual(code, 1)
+        self.assertIn("Routing: 12 of 12 queries met the threshold.", text)
+        self.assertIn("the run stopped before every case ran", text)
+        self.assertNotIn("did not run", text)
 
     def test_cmd_judge_uses_the_trigger_threshold(self) -> None:
         bundle, out = self.tmp / "bundle", self.tmp / "out"

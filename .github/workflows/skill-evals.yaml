@@ -3,7 +3,7 @@ name: Skill Evals
 
 # Runs each allowlisted skill's evals/evals.json with Claude Code headless
 # (`claude plugin eval`), on main only. It never runs on pull request content:
-# the only triggers are a manual dispatch and an optional weekly schedule, the
+# the only triggers are a manual dispatch and a monthly schedule, the
 # token lives only in the skill-evals environment (deployment branch: main;
 # required reviewer: the repository owner), and Validate Skills fails any
 # change that gives this workflow another trigger. Regressions therefore show
@@ -41,8 +41,11 @@ name: Skill Evals
 #
 # How the token is kept away from skill content:
 #   prepare (no secret) checks out main, stages each skill as data into a
-#     plugin the harness builds itself (no symlinks; no plugin.json, hooks,
-#     MCP servers, or monitors), and downloads every tool the eval job needs:
+#     plugin the harness builds itself (no hooks, MCP servers, or monitors;
+#     the only symlink is the `inputs` link a case directory gets when its
+#     case has input files, pointing at the staged inputs in the same plugin;
+#     the only plugin.json is the bare name-only manifest a trigger suite
+#     needs to load as a plugin), and downloads every tool the eval job needs:
 #     bubblewrap and socat .debs, a Python venv, and Claude Code.
 #   eval (token, after approval) blocks egress to everything but
 #     api.anthropic.com with harden-runner, installs that bundle offline,

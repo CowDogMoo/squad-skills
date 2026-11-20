@@ -522,6 +522,9 @@ def cmd_plan(args) -> int:
         output("skills", "[]")
         return 0
     suite = getattr(args, "suite", "skills")
+    if args.skill and suite == "all":
+        print("::error::--skill picks one skill or trigger family; use it with --suite skills, triggers, or a knowledge half, not all")
+        return 1
     families = sorted(trigger_suites())
     selected = []
     if suite in SKILL_SUITES or suite == "all":
@@ -1298,8 +1301,8 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         if baseline and scores:
             base = sum(baseline) / len(baseline)
             deltas.append((cname, mean, base))
-    if data.get("partial"):
-        broken.append("(partial run)")
+    partial = bool(data.get("partial"))
+    if partial:
         reason = data.get("partialReason", "unknown")
         print(f"::error::{name}: the eval run stopped early ({reason}) and reported partial results")
         lines.append(f"\nThe run stopped early: `{reason}`.")
@@ -1327,11 +1330,13 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
 
     if broken:
         lines.append(f"\n**Failed:** {len(broken)} case(s) did not run.")
+    elif partial:
+        lines.append("\n**Failed:** the run stopped before every case ran.")
     elif low:
         lines.append(f"\n**Failed:** {len(low)} case(s) scored below the threshold.")
     else:
         lines.append("\nAll cases met the threshold.")
-    return (1 if broken or low else 0), "\n".join(lines) + "\n"
+    return (1 if broken or low or partial else 0), "\n".join(lines) + "\n"
 
 
 def cmd_judge(args) -> int:
