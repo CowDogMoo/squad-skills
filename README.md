@@ -50,6 +50,19 @@ auto-installed, so install both:
 /plugin install squad-agents@cowdogmoo
 ```
 
+The music skills (Quad Cortex, Guitar Pro, transcription, Ableton) ship
+once, in the separate `cowdogmoo-music` plugin from this repo's own
+`cowdogmoo-skills` marketplace, so squad-agents users do not carry their
+descriptions:
+
+```text
+/plugin marketplace add CowDogMoo/squad-skills
+/plugin install cowdogmoo-music@cowdogmoo-skills
+```
+
+Plugin `version` is pinned, so CI requires a bump in every plugin
+manifest whenever a skill or manifest changes.
+
 ### Gemini CLI and Codex
 
 The SKILL.md format is the open [Agent Skills](https://agentskills.io)
@@ -97,6 +110,7 @@ each listed path exactly one level deep.
 | Skill                                                                      | Description                                                                                                                                                                                                                                                       |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [enqueue-coverage-targets](./testing/enqueue-coverage-targets)             | Orchestrator-workers pattern for raising test coverage in Go, Node.js/TypeScript, Python, or Rust: `scripts/enqueue.sh` measures once and queues every unit below target, you drain the queue writing tests, then re-measure. Per-language rules in `references/`. |
+| [quorum](./testing/quorum)                                                 | Unanimous completion gate: runs the project's deterministic checks plus one skeptic seat over the acceptance criteria, judged by a deterministic unanimity judge; any veto, abstention, or missing ballot means NOT_COMPLETE. Ships harness scripts and `scripts/test.mjs`. |
 | [score-coverage-and-report-gaps](./testing/score-coverage-and-report-gaps) | Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize, write tests, re-verify, report the before/after delta.                                                                                                        |
 | [test-writer-honesty](./testing/test-writer-honesty)                       | Shared discipline rules for any test-writing agent: never clobber existing tests, never fall back to `Write` when `Edit` fails, tie the final report to `git diff --stat`.                                                                                         |
 
@@ -116,6 +130,7 @@ each listed path exactly one level deep.
 | [guitar-pro](./music/guitar-pro)                                           | Read, write, and analyze Guitar Pro tablature (`.gp5`, native `.gp`, MusicXML) via a bundled PyGuitarPro/alphaTab helper; handles the silent-corruption defects in both libraries.                                                                              |
 | [quad-cortex-neural-capture](./music/quad-cortex-neural-capture)           | Quad Cortex Neural Capture on the user's rig (RME UCX II, Ableton, Cortex Control), with a runbook per job: capture an amp-sim plugin (gate off, everything else as played, Neural Capture V1), edit the preset hosting it in Cortex Control, measure it against the plugin with the bundled `analyze.py` (LUFS offset, banded deltas, coherence, null depth, ESR), and the Odeholm thall amp's controls, presets, and `.afx` reader. Owns the claim ladder (configured / structurally faithful / measured). |
 | [quad-cortex-preset-to-plugin](./music/quad-cortex-preset-to-plugin)       | Rebuild a Quad Cortex preset as a plugin chain in the DAW and prove the match: map QC blocks to Neural DSP settings (chaining in blocks the amp sim lacks), write preset files directly with `write_preset.py`, re-amp the DI offline through the chain with `render_chain.py` (no plugin windows), score it with `quad-cortex-neural-capture`'s `analyze.py`, and re-check on a second take. |
+| [tab-vs-recording](./music/tab-vs-recording)                               | Score how faithful a MIDI guitar tab is to a real recording with `compare_tab.py`: chroma DTW alignment, a same-song confidence, and note-level F-measure with per-quarter scores that localize wrong passages. |
 | [transcribe-guitar-riff](./music/transcribe-guitar-riff)                   | Turn an Ableton guitar clip (or a WAV) into verified notes: locate the exact sample region a clip plays from the `.als`, cut it bit-exact, estimate per-sixteenth fundamentals with a CQT harmonic-salience script that survives high-gain tremolo picking, decide the octave from tuning-grid and difference-tone evidence, author a cleaned MIDI, place an A/B reference track in Live, and hand the tab to `guitar-pro`.                                                                                     |
 
 ### release/
@@ -192,7 +207,7 @@ and guardrails ("never check out", "stop if you see a sign-in page").
 | `license`       | no       | SPDX identifier if the skill is published (e.g. `MIT`, `Apache-2.0`).                                                                                                |
 | `compatibility` | no       | 1–500 chars. Environment requirements (target host, system packages, network access).                                                                                |
 | `metadata`      | no       | Free-form map. Common keys: `author`, `version`, `mcp-server`.                                                                                                       |
-| `allowed-tools` | no       | Claude Code-specific; comma-separated tool allowlist applied when the skill loads.                                                                                   |
+| `allowed-tools` | banned   | Do not set it on a shared skill. squad intersects it across every loaded skill and never pops it, and Claude Code treats it as pre-approval, so it strips tools or weakens safety. CI fails on it. |
 
 ### Description heuristics
 
@@ -247,9 +262,10 @@ across them. The pattern that works:
 ```bash
 # 1. Create the directory inside the category folder that fits
 #    (cooking/, devices/, music/, release/, testing/,
-#    writing-quality/). A new category
-#    also needs an entry in .claude-plugin/plugin.json's "skills"
-#    list, or the plugin loader will never see it.
+#    writing-quality/). A new category also needs an entry in
+#    .claude-plugin/plugin.json's "skills" list (or its own plugin in
+#    .claude-plugin/marketplace.json, as music/ has), or the plugin
+#    loader will never see it.
 mkdir testing/my-skill
 
 # 2. Write SKILL.md
@@ -363,7 +379,8 @@ pre-commit run --all-files
 CI runs the same checks:
 
 - Every top-level directory is a category folder registered in
-  `.claude-plugin/plugin.json`'s `skills` list, and every directory
+  `.claude-plugin/plugin.json`'s `skills` list (or is the source of
+  another marketplace plugin, as `music/` is), and every directory
   inside a category has a `SKILL.md`.
 - Frontmatter has `name` and `description`, both non-empty.
 - `name` matches the directory name.
@@ -372,6 +389,16 @@ CI runs the same checks:
   exists.
 - Markdown lints clean (`markdownlint`), YAML lints clean
   (`yamllint`), and frontmatter parses.
+- `.github/scripts/check_skills.py policy`: no skill declares
+  `allowed-tools` and all plugin manifests carry the same `version`. On
+  pull requests, `check_skills.py version-bump` fails when skill or
+  manifest files changed without a version bump.
+- `claude plugin validate --strict` passes for the main plugin, the
+  music plugin, and the marketplace.
+- The bundled script suites pass: `music/guitar-pro/scripts/test_gp_tab.py`,
+  `music/transcribe-guitar-riff/scripts/selftest.py`, and
+  `testing/quorum/scripts/test.mjs`. Pre-commit runs them through
+  `.hooks/run-script-tests.sh` when their files change.
 
 ---
 

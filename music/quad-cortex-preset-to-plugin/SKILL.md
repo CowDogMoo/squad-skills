@@ -1,6 +1,6 @@
 ---
 name: quad-cortex-preset-to-plugin
-description: Port a Quad Cortex preset into a plugin chain in the DAW and prove the match - the reverse of capturing a plugin with quad-cortex-neural-capture. Maps QC block values to plugin settings and handles blocks that do not carry over (e.g. the Fortin Grind chained in from Fortin Nameless Suite X ahead of Archetype Gojira X), writes Neural DSP preset files directly (custom-IR slot quirk included), re-amps the DI offline through the chain without opening plugin windows, scores it against the QC with quad-cortex-neural-capture's analyzer, fits EQ, and re-checks on a second take. Trigger on "match my Quad tone in the plugin", "make Gojira sound like my QC preset", "port this Quad Cortex preset to Neural DSP", "align the amp sims with the quad", "re-amp the DI offline", or any request to rebuild a QC preset as plugins. Do NOT use for capturing a plugin into the QC, measuring a capture against its plugin, or editing the QC preset grid (all quad-cortex-neural-capture).
+description: Port a Quad Cortex preset into a Neural DSP plugin chain in the DAW and prove the match (the reverse of capturing a plugin with quad-cortex-neural-capture) by mapping QC blocks to plugin settings, writing preset files, re-amping the DI offline, and scoring against the QC. Trigger on "match my Quad tone in the plugin", "port this QC preset to Neural DSP". Do NOT use for capturing a plugin into the QC, measuring a capture, or editing the QC grid (all quad-cortex-neural-capture).
 ---
 
 # Quad Cortex preset to plugin tone match
