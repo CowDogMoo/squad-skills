@@ -37,10 +37,11 @@ Skill suites can also run with --ablation with-without, which adds a no-skill
 baseline arm and reports the score delta: the evidence for whether a
 knowledge skill earns its tokens.
 
-An allowlisted skill with "suite": "knowledge" runs only in the knowledge
-suite (plan --suite knowledge), never with --suite skills or all, so the
-schedule never runs it: the engineering knowledge skills cost a run only when
-someone dispatches it.
+An allowlisted skill with "suite": "knowledge-1" or "knowledge-2" runs only
+in that half of the knowledge suite (plan --suite knowledge-1), never with
+--suite skills or all, so the schedule never runs it: the engineering
+knowledge skills cost a run only when someone dispatches a half. The suite is
+split in two so each half fits the eval job's timeout with both arms.
 """
 
 from __future__ import annotations
@@ -143,8 +144,8 @@ TRIGGER_PREAMBLE = (
 )
 SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ABLATIONS = ("none", "with-without")
-SUITES = ("skills", "knowledge", "triggers", "all")
-SKILL_SUITES = ("skills", "knowledge")
+SKILL_SUITES = ("skills", "knowledge-1", "knowledge-2")
+SUITES = SKILL_SUITES + ("triggers", "all")
 QUOTE_OR_COLON = "[\"':]"
 QUOTE = "[\"']"
 
@@ -523,15 +524,15 @@ def cmd_plan(args) -> int:
     suite = getattr(args, "suite", "skills")
     families = sorted(trigger_suites())
     selected = []
-    if suite in ("skills", "knowledge", "all"):
-        group = "knowledge" if suite == "knowledge" else "skills"
+    if suite in SKILL_SUITES or suite == "all":
+        group = "skills" if suite == "all" else suite
         if args.skill and suite in SKILL_SUITES:
             if args.skill not in skills:
                 print(f"::error::No skill named {args.skill!r} in this repository")
                 return 1
             requested = [args.skill]
-        elif group == "knowledge":
-            requested = sorted(n for n in runnable if runnable[n].get("suite") == "knowledge")
+        elif group != "skills":
+            requested = sorted(n for n in runnable if runnable[n].get("suite") == group)
         else:
             requested = sorted(skills)
         for name in requested:
@@ -1369,7 +1370,7 @@ def main() -> int:
     plan = sub.add_parser("plan", help="choose the allowlisted skills to evaluate")
     plan.add_argument(
         "--suite", choices=SUITES, default="skills",
-        help="skill evals, the knowledge skills, trigger suites, or skills and triggers",
+        help="skill evals, one half of the knowledge skills, trigger suites, or skills and triggers",
     )
     plan.add_argument("--skill", help="evaluate just this skill (or, with --suite triggers, this family)")
     plan.add_argument("--canary-only", action="store_true", help="run only the sandbox self-test")

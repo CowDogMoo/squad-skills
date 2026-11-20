@@ -189,25 +189,30 @@ class PlanAndCommandTest(unittest.TestCase):
         code, _none = self.plan(suite="triggers", skill="no-such-family")
         self.assertEqual(code, 1)
 
-    def test_knowledge_suite_runs_only_when_asked_for(self) -> None:
-        runnable = skill_evals.allowlist()
-        knowledge = sorted(n for n, o in runnable.items() if o.get("suite") == "knowledge")
+    def test_knowledge_halves_run_only_when_asked_for(self) -> None:
+        runnable, skip = skill_evals.allowlist(), skill_evals.skipped()
         engineering = sorted(
             n for n, d in skill_evals.skill_dirs().items()
-            if d.parent.name == "engineering" and (d / "evals" / "evals.json").is_file()
+            if d.parent.name == "engineering" and (d / "evals" / "evals.json").is_file() and n not in skip
         )
+        halves = {}
+        for suite in ("knowledge-1", "knowledge-2"):
+            _code, halves[suite] = self.plan(suite=suite)
+            self.assertTrue(halves[suite], suite)
+        self.assertFalse(set(halves["knowledge-1"]) & set(halves["knowledge-2"]))
+        knowledge = sorted(halves["knowledge-1"] + halves["knowledge-2"])
         self.assertEqual(knowledge, engineering)
-        _code, planned = self.plan(suite="knowledge")
-        self.assertEqual(planned, knowledge)
+        for orchestrator in ("go-pipeline", "go-security-audit", "rust-pipeline"):
+            self.assertIn(orchestrator, skip)
         for suite in ("skills", "all"):
             _code, planned = self.plan(suite=suite)
             self.assertFalse(set(planned) & set(knowledge), suite)
-        code, one = self.plan(suite="knowledge", skill=knowledge[0])
-        self.assertEqual((code, one), (0, [knowledge[0]]))
-        _code, none = self.plan(suite="skills", skill=knowledge[0])
-        self.assertEqual(none, [])
-        _code, none = self.plan(suite="knowledge", skill=next(n for n in runnable if n not in knowledge))
-        self.assertEqual(none, [])
+        first = halves["knowledge-1"][0]
+        code, one = self.plan(suite="knowledge-1", skill=first)
+        self.assertEqual((code, one), (0, [first]))
+        for suite in ("skills", "knowledge-2"):
+            _code, none = self.plan(suite=suite, skill=first)
+            self.assertEqual(none, [], suite)
 
     def test_ablation_reaches_skill_suites_only(self) -> None:
         config = skill_evals.load_config()

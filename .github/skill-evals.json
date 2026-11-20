@@ -103,7 +103,7 @@
       ]
     },
     "ansible-molecule-guide": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -111,7 +111,7 @@
       ]
     },
     "ansible-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -119,7 +119,7 @@
       ]
     },
     "changelog-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -127,7 +127,7 @@
       ]
     },
     "cobra-viper-best-practices": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -135,15 +135,7 @@
       ]
     },
     "go-documentation-standards": {
-      "suite": "knowledge",
-      "allow_tools": [
-        "Bash",
-        "Edit",
-        "Write"
-      ]
-    },
-    "go-pipeline": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -151,15 +143,7 @@
       ]
     },
     "go-review-criteria": {
-      "suite": "knowledge",
-      "allow_tools": [
-        "Bash",
-        "Edit",
-        "Write"
-      ]
-    },
-    "go-security-audit": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -167,7 +151,7 @@
       ]
     },
     "go-testing-patterns": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -175,7 +159,7 @@
       ]
     },
     "golang-security-guide": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -183,7 +167,7 @@
       ]
     },
     "grafana-dashboard-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -191,7 +175,7 @@
       ]
     },
     "nodejs-documentation-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -199,7 +183,7 @@
       ]
     },
     "nodejs-review-criteria": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -207,7 +191,7 @@
       ]
     },
     "nodejs-security-guide": {
-      "suite": "knowledge",
+      "suite": "knowledge-1",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -215,7 +199,7 @@
       ]
     },
     "nodejs-testing-patterns": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -223,7 +207,7 @@
       ]
     },
     "python-documentation-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -231,7 +215,7 @@
       ]
     },
     "python-review-criteria": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -239,7 +223,7 @@
       ]
     },
     "python-security-guide": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -247,7 +231,7 @@
       ]
     },
     "python-testing-patterns": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -258,7 +242,7 @@
       ]
     },
     "readme-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -266,7 +250,7 @@
       ]
     },
     "review-loop": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -274,15 +258,7 @@
       ]
     },
     "rust-documentation-standards": {
-      "suite": "knowledge",
-      "allow_tools": [
-        "Bash",
-        "Edit",
-        "Write"
-      ]
-    },
-    "rust-pipeline": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -290,7 +266,7 @@
       ]
     },
     "rust-review-criteria": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -298,7 +274,7 @@
       ]
     },
     "rust-testing-patterns": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -306,7 +282,7 @@
       ]
     },
     "security-audit-loop": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -314,7 +290,7 @@
       ]
     },
     "taskfile-standards": {
-      "suite": "knowledge",
+      "suite": "knowledge-2",
       "allow_tools": [
         "Bash",
         "Edit",
@@ -327,6 +303,9 @@
     "ableton-live-computer-use": "drives a running Ableton Live through screen control",
     "quad-cortex-neural-capture": "needs a Quad Cortex, Cortex Control, an audio interface, and the amp-sim plugin it captures",
     "quad-cortex-preset-to-plugin": "needs a Quad Cortex and licensed Neural DSP plugins to render through",
-    "organize-iphone-home-screen": "drives a USB-connected iPhone through the macOS-only Unjiggle CLI"
+    "organize-iphone-home-screen": "drives a USB-connected iPhone through the macOS-only Unjiggle CLI",
+    "go-pipeline": "launches named subagents with the Agent tool, which the eval harness does not grant, and those subagents live in squad-agents, not in this repository",
+    "go-security-audit": "launches named subagents with the Agent tool, which the eval harness does not grant, and those subagents live in squad-agents, not in this repository",
+    "rust-pipeline": "launches named subagents with the Agent tool, which the eval harness does not grant, and those subagents live in squad-agents, not in this repository"
   }
 }

@@ -417,11 +417,15 @@ so the baseline sees the same files. The workflow also runs on a monthly
 schedule with every suite and the baseline arm, one run per case; it
 still waits for the owner's approval.
 
-The `engineering/` knowledge skills are allowlisted with
-`"suite": "knowledge"`, which keeps them out of `-f suite=all` and the
-schedule. They run only when dispatched, always with the baseline arm:
-`gh workflow run skill-evals.yaml --ref main -f suite=knowledge -f runs=1`
-(add `-f skill=<name>` for one).
+The `engineering/` knowledge skills are allowlisted in two halves,
+`"suite": "knowledge-1"` and `"suite": "knowledge-2"`, which keeps them
+out of `-f suite=all` and the schedule. Each half runs only when
+dispatched, always with the baseline arm and one run per case so it fits
+the job's timeout:
+`gh workflow run skill-evals.yaml --ref main -f suite=knowledge-1` (then
+`-f suite=knowledge-2`; add `-f skill=<name>` for one skill). The
+orchestrators (go-pipeline, go-security-audit, rust-pipeline) are in
+`ci_skipped`: they need the Agent tool and the squad-agents subagents.
 
 ### Trigger evals
 
