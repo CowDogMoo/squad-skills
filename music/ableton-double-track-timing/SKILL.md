@@ -259,5 +259,5 @@ nothing moved.
 - `scripts/`: `alsio.py` (set reader and CLI), `placement_check.py`,
   `section_compare.py`, `attack_audit.py`, `render_xcheck.py`,
   `apply_moves.py`, `collateral.py`, `live_socket.py`.
-- `evals/files/make_fixtures.py` builds a planted-nudge copy of a set for
-  testing, and proves that nothing else changed.
+- `evals/files/make_fixtures.py OUTDIR` generates small synthetic sets and
+  audio for offline evals, including planted nudges and a clean control.

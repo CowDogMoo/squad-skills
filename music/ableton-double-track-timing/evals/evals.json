@@ -3,33 +3,35 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Build the test sets first: run evals/files/make_fixtures.py on the Coven set (the source path is in evals/planted-nudge-flam/place-files.sh, or ADTT_SOURCE_ALS) into a temp directory. Then answer this, working only from planted-nudge.als:\n\nthe two scratch guitars (Jayson Scratch and Jason Scratch) sound smeared and flammy around bars 90-91, almost like noise instead of one tight double. can you figure out what's going on and tell me exactly what to change? I've got Live open and I'm working in it, so don't touch Live, just work from the saved set.",
-      "expected_output": "The answer pins the bar 90-91 flam on two Jayson Scratch clips that sit +0.0625 beat (about 31 ms at 120 BPM) late: the clip starting at beat 357.0625 and the one starting at 362.0625. Evidence: their other copies of the same takes (341.0, 346.0) sit on whole-beat anchors, and the same take pairings with Jason Scratch line up differently in bar 87. It recommends moving both clips back by 0.0625 beat, to 357.0 and 362.0, does not blame or move Jason Scratch's deliberately offset slice at 362.3125, and changes nothing in Live or in the set file.",
+      "prompt": "Generate the synthetic test sets by running `python3 evals/files/make_fixtures.py OUTDIR` with a fresh temporary output directory. This needs no source set, Live, or network. Work only from the generated files and bundled scripts; use installed Python dependencies rather than downloading packages. Then inspect planted-nudge.als: Scratch A and Scratch B are a double, and sound smeared around bars 6 and 8. Find the cause and tell me exactly what to change. Compare the repeated sections against bar 2, and check clean-control.als as a negative control. Do not change either set or its samples, connect to Live, or move anything. Reports in your working directory are fine.",
+      "expected_output": "Finds Scratch A at 20.0625 and 28.0625 late by 0.0625 beat (31.25 ms at 120 BPM), with reference copies at 4 and 12. Placement and pair checks identify A; section audio comparison confirms approximately +31 ms on A and zero on B. Recommends starts 20 and 28, leaves B alone. Clean control has no placement or audio slips. Runs a positive control without modifying inputs. No Live connection.",
+      "expectations": [
+        "Runs the bundled placement check with Scratch A=Scratch B and identifies both Scratch A clips at 20.0625 and 28.0625 as +0.0625 beat (about 31 ms) late, using the copies at 4 and 12 as evidence.",
+        "Runs section_compare.py on the repeated audio (reference beat 4 versus test 20 and 28, length 4); reports approximately +31 ms on Scratch A with high correlation and approximately zero on Scratch B, using actual script output.",
+        "Recommends moving only those two Scratch A clips back by 0.0625 beat to 20 and 28; does not recommend moving Scratch B.",
+        "Checks clean-control.als as a negative control and finds no placement flags or material double timing offsets, with evidence from the bundled placement and attack scripts.",
+        "Runs a placement positive control on a clean reused clip and an attack-audit positive control within its search window (for example Scratch A@4+0.04), and reports their actual success or failure.",
+        "Leaves generated input .als and WAV files unchanged after generation and makes no Live socket connection, Ableton MCP call, or computer-use action. Writing report files is allowed."
+      ],
       "files": [
         "evals/files/make_fixtures.py"
-      ],
-      "expectations": [
-        "The response identifies the Jayson Scratch clip that starts at beat 357.0625 (bar 90) as sitting +0.0625 beat (about 31 ms) late, relative to the other copies of its take or to its double.",
-        "The response identifies the Jayson Scratch clip that starts at beat 362.0625 (bar 91) as sitting +0.0625 beat (about 31 ms) late.",
-        "The response recommends moving those two Jayson Scratch clips back by 0.0625 beat, to start at 357.0 and 362.0 (or equivalently about 31 ms earlier).",
-        "The response does not recommend moving the Jason Scratch clip at 362.3125, or any other Jason Scratch clip, as the fix for the bar 90-91 flam.",
-        "The run made no Live socket connection, ableton-mcp tool call or computer-use action, and left the input .als file unmodified."
       ]
     },
     {
       "id": 2,
-      "prompt": "Build the test sets first: run evals/files/make_fixtures.py on the Coven set (the source path is in evals/full-audit-report/place-files.sh, or ADTT_SOURCE_ALS) into a temp directory. Then answer this, working only from coven-snapshot.als:\n\ncan you do a full timing check on the doubled guitars in my set? I want to know if any of the doubles are out of sync anywhere. Jayson Scratch and Jason Scratch are a double too (they're named after the players, not L/R). just give me a report, don't change anything - Live is open and I'm working in it.",
-      "expected_output": "A read-only report covering the L/R doubles found from track names (After Riff Gtr, Bar 17 Gtr, Bar 17 High, Pretty Gtr) plus the explicit Jayson Scratch = Jason Scratch pair. It lists the placement flags with appropriate caution: the bars 68-70 Jayson half-beat slices read as a deliberate edit; Jason 346.3125 and 362.3125 (+0.0625) and Jayson 209.01 (+0.094) are flagged but not called bugs without an audio check; Bar 17 High R at 115.96 sits 0.04 beat (about 20 ms) early versus its copies. Audio-only results are presented as unconfirmed. Nothing is changed in Live or in the file.",
+      "prompt": "Generate the synthetic test sets by running `python3 evals/files/make_fixtures.py OUTDIR` with a fresh temporary output directory. This needs no source set, Live, or network. Work only from the generated files and bundled scripts; use installed Python dependencies rather than downloading packages. Then do a full read-only timing audit of full-audit.als. Scratch A and Scratch B are a double too, despite their names. Cover all the doubles, using placement checks and source attack-envelope measurements. The matching half-beat slices on both Scratch tracks in bars 10-12 are an intentional rhythmic edit: account for them in the report. Use clean-control.als to check the detectors. No amp-rendered stems are available. Do not change the sets or samples, connect to Live, or move anything. Reports in your working directory are fine.",
+      "expected_output": "Covers Rhythm L/R, Clean L/R, Audio L/R and explicit Scratch A/B. Flags Rhythm R 19.96 as 0.04 beat (20 ms) early and suggests 20 if approved. Explains the six half-beat slice flags on Scratch A/B at 36.5, 40.5, 44.5 as intentional and synchronized. Detects Audio R trailing L about 20-22 ms despite clean placement; reports that as DI-only, unconfirmed without independent render or listening. Clean L/R and the clean control remain clean. Provides measured evidence and controls, accounts for every placement flag, and treats G3 as manual/unconfirmed and G4 as not applicable. No Live or input writes.",
+      "expectations": [
+        "The report covers all four doubles: auto-detected Rhythm L/R, Clean L/R, Audio L/R, and the explicit Scratch A=Scratch B pair; runs the bundled placement and attack-audit scripts.",
+        "Identifies Rhythm R at 19.96 as -0.04 beat (about 20 ms) early versus its other copies, corroborated by the source attacks, and proposes 20 as the start if a correction is approved.",
+        "Accounts for all six half-beat placement flags on Scratch A and B at 36.5, 40.5 and 44.5 as intentional synchronized slices; does not recommend moving them.",
+        "Finds Audio R trailing Audio L by about 20-22 ms from the attack-envelope output even though their placement check is clean; labels this single-method lead as unconfirmed without independent renders or listening, and does not invent a render result.",
+        "Reports Clean L/R and clean-control.als as clean based on executed placement and audio checks, and runs placement and DI positive controls on a clean reused clip with actual control results.",
+        "Accounts for every placement flag in a report or HANDOFF, states that G3 lacks an independent render and remains manual or unconfirmed, and G4 is not applicable because this is an audit only.",
+        "Leaves generated input .als and WAV files unchanged after generation and makes no Live socket connection, Ableton MCP call, or computer-use action. Writing report files is allowed."
+      ],
       "files": [
         "evals/files/make_fixtures.py"
-      ],
-      "expectations": [
-        "The report covers the doubles After Riff Gtr L/R, Bar 17 Gtr L/R, Bar 17 High L/R and Pretty Gtr L/R, plus Jayson Scratch = Jason Scratch.",
-        "The report mentions the Jayson Scratch clips in bars 68-70 (beats 268.5, 272.5, 276.5) offset by half a beat, and treats them as a deliberate slice or rhythm edit rather than recommending a move.",
-        "The report flags the Jason Scratch clips at 346.3125 and 362.3125 as +0.0625 beat off their take, and does not recommend moving them without an audio check or listening.",
-        "The report flags the Jayson Scratch clip at about beat 209.01 (bar 53) as about 0.094 beat (about 47 ms) off its take, and qualifies it (possibly deliberate, or needs listening) rather than calling it a bug.",
-        "The report flags the Bar 17 High R clip at beat 115.96 (bars 29-30) as 0.04 beat (about 20 ms) early compared with its other copies.",
-        "The run made no Live socket connection, ableton-mcp tool call or computer-use action, and left the input .als file unmodified."
       ]
     }
   ]
