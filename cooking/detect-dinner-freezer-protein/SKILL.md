@@ -28,7 +28,7 @@ Callers invoke this skill in either of two shapes:
 
 # Output
 
-Reply with **only** this one plain-text line as your entire final message (fields separated by `; `, no line breaks):
+Reply with **only** this one plain-text line as your entire final message (fields separated by a semicolon and one space, no line breaks):
 
 ```text
 protein: <lowercased keyword or null>; source: <specific | generic | url-fetch | skipped>; reason: <lowercased explanation>
