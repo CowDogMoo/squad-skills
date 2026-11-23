@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: "Shared review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents, or for any file- or repo-scale source review that either fixes in place or is report only/readonly, including prompts that inject a Pre-discovered source files list. Not for explaining review practice, reviewing a one-line diff, review criteria (the per-language review-criteria skills), or security audits."
+description: "Shared review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents, a repo-scale review in edit or readonly mode, or a review prompt that injects a Pre-discovered source files list. Not for a conversational review that just asks what you'd change in a file or package (the per-language review-criteria skills), explaining review practice, reviewing a one-line diff, or security audits."
 ---
 # Review Loop
 
