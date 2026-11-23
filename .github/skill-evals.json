@@ -5,6 +5,15 @@
   "trigger_threshold": 0.6,
   "max_cost_usd": 10,
   "ci_runnable": {
+    "ableton-double-track-timing": {
+      "allow_tools": [
+        "Bash",
+        "Write"
+      ],
+      "python_requirements": "scripts/requirements.txt",
+      "max_turns": 40,
+      "timeout_seconds": 900
+    },
     "comment-scrub-playbook": {
       "allow_tools": [
         "Bash",

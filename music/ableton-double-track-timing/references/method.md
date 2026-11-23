@@ -161,10 +161,12 @@ evidence.
   follow as unresolvable.
 - **Collateral:** run once with an incomplete allowed list (or none) to see
   that it fails.
-- **Whole pipeline:** `evals/files/make_fixtures.py SOURCE.als OUTDIR` writes
-  a copy of a set with a planted +0.0625-beat nudge. It edits the raw XML,
-  re-gzips the file, and proves that only those clips moved. The skill must
-  find the plant and recommend undoing it.
+- **Offline evals:** `evals/files/make_fixtures.py OUTDIR` generates gzipped
+  XML parser fixtures and short synthetic attack signals without a source
+  set. Cases cover +0.0625-beat nudges, a -20 ms placement slip, a +20 ms
+  audio-only slip, deliberate slices, and a clean control. These sparse
+  signals test placement and attack correlation; real guitar recordings,
+  amp-render cross-checks, and Live edits are outside this CI case set.
 
 ## 7. Numbers from the reference song (Coven, 2026-11-22)
 
