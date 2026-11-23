@@ -62,7 +62,7 @@ It builds two files that every later step depends on:
 
 **Its stdout is the authoritative copy of both.** It prints the overall
 percentage, the whole queue, and the lowest-hit rows for each queued unit
-(the first 15 units; `SQUAD_HITS_UNITS` raises that). Sandboxed shells can give
+(the first 15 units). Sandboxed shells can give
 every command a fresh `/tmp`, so a later `grep /tmp/squad-uncovered.out` may
 find nothing. When that happens, work from the Step 1 output. Don't re-run the
 script or any coverage command to get the data back; that is the re-measuring

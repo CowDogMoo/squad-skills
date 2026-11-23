@@ -74,11 +74,11 @@ cat /tmp/squad-targets.txt 2>/dev/null || echo "(empty queue)"
 echo "=== queue size ==="
 wc -l </tmp/squad-targets.txt 2>/dev/null || echo 0
 
-# Lowest-hit data for the first SQUAD_HITS_UNITS queued units, the same rows
+# Lowest-hit data for the first 15 queued units, the same rows
 # references/<lang>.md tells the worker to grep out of /tmp/squad-uncovered.out.
 echo "=== lowest-hit data per queued unit (rows of /tmp/squad-uncovered.out) ==="
 if [ -s /tmp/squad-targets.txt ] && [ -s /tmp/squad-uncovered.out ]; then
-	head -n "${SQUAD_HITS_UNITS:-15}" /tmp/squad-targets.txt | while IFS=$'\t' read -r unit _; do
+	head -n 15 /tmp/squad-targets.txt | while IFS=$'\t' read -r unit _; do
 		echo "--- $unit"
 		case "$lang" in
 		go)
