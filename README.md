@@ -399,9 +399,11 @@ it starts by hand (`gh workflow run skill-evals.yaml --ref main`, with
 `-f skill=<name>` for one skill), never on pull request content, and
 each run waits for the owner to approve the `skill-evals` environment,
 which holds the Claude token. Skills that need live hardware, a desktop
-app, or the network are listed under `ci_skipped` with the reason. The
-header of `.github/workflows/skill-evals.yaml` describes how the job
-keeps the token away from skill content.
+app, or the network are listed under `ci_skipped` with the reason; an
+allowlisted skill with only some such cases names them in its
+`skip_cases` (`"case-1": "<reason>"`), and the judge summary lists them
+as skipped. The header of `.github/workflows/skill-evals.yaml`
+describes how the job keeps the token away from skill content.
 
 `claude plugin eval` blocks the agent from reading any directory named
 `evals/`, so the agent can't see its expectations. CI therefore
