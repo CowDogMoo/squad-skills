@@ -7,7 +7,7 @@ description: Given a dish name (and optionally a recipe URL), determine what pro
 
 You are deciding what protein to take out of the freezer in the morning so it is thawed by dinner. Given a dish name (and optionally a recipe URL), return the normalized lowercase protein keyword, or `null` with a reason when nothing needs thawing.
 
-This is a pure transformation: no side effects, no calendar writes, and no conversational prose. Whether the caller passes structured fields or asks a natural-language question (such as `"What do I need to defrost for chicken Tinga tacos tonight?"`), extract the dish name and optional URL and reply **only** with the three-line plain-text record defined under `# Output`. The caller owns rendering any reminder sentence such as `Take out {protein} for tonight's dinner`.
+This is a pure transformation: no side effects, no calendar writes, and no conversational prose. Whether the caller passes structured fields or asks a natural-language question (such as `"What do I need to defrost for chicken Tinga tacos tonight?"`), extract the dish name and optional URL and reply **only** with the single-line plain-text record defined under `# Output`. The caller owns rendering any reminder sentence such as `Take out {protein} for tonight's dinner`.
 
 # Host-environment translation (READ FIRST)
 
@@ -28,20 +28,18 @@ Callers invoke this skill in either of two shapes:
 
 # Output
 
-Reply with **only** these three plain-text lines as your entire final message:
+Reply with **only** this one plain-text line as your entire final message (fields separated by `; `, no line breaks):
 
 ```text
-protein: <lowercased keyword or null>
-source: <specific | generic | url-fetch | skipped>
-reason: <lowercased explanation>
+protein: <lowercased keyword or null>; source: <specific | generic | url-fetch | skipped>; reason: <lowercased explanation>
 ```
 
 Formatting rules for every response:
 
-- **Three lines only, nothing else:** emit no greeting, no full-sentence prose before or after, no `Take out ...` reminder sentence, no JSON braces, and no Markdown code fences (` ``` `).
-- **All lowercase, unquoted, and trimmed:** every character across all three lines must be lowercase (write `url`, not `URL`). Never wrap `protein` or any other value in double quotes (`"..."`), single quotes (`'...'`), backticks (`` `...` ``), or bold/italic markers (`**...**`, `*...*`). Trim all leading and trailing whitespace on every value and line.
+- **One line only, nothing else:** emit no line breaks, no greeting, no full-sentence prose before or after, no `Take out ...` reminder sentence, no JSON braces, and no Markdown code fences (` ``` `).
+- **All lowercase, unquoted, and trimmed:** every character in the line must be lowercase (write `url`, not `URL`). Never wrap `protein` or any other value in double quotes (`"..."`), single quotes (`'...'`), backticks (`` `...` ``), or bold/italic markers (`**...**`, `*...*`). Trim all leading and trailing whitespace on every value and on the line itself.
 - **Pluralization:** use plural for items stocked and thawed as count plurals (`meatballs`, `burgers`, `sausages`); use singular for cuts, birds, fillets, and shellfish keywords (`chicken`, `steak`, `pork`, `salmon`, `shrimp`).
-- **Always populate `reason`** in plain lowercase words (avoid apostrophes or quotes):
+- **Always populate `reason`** in plain lowercase words (avoid apostrophes, quotes, and semicolons):
   - When `protein` is matched (`specific`, `generic`, or `url-fetch`), state concisely how it was derived (for example, `matched specific keyword in dish name without url fetch`, `matched generic term in dish name without url fetch`, or `matched headline protein from recipe url`).
   - When `protein` is `null` (`skipped`), state why nothing needs thawing (see Step 4).
 
@@ -54,9 +52,7 @@ Take the **chicken** out of the freezer this morning so it's thawed by dinner. "
 Correct output:
 
 ```text
-protein: chicken
-source: specific
-reason: matched specific keyword in dish name without url fetch
+protein: chicken; source: specific; reason: matched specific keyword in dish name without url fetch
 ```
 
 # Step-by-step (first match wins)
@@ -75,25 +71,19 @@ Worked examples:
 - `"chicken Tinga tacos"` →
 
   ```text
-  protein: chicken
-  source: specific
-  reason: matched specific keyword in dish name without url fetch
+  protein: chicken; source: specific; reason: matched specific keyword in dish name without url fetch
   ```
 
 - `"pork belly bao"` →
 
   ```text
-  protein: pork
-  source: specific
-  reason: matched specific keyword in dish name without url fetch
+  protein: pork; source: specific; reason: matched specific keyword in dish name without url fetch
   ```
 
 - `"grilled steak salad"` →
 
   ```text
-  protein: steak
-  source: specific
-  reason: matched specific keyword in dish name without url fetch
+  protein: steak; source: specific; reason: matched specific keyword in dish name without url fetch
   ```
 
 ## 2. Generic protein-bearing term in the dish name (source = generic)
@@ -114,17 +104,13 @@ Worked examples:
 - `"smash burgers"` →
 
   ```text
-  protein: burgers
-  source: generic
-  reason: matched generic term in dish name without url fetch
+  protein: burgers; source: generic; reason: matched generic term in dish name without url fetch
   ```
 
 - `"weeknight fish stew"` →
 
   ```text
-  protein: fish
-  source: generic
-  reason: matched generic term in dish name without url fetch
+  protein: fish; source: generic; reason: matched generic term in dish name without url fetch
   ```
 
 ## 3. URL fallback (source = url-fetch)
@@ -144,9 +130,7 @@ Worked example:
 - Input `{dish_name: "spicy stir fry", recipe_url: "https://example.com/sichuan-stir-fry"}` where fetch finds `<title>Sichuan Chicken Stir Fry</title>` and `1.5 lb chicken thighs` in JSON-LD →
 
   ```text
-  protein: chicken
-  source: url-fetch
-  reason: matched headline protein from recipe url
+  protein: chicken; source: url-fetch; reason: matched headline protein from recipe url
   ```
 
 If the fetch fails (paywall, timeout, network error), go to Step 4 with `could not determine protein from recipe link`. If the fetch succeeds and no animal protein appears in title, ingredients, or description, the dish is meatless; go to Step 4 with the vegetarian reason.
@@ -166,9 +150,7 @@ Worked example:
 - `"chickpea curry"` →
 
   ```text
-  protein: null
-  source: skipped
-  reason: vegetarian - meatless dish needs no freezer thawing
+  protein: null; source: skipped; reason: vegetarian - meatless dish needs no freezer thawing
   ```
 
 # Edge cases
@@ -182,8 +164,8 @@ Worked example:
 
 - First match wins, in order: Step 1 → Step 2 → Step 3 → Step 4.
 - Step 3 (URL fetch) runs **only** when Steps 1 and 2 both miss and `recipe_url` is provided.
-- Output **only** the three-line `protein` / `source` / `reason` record: no prose sentences, no Markdown formatting (`**`, `*`, `` ` ``, ` ``` `), no JSON braces, and no quotes (`"`, `'`).
-- Every character in the output is lowercase, with no leading or trailing whitespace on any value or line.
+- Output **only** the single-line `protein: ...; source: ...; reason: ...` record: no line breaks, no prose sentences, no Markdown formatting (`**`, `*`, `` ` ``, ` ``` `), no JSON braces, and no quotes (`"`, `'`).
+- Every character in the output is lowercase, with no leading or trailing whitespace on any value or on the line.
 - Every `null` result must include `source: skipped` and a specific lowercase `reason`.
 - Never infer or guess a protein you did not observe in the dish name or fetched recipe.
 
