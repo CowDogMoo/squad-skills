@@ -24,13 +24,25 @@ Songsterr ruleset terms in references/songsterr.md.
     python tab_build.py section.spec --tuning E2,A2,D3,G3,B3,E4 \\
         --single-note-durations --out riff.txt
 
-Input lines are `BAR START_BEAT END_BEAT NOTE`, beats 1-based within the bar, as
-emitted by riff_cycle.py and stamp_cycle.py. Output is a gp_tab riff string:
-`DURATION:STRING.FRET` beats, bars separated by `|`.
+**3. Dyads and chords, and tremolo.** A spec line may list several notes
+(`1 2.0 5.0 A#3 F#4`), the same format riff_midi.py reads; they are fingered
+together on different strings within the hand's reach. `--tremolo 16` writes
+every segment as straight sixteenths, re-picked, which is how a tremolo riff is
+tabbed, instead of solving held note values.
+
+    python tab_build.py riff.spec --tuning E2,A2,D3,G3,B3,E4 --tremolo 16 \\
+        --out riff.txt
+
+Input lines are `BAR START_BEAT END_BEAT NOTE [NOTE ...]`, beats 1-based within
+the bar, as emitted by riff_cycle.py and stamp_cycle.py and read by
+riff_midi.py. Output is a gp_tab riff string: `DURATION:STRING.FRET` beats
+(chords joined with `+`), bars separated by `|`.
 """
 from __future__ import annotations
 
 import argparse
+import itertools
+import re
 import sys
 
 import librosa
@@ -66,6 +78,7 @@ CROSS_STRING_JUMP_MIN_FRET_DELTA = 3
 STRING_STAY_BONUS = 2.0
 SHIFT_WEIGHT = 1.0
 MEAN_FRET_BIAS = 0.25
+CHORD_SPAN_WEIGHT = 1.0      # per fret between a chord's lowest and highest fretted note
 
 
 def read_spec(path):
@@ -73,13 +86,22 @@ def read_spec(path):
     stream = sys.stdin if path == "-" else open(path)
     with stream as fh:
         for raw in fh:
-            line = raw.strip()
-            if not line or line.startswith("#"):
+            # a comment starts at a '#' that begins the line or follows
+            # whitespace; the '#' inside A#3 is a sharp
+            line = re.sub(r"(^|\s)#.*$", "", raw).strip()
+            if not line:
                 continue
             parts = line.split()
-            if len(parts) != 4:
-                raise SystemExit(f"malformed spec line (want 'BAR START END NOTE'): {line!r}")
-            rows.append((int(parts[0]), float(parts[1]), float(parts[2]), parts[3]))
+            try:
+                if len(parts) < 4:
+                    raise ValueError
+                notes = tuple(p.replace("\u266f", "#") for p in parts[3:])
+                for n in notes:
+                    librosa.note_to_midi(n)
+                rows.append((int(parts[0]), float(parts[1]), float(parts[2]), notes))
+            except (ValueError, librosa.util.exceptions.ParameterError):
+                raise SystemExit(f"malformed spec line (want 'BAR START END NOTE [NOTE ...]'): "
+                                 f"{raw.strip()!r}") from None
     return rows
 
 
@@ -130,7 +152,7 @@ def solve_bar(attack_ticks, bar_ticks, durations=DURATIONS):
 
 
 def note_for(segment_lo, segment_hi, notes):
-    """The note whose measured span overlaps this segment most, or None."""
+    """The notes (a tuple) whose measured span overlaps this segment most, or None."""
     best, best_overlap = None, 0.0
     for lo, hi, name in notes:
         overlap = min(hi, segment_hi) - max(lo, segment_lo)
@@ -145,6 +167,36 @@ def fret_candidates(midi, tuning_midi, max_fret):
     return [(n - i, midi - open_midi)
             for i, open_midi in enumerate(tuning_midi)
             if 0 <= midi - open_midi <= max_fret]
+
+
+def chord_options(midis, tuning_midi, max_fret, reach):
+    """Every way to finger a chord: one (string, fret) per note, no string used
+    twice, fretted notes within the hand's reach. Ordered like `midis`."""
+    per_note = [fret_candidates(m, tuning_midi, max_fret) for m in midis]
+    for m, opts in zip(midis, per_note):
+        if not opts:
+            raise SystemExit(f"MIDI {m} ({librosa.midi_to_note(m)}) is not reachable "
+                             f"on this tuning within {max_fret} frets")
+    out = []
+    for combo in itertools.product(*per_note):
+        if len({s for s, _ in combo}) != len(combo):
+            continue
+        fretted = [f for _, f in combo if f]
+        if fretted and max(fretted) - min(fretted) > reach:
+            continue
+        out.append(combo)
+    if not out:
+        names = " ".join(librosa.midi_to_note(m) for m in midis)
+        raise SystemExit(f"no fingering plays {names} together within a {reach}-fret reach")
+    return out
+
+
+def chord_cost(combo):
+    """What holding this shape costs beyond its lowest note: its span and how
+    far up the neck the other notes sit."""
+    fretted = [f for _, f in combo if f]
+    span = max(fretted) - min(fretted) if fretted else 0
+    return CHORD_SPAN_WEIGHT * span + MEAN_FRET_BIAS * sum(f for _, f in combo[1:])
 
 
 def transition_cost(prev, cur, reach):
@@ -165,7 +217,12 @@ def transition_cost(prev, cur, reach):
 
 
 def choose_fingering(midis, tuning_midi, max_fret, reach):
-    """Viterbi over (string, fret) options.
+    """Viterbi over fingerings. Each entry of `midis` is a tuple of MIDI numbers
+    (one for a single note, two for a dyad) or None for a rest; each result is
+    a tuple of (string, fret), one per note in the same order, or None.
+
+    A chord's lowest note carries the hand position from beat to beat, so a
+    lone note reduces to the single-note scorer exactly.
 
     Rests carry no hand position, so they are lifted out and spliced back in
     afterwards - otherwise a rest would break position continuity across it and
@@ -175,22 +232,16 @@ def choose_fingering(midis, tuning_midi, max_fret, reach):
     if not voiced:
         return [None] * len(midis)
 
-    options = []
-    for i, m in voiced:
-        opts = fret_candidates(m, tuning_midi, max_fret)
-        if not opts:
-            raise SystemExit(f"MIDI {m} ({librosa.midi_to_note(m)}) is not reachable "
-                             f"on this tuning within {max_fret} frets")
-        options.append(opts)
+    options = [chord_options(m, tuning_midi, max_fret, reach) for _, m in voiced]
 
-    best = {o: MEAN_FRET_BIAS * o[1] for o in options[0]}
+    best = {o: MEAN_FRET_BIAS * o[0][1] + chord_cost(o) for o in options[0]}
     back = [{o: None for o in options[0]}]
     for opts in options[1:]:
         cur, step = {}, {}
         for o in opts:
             chosen, chosen_cost = None, float("inf")
             for p, pc in best.items():
-                c = pc + transition_cost(p, o, reach)
+                c = pc + transition_cost(p[0], o[0], reach) + chord_cost(o)
                 if c < chosen_cost:
                     chosen, chosen_cost = p, c
             cur[o], step[o] = chosen_cost, chosen
@@ -219,8 +270,13 @@ def main() -> int:
                     help="solve each bar from the closed note-value vocabulary "
                          "(without this, measured spans are written as-is and "
                          "undrawable lengths get split into re-picked notes)")
+    ap.add_argument("--tremolo", type=int, choices=[8, 16, 32], default=0, metavar="DUR",
+                    help="write every segment as straight re-picked notes of this value "
+                         "(16 = sixteenths), the way a tremolo riff is tabbed")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
+    if args.tremolo and args.single_note_durations:
+        ap.error("--tremolo and --single-note-durations are alternatives; pick one")
 
     tuning_midi = [int(librosa.note_to_midi(t.strip())) for t in args.tuning.split(",")]
     if tuning_midi != sorted(tuning_midi):
@@ -240,7 +296,17 @@ def main() -> int:
         attacks = [lo for lo, _, _ in notes]
         attack_total += len(attacks)
 
-        if args.single_note_durations:
+        if args.tremolo:
+            step = 4 * TICKS_PER_BEAT // args.tremolo
+            if bar_ticks % step:
+                raise SystemExit(f"a {args.beats_per_bar:g}-beat bar is not a whole number of "
+                                 f"1/{args.tremolo} notes")
+            segments = [(str(args.tremolo), step)] * (bar_ticks // step)
+            off_grid = [lo for lo, hi, _ in notes if lo % step or hi % step]
+            if off_grid:
+                print(f"# warning: bar {bar}: {len(off_grid)} segment edge(s) fall between "
+                      f"1/{args.tremolo} slots and were rounded to the nearest slot", file=sys.stderr)
+        elif args.single_note_durations:
             segments = solve_bar(attacks, bar_ticks)
         else:
             spans, cursor = [], 0.0
@@ -264,13 +330,15 @@ def main() -> int:
             seg_notes.append(note_for(cursor, cursor + ticks, notes))
             cursor += ticks
 
-        midis = [int(librosa.note_to_midi(n)) if n else None for n in seg_notes]
+        midis = [tuple(sorted(int(librosa.note_to_midi(n)) for n in group)) if group else None
+                 for group in seg_notes]
         path = choose_fingering(midis, tuning_midi, args.max_fret, args.reach)
 
         beats = []
         for (name, _ticks), place in zip(segments, path):
             kinds.add(name)
-            beats.append(f"{name}:r" if place is None else f"{name}:{place[0]}.{place[1]}")
+            beats.append(f"{name}:r" if place is None
+                         else f"{name}:" + "+".join(f"{s}.{f}" for s, f in place))
         out_bars.append(" ".join(beats))
 
         boundaries, c = set(), 0
@@ -283,7 +351,9 @@ def main() -> int:
     riff = " | ".join(out_bars)
     summary = (f"# {len(out_bars)} bar(s), {len(kinds)} duration kind(s): "
                f"{' '.join(sorted(kinds))}")
-    if args.single_note_durations:
+    if args.tremolo:
+        summary += f"; every segment re-picked as straight 1/{args.tremolo} notes (tremolo)"
+    elif args.single_note_durations:
         summary += f"; {swallowed_total} of {attack_total} attack(s) swallowed by the grid"
     else:
         summary += (f"\n# warning: durations came from measured spans; {undrawable} of "

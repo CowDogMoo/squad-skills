@@ -405,6 +405,51 @@ def main() -> int:
     if not forced or forced[0].split("; ")[1].startswith("0 of"):
         raise SystemExit(f"FAIL: the undrawable-span control did not fire:\n{naive}")
 
+    # tab_build --tremolo on the fixture's dyad spec, written to .gp5 by
+    # gp_tab.py riff, reloaded and exported to MIDI, must play exactly what the
+    # cleaned MIDI plays, slot by slot (positive control) ...
+    gp_tab = os.path.join(HERE, "gp_tab.py")
+    clean_mid = os.path.join(tmp, "dyad_clean.mid")
+    run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", clean_mid)
+
+    def tab_to_midi(spec, name):
+        built = run(os.path.join(HERE, "tab_build.py"), spec,
+                    "--tuning", "E2,A2,D3,G3,B3,E4", "--tremolo", "16")
+        riff = [ln for ln in built.splitlines() if ln and not ln.startswith("#")][0]
+        mid = os.path.join(tmp, f"{name}.mid")
+        written = run(gp_tab, "riff", os.path.join(tmp, f"{name}.gp5"), "--tuning", "E2 A2 D3 G3 B3 E4",
+                      "--tempo", "120", "--notes", riff, "--midi", mid)
+        return riff, written, mid
+
+    riff_line, out, tab_mid = tab_to_midi(os.path.join(fx, "riff.spec"), "dyad")
+    if "reloaded" not in out or "4 measures" not in out or "E2 A2 D3 G3 B3 E4" not in out:
+        raise SystemExit(f"FAIL: gp_tab.py riff did not report the reloaded file:\n{out}")
+    if "+" not in riff_line or any(t.split(":")[0] != "16" for t in riff_line.replace("|", " ").split()):
+        raise SystemExit(f"FAIL: --tremolo did not write straight sixteenth dyads:\n{riff_line}")
+    if not riff_line.startswith("16:3.3 "):
+        raise SystemExit(f"FAIL: the A#3 pedal is not on the G string (3.3):\n{riff_line}")
+    out = run(os.path.join(HERE, "compare_rolls.py"), tab_mid, clean_mid, "--expect", "match")
+    if "ROLLS MATCH" not in out:
+        raise SystemExit(f"FAIL: the written .gp5 does not play the spec:\n{out}")
+    # ... and a tab built from a spec one note off must NOT match (negative control).
+    off_spec = os.path.join(tmp, "dyad_off.spec")
+    with open(off_spec, "w") as fh:
+        fh.write(open(os.path.join(fx, "riff.spec")).read().replace("A#3 F4", "A#3 E4"))
+    _, _, off_mid = tab_to_midi(off_spec, "dyad_off")
+    run(os.path.join(HERE, "compare_rolls.py"), off_mid, clean_mid, "--expect", "mismatch")
+    # A spec line with a non-note in the note field is rejected.
+    junk = os.path.join(tmp, "junk.spec")
+    with open(junk, "w") as fh:
+        fh.write("1 1.0 2.0 A#3 banana\n")
+    p = subprocess.run([PY, os.path.join(HERE, "tab_build.py"), junk, "--tuning", "E2,A2,D3,G3,B3,E4"],
+                       capture_output=True, text=True)
+    if p.returncode != 1 or "malformed spec line" not in p.stderr:
+        print(p.stdout[-3000:], p.stderr[-3000:])
+        raise SystemExit(f"FAIL: tab_build.py junk spec exit {p.returncode}, expected 1 with "
+                         "a 'malformed spec line' message")
+    print("tab_build: dyad tremolo .gp5 (via gp_tab.py riff) replays the cleaned MIDI; "
+          "one-note-off and malformed controls refused")
+
     # ss_convert: a track whose durations we chose, and a bar that breaks them.
     track = {
         "tuning": [64, 59, 55, 50, 45, 40],
@@ -473,6 +518,17 @@ def main() -> int:
         raise SystemExit(f"FAIL: these scripts are referenced by no document: {orphans}")
     print(f"skill docs: {len(named)} referenced script(s) all present, "
           f"{len(on_disk)} script(s) all referenced")
+    # scripts/gp_tab.py is a byte-identical copy of the guitar-pro skill's, so
+    # this skill runs on its own; a copy that drifts from the original fails.
+    upstream = os.path.join(repo, "music", "guitar-pro", "scripts", "gp_tab.py")
+    if os.path.exists(upstream):
+        with open(upstream, "rb") as a, open(os.path.join(HERE, "gp_tab.py"), "rb") as b:
+            if a.read() != b.read():
+                raise SystemExit("FAIL: scripts/gp_tab.py differs from music/guitar-pro/scripts/gp_tab.py; "
+                                 "copy the guitar-pro file over this one")
+        print("gp_tab.py: identical to the guitar-pro skill's copy")
+    else:
+        print(f"gp_tab.py: {upstream} not present (standalone install); copy check skipped")
     print("TGR SKILL DOCS PASSED")
 
     print("SELFTEST PASSED")
