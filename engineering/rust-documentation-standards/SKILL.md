@@ -29,8 +29,8 @@ Comprehensive reference for writing idiomatic Rust documentation.
   informative std-style noun phrase (`A UTF-8–encoded, growable string.`) or
   a verb sentence (`Holds the backoff schedule and attempt limit for
   retrying failed requests.`); only an uninformative fragment is wrong.
-  Field, variant, and constant docs may be a short noun phrase (`When the
-  task started.`) or a sentence (`The task failed with an error.`).
+  Field, variant, and constant docs may be a short noun phrase (`The task's
+  output.`) or a sentence (`The task failed with an error.`).
 
 ## Doc Comment Syntax
 
