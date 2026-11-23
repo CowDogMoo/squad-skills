@@ -146,7 +146,7 @@ Include only the categories that apply to a release (omit empty headings), alway
 
 ### Entry Format
 
-Begin every bullet directly with a past-tense verb (`Added`, `Changed`, `Updated`, `Renamed`, `Deprecated`, `Removed`, `Fixed`, `Patched`) as the first word after `-`. Place callouts such as `(**BREAKING**)`, migration notes, and issue or PR references (`(#123)`) after the opening verb phrase, never as a prefix ahead of the verb.
+In Keep a Changelog markdown, begin every bullet directly with a past-tense verb (`Added`, `Changed`, `Updated`, `Renamed`, `Deprecated`, `Removed`, `Fixed`, `Patched`) as the first word after `-`. Place callouts such as `(**BREAKING**)`, migration notes, and issue or PR references (`(#123)`) after the opening verb phrase, never as a prefix ahead of the verb. antsibull-changelog fragments are the one exception: they keep the required `<module/role/plugin> -` prefix, and the past-tense verb comes directly after it (see [Ansible/antsibull-changelog Format](#ansibleantsibull-changelog-format)).
 
 **Good entries:**
 
@@ -174,7 +174,7 @@ Begin every bullet directly with a past-tense verb (`Added`, `Changed`, `Updated
 | Guideline | Example |
 |-----------|---------|
 | Use past-tense verbs | "Added", "Fixed", "Removed" in changelogs (commits use imperative "Add", "Fix") |
-| Lead with the verb | First word after `-` is the past-tense verb; place `(**BREAKING**)` or `(#123)` after |
+| Lead with the verb | First word after `-` is the past-tense verb (antsibull: first word after `<name> -`); place `(**BREAKING**)` or `(#123)` after |
 | Be specific | Name the function, command, field, or behavior that changed |
 | Include references | Issue numbers, PR links, or CVEs where known |
 | Keep entries concise | One change per entry |
@@ -388,7 +388,7 @@ bugfixes:
 
 ### Entry Quality
 
-- [ ] Begins directly with a past-tense verb (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`), with `(**BREAKING**)` placed after the verb phrase rather than before
+- [ ] Begins directly with a past-tense verb (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`), or with `<name> -` then the verb in antsibull fragments, with `(**BREAKING**)` placed after the verb phrase rather than before
 - [ ] Specific about what changed
 - [ ] Includes reference numbers
 - [ ] Single change per entry

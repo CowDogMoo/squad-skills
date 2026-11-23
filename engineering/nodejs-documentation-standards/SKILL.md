@@ -295,8 +295,8 @@ inventing an unverified unit:
  */
 export class RateLimitError extends Error {
   /**
-   * Delay or timestamp indicating when the caller may retry the
-   * rate-limited operation (in ms when issued by the HTTP client).
+   * How long the caller should wait before retrying the rate-limited
+   * operation, as supplied by the code that threw this error.
    */
   retryAfter: number;
 }
