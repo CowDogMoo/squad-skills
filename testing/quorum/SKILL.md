@@ -1,6 +1,6 @@
 ---
 name: quorum
-description: "Unanimous completion gate — \"is the task complete? No until everyone agrees.\" Runs deterministic checks plus one evidence-obligated skeptic seat (independent read-only subagent by default; multi-seat panels only on explicit request) over numbered acceptance criteria, adjudicated by judge.mjs. Any veto, abstention, absent, or malformed ballot means NOT_COMPLETE: ballots are never hand-authored or repaired, a missing, prose, or schema-invalid seat gets at most one re-ask with the exact same rendered prompt before staying absent and failing closed, and every veto cites an unmet criterion. Use for \"/quorum\", \"is it done\", \"is the task complete\", \"run the completion gate\", before declaring any substantial task or architectural evaluation finished, or when adjudicating a quorum run (panel.json, ballots/, verdict.json) or handling missing, prose, or malformed seat ballots, re-asks, and seat faults."
+description: "Unanimous completion gate — \"is the task complete? No until everyone agrees.\" Runs deterministic checks plus one evidence-obligated skeptic seat (independent read-only subagent by default; multi-seat panels only on explicit request) over numbered acceptance criteria, adjudicated by judge.mjs. Any veto, abstention, absent, or malformed ballot means NOT_COMPLETE: ballots are never hand-authored or repaired, a missing, prose, or schema-invalid seat gets exactly one re-ask with the exact same rendered prompt before staying absent and failing closed, and every veto cites an unmet criterion. Use for \"/quorum\", \"is it done\", \"is the task complete\", \"run the completion gate\", before declaring any substantial task or architectural evaluation finished, or when adjudicating a quorum run (panel.json, ballots/, verdict.json) or handling missing, prose, or malformed seat ballots, re-asks, and seat faults."
 ---
 
 # Quorum: unanimous completion gate
@@ -289,7 +289,8 @@ seat returns prose, schema-invalid JSON, or no output:
    rendered seat), and let `judge.mjs` record the seat as `absent` and fail
    closed to `NOT_COMPLETE` — reported as a seat fault / infrastructure signal,
    never softened into a tentative hold (`"NOT_COMPLETE for now"`). A seat
-   whose re-ask has not run yet is handled the same way in this pass.
+   whose re-ask has not run yet is likewise absent and NOT_COMPLETE in this
+   pass; only a re-ask that actually ran counts as the one retry.
 
 ### 4. Judge
 
