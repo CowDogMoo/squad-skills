@@ -360,10 +360,13 @@ may be that voice's harmonic or a played octave (an octave shape, a
 root-fifth-octave chord, an octave over a pedal). Both start and stop on the
 same sixteenths as the voice, so matching slots prove nothing either way;
 never cite them as proof. Write such a candidate into the spec, MIDI and tab
-only when it is independently played (the per-sixteenth table shows it in the
-top two in slots where the voice an octave below is not sounding) or the user
-named that voicing. Leave every other octave candidate out of the reading and
-list it in the reply as a possible played octave to check by ear.
+only when it is independently played or the user named that voicing.
+Independently played means the per-sixteenth table shows it in the top two for
+at least two consecutive slots where the voice an octave below is out of the
+top two, or a beat's per-beat summary lists it without that lower voice. A
+single slot where it edges past the lower voice is a flicker, not a note.
+Leave every other octave candidate out of the reading and list it in the
+reply as a possible played octave to check by ear.
 
 When a voice fades rather than stops, end it where the evidence ends and say
 it may ring on, so the user checks that by ear. The table in the reply, the
@@ -555,8 +558,10 @@ the folder. Put these in it, each copied from a script's output:
   rejection rests on printed evidence: the long-term block's difference-tone
   tag, or the octave check's `verdict:` for the lowest voice's register, which
   rules out reading that voice an octave high or low. An octave above a
-  sounding voice that Step 5 kept out of the reading is listed as a possible
-  played octave to check by ear, not called a harmonic. Any other candidate
+  sounding voice goes into the reading only on Step 5's independent-play
+  test (quote the consecutive slot ids or the per-beat entry that pass it) or
+  the user's named voicing; otherwise it is listed as a possible played
+  octave to check by ear, not called a harmonic. Any other candidate
   neither of those settles stays out of the reading and is listed as
   unresolved, not argued away with your own arithmetic.
 - Keep the reply consistent with itself. Do not write a note over a stretch
