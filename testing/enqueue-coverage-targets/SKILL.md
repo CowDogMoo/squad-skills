@@ -180,7 +180,8 @@ For each batch:
      across 7 files this way.
    - If no test file exists, `Write` a new one named per the language's
      mirror rule (in the reference file). In a git repository (always true
-     for `"$work"`), then run `git add -N <new-file>` so `git diff` tracks it.
+     for `"$work"`), then run `git -C <project dir, or "$work"> add -N
+     <new-file>` so `git diff` tracks it.
    - Every symbol you reference must have appeared in source you read this
      iteration.
    - Each file must contain at least one real test with meaningful
@@ -202,12 +203,15 @@ point is exactly the truncation failure above.
 
 From inside the project directory (or `"$work"` when Step 1a created a working
 copy), run the language's build, test, and coverage re-measurement commands
-once (see `references/<lang>.md`), plus `git diff --stat` and `git diff` on
-the touched test files to confirm zero existing test functions were removed or
-renamed. If an in-place project has no git baseline
-(`git rev-parse --is-inside-work-tree` fails), don't create one; skip
-`git diff` and report `Diff Summary: not available (no git baseline)`. Fix
-only test code on failure.
+once (see `references/<lang>.md`). Then, limited to the files in Files
+Touched so other work in the tree stays out of the report, run
+`git -C <project dir, or "$work"> diff --stat -- <touched files>` and
+`git -C <project dir, or "$work"> diff -- <touched files>` to confirm zero
+existing test functions were removed or renamed. If an in-place project has
+no git baseline (`git -C <project dir> rev-parse --is-inside-work-tree`
+fails), don't create one; skip `git diff` and report
+`Diff Summary: not available (no git baseline)`. Fix only test code on
+failure.
 
 Copy the real re-measured percentage into the report. If you skip
 re-measurement, the `After` field says `not measured` — a projected number is
@@ -223,7 +227,7 @@ Coverage Report
   Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
   Working Copy: <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
 Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
-Diff Summary: <none | not available (no git baseline) | `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
+Diff Summary: <none | not available (no git baseline) | `git diff --stat -- <touched files>` output plus confirmation that 0 existing test functions were removed or renamed>
 Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
 Skipped: <none, or newline-indented `<unit or function> — <specific reason>` lines>
 Run Record:
