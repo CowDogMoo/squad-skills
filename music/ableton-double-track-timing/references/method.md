@@ -169,8 +169,9 @@ commands and measured results in GATES.md and the report.
   must be strictly below `--window-ms - 1` (default 24 ms). Convert the beat
   delta at the clip midpoint tempo, as the script does. A shift cancelling
   an existing lag is valid; the final lag need not exceed the flag threshold.
-  An out-of-window plant cannot establish sensitivity. Run per reported region, including the
-  clean reference. A MISSED result means the DI method can't resolve that region.
+  An out-of-window plant cannot establish sensitivity. Run per reported
+  region, including the clean reference. A MISSED result means the DI method
+  can't resolve that region.
 - **Render: `--control-shift-ms`.** The script shifts the second side's stems
   and requires at least 80% of clips to follow. It lists the clips that don't
   follow as unresolvable.
