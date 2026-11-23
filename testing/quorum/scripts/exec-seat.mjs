@@ -21,16 +21,22 @@
 //                          (default zero; use nonzero when the command is a
 //                          reproduction that MUST fail for the task to count
 //                          as complete)
+//   --reset                replace any existing ballot/raw output for <seat_id>
+//                          instead of accumulating checks into one ballot
 //
 // Writes <run-dir>/ballots/<seat_id>.json (canonical JSON) and the raw
-// combined output to <run-dir>/raw/<seat_id>.out. Exits 0 whenever a ballot
-// was written (any verdict), 1 on usage error.
+// combined output to <run-dir>/raw/<seat_id>.out. Multiple calls on the same
+// <run-dir> and <seat_id> accumulate checks into a single ballot (any
+// "incomplete" check keeps the seat "incomplete" with all failing criteria
+// preserved; else any "abstain" keeps it "abstain"; else "complete") unless
+// --reset is passed. Exits 0 whenever a ballot was written (any verdict), 1 on
+// usage or corrupt-prior-ballot error.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { canonicalJson } from './judge.mjs';
+import { canonicalJson, validateBallot } from './judge.mjs';
 
 function usage(msg) {
   console.error(`exec-seat: ${msg}`);
@@ -50,10 +56,16 @@ let criterion = `execution check passes: ${command.join(' ')}`;
 let cwd = process.cwd();
 let timeout = 300000;
 let expect = 'zero';
-for (let i = 2; i < head.length; i += 2) {
+let reset = false;
+for (let i = 2; i < head.length; i += 1) {
   const flag = head[i];
+  if (flag === '--reset') {
+    reset = true;
+    continue;
+  }
   const value = head[i + 1];
   if (value === undefined) usage(`flag ${flag} needs a value`);
+  i += 1;
   if (flag === '--criterion') criterion = value;
   else if (flag === '--cwd') cwd = value;
   else if (flag === '--timeout') timeout = Number(value);
@@ -62,6 +74,23 @@ for (let i = 2; i < head.length; i += 2) {
 }
 if (!['zero', 'nonzero'].includes(expect)) usage('--expect must be zero or nonzero');
 if (!Number.isFinite(timeout) || timeout <= 0) usage('--timeout must be a positive number of ms');
+
+const ballotPath = join(runDir, 'ballots', `${seatId}.json`);
+const rawOutPath = join(runDir, 'raw', `${seatId}.out`);
+let prior = null;
+if (!reset && existsSync(ballotPath)) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(ballotPath, 'utf8'));
+  } catch (err) {
+    usage(`existing ballot ${ballotPath} is unparsable (${err.message}); pass --reset to replace it`);
+  }
+  const check = validateBallot(parsed, seatId);
+  if (!check.valid) {
+    usage(`existing ballot ${ballotPath} is schema-invalid (${check.errors.join('; ')}); pass --reset to replace it`);
+  }
+  prior = parsed;
+}
 
 const started = Date.now();
 const res = spawnSync(command[0], command.slice(1), {
@@ -79,9 +108,15 @@ const notExecutable = exitCode === 126 || exitCode === 127;
 
 mkdirSync(join(runDir, 'ballots'), { recursive: true });
 mkdirSync(join(runDir, 'raw'), { recursive: true });
-writeFileSync(join(runDir, 'raw', `${seatId}.out`), output);
 
-const artifacts = {
+const priorOutput = prior !== null && existsSync(rawOutPath) ? readFileSync(rawOutPath, 'utf8') : '';
+const combinedOutput =
+  prior !== null && priorOutput.length > 0
+    ? `${priorOutput}${priorOutput.endsWith('\n') ? '' : '\n'}--- exec-seat check ---\n${output}`
+    : output;
+writeFileSync(rawOutPath, combinedOutput);
+
+const singleArtifacts = {
   command: command.join(' '),
   duration_ms: durationMs,
   exit_code: exitCode,
@@ -91,30 +126,30 @@ const artifacts = {
 };
 const firstLine = (output.split('\n').find((l) => l.trim().length > 0) ?? '').trim().slice(0, 200);
 
-let ballot;
+let singleBallot;
 if (timedOut || spawnFailed || notExecutable) {
   let why;
   if (timedOut) why = `execution timed out after ${timeout}ms`;
   else if (spawnFailed) why = `spawn failed: ${res.error.message}`;
   else why = `${command.join(' ')} exited ${exitCode} (command not found or not executable)${firstLine ? `: ${firstLine}` : ''}`;
-  ballot = {
+  singleBallot = {
     seat_id: seatId,
     jurisdiction: 'execution',
     verdict: 'abstain',
     unmet: [],
     evidence: [why],
-    artifacts,
+    artifacts: singleArtifacts,
   };
 } else {
   const met = expect === 'zero' ? exitCode === 0 : exitCode !== 0;
-  ballot = met
+  singleBallot = met
     ? {
         seat_id: seatId,
         jurisdiction: 'execution',
         verdict: 'complete',
         unmet: [],
         evidence: [`${command.join(' ')} exited ${exitCode} (expected ${expect})`],
-        artifacts,
+        artifacts: singleArtifacts,
       }
     : {
         seat_id: seatId,
@@ -127,8 +162,62 @@ if (timedOut || spawnFailed || notExecutable) {
           },
         ],
         evidence: [],
-        artifacts,
+        artifacts: singleArtifacts,
       };
 }
-writeFileSync(join(runDir, 'ballots', `${seatId}.json`), canonicalJson(ballot));
+
+let ballot = singleBallot;
+if (prior !== null) {
+  const priorArt = prior.artifacts && typeof prior.artifacts === 'object' ? prior.artifacts : {};
+  const prevChecks = typeof priorArt.checks_run === 'number' && priorArt.checks_run >= 1 ? priorArt.checks_run : 1;
+  const checksRun = prevChecks + 1;
+  const perCheck = {};
+  for (const [key, val] of Object.entries(priorArt)) {
+    if (key.startsWith('check_')) perCheck[key] = val;
+  }
+  if (prevChecks === 1 && typeof priorArt.command === 'string') {
+    perCheck.check_1_command = priorArt.command;
+    if (typeof priorArt.exit_code === 'number') perCheck.check_1_exit_code = priorArt.exit_code;
+    if (typeof priorArt.timed_out === 'boolean') perCheck.check_1_timed_out = priorArt.timed_out;
+  }
+  perCheck[`check_${checksRun}_command`] = command.join(' ');
+  perCheck[`check_${checksRun}_exit_code`] = exitCode;
+  perCheck[`check_${checksRun}_timed_out`] = timedOut;
+
+  const mergedExitCode =
+    singleBallot.verdict !== 'complete'
+      ? exitCode
+      : prior.verdict !== 'complete' && typeof priorArt.exit_code === 'number'
+        ? priorArt.exit_code
+        : exitCode;
+
+  const mergedArtifacts = {
+    ...perCheck,
+    checks_run: checksRun,
+    command: typeof priorArt.command === 'string' ? `${priorArt.command} && ${command.join(' ')}` : command.join(' '),
+    duration_ms: (typeof priorArt.duration_ms === 'number' ? priorArt.duration_ms : 0) + durationMs,
+    exit_code: mergedExitCode,
+    output_bytes: Buffer.byteLength(combinedOutput),
+    output_sha256: createHash('sha256').update(combinedOutput).digest('hex'),
+    timed_out: Boolean(priorArt.timed_out) || timedOut,
+  };
+
+  let mergedVerdict = 'complete';
+  if (prior.verdict === 'incomplete' || singleBallot.verdict === 'incomplete') {
+    mergedVerdict = 'incomplete';
+  } else if (prior.verdict === 'abstain' || singleBallot.verdict === 'abstain') {
+    mergedVerdict = 'abstain';
+  }
+
+  ballot = {
+    seat_id: seatId,
+    jurisdiction: prior.jurisdiction || 'execution',
+    verdict: mergedVerdict,
+    unmet: mergedVerdict === 'incomplete' ? [...(prior.unmet ?? []), ...singleBallot.unmet] : [],
+    evidence: [...(prior.evidence ?? []), ...singleBallot.evidence],
+    artifacts: mergedArtifacts,
+  };
+}
+
+writeFileSync(ballotPath, canonicalJson(ballot));
 console.log(`exec-seat ${seatId}: ${ballot.verdict}`);

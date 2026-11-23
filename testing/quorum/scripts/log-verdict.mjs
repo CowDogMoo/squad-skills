@@ -6,20 +6,44 @@
 //
 // Append: node log-verdict.mjs <run-dir> [--project <name>]
 // Label:  node log-verdict.mjs --label <run_id> correct|incorrect|unsure [--note "<text>"]
-// Log file: $QUORUM_STATE_DIR/verdicts.jsonl (default ~/.claude/quorum-state/).
+// Log file: $QUORUM_STATE_DIR/verdicts.jsonl (default ~/.claude/quorum-state/,
+// falling back to $TMPDIR/quorum-state/ when $HOME is read-only in a sandbox).
 // The default deliberately lives OUTSIDE the skill directory: the skill is a
 // symlink into a git repo, and run history is local state, not source.
 
 import { mkdirSync, readFileSync, appendFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 
-const stateDir = process.env.QUORUM_STATE_DIR || join(homedir(), '.claude/quorum-state');
-mkdirSync(stateDir, { recursive: true });
-const logPath = join(stateDir, 'verdicts.jsonl');
+const SANDBOX_UNWRITABLE_CODES = new Set(['EACCES', 'EPERM', 'EROFS', 'ENOENT']);
 const argv = process.argv.slice(2);
 const die = (m) => { console.error(`log-verdict: ${m}`); process.exit(1); };
+
+function appendRecord(record) {
+  const explicitDir = (process.env.QUORUM_STATE_DIR || '').trim();
+  const primaryDir = explicitDir || join(homedir(), '.claude/quorum-state');
+  const line = `${JSON.stringify(record)}\n`;
+  try {
+    mkdirSync(primaryDir, { recursive: true });
+    const logPath = join(primaryDir, 'verdicts.jsonl');
+    appendFileSync(logPath, line);
+    return { logPath, fallback: false };
+  } catch (err) {
+    if (explicitDir || !SANDBOX_UNWRITABLE_CODES.has(err?.code)) {
+      die(`cannot write to ${primaryDir}: ${err.message}`);
+    }
+    const fallbackDir = join(tmpdir(), 'quorum-state');
+    try {
+      mkdirSync(fallbackDir, { recursive: true });
+      const logPath = join(fallbackDir, 'verdicts.jsonl');
+      appendFileSync(logPath, line);
+      return { logPath, fallback: true };
+    } catch (fallbackErr) {
+      die(`cannot write to ${primaryDir} (${err.message}) or fallback ${fallbackDir} (${fallbackErr.message})`);
+    }
+  }
+}
 
 if (argv[0] === '--label') {
   const runId = argv[1];
@@ -35,8 +59,8 @@ if (argv[0] === '--label') {
     run_id: runId,
     ts: new Date().toISOString(),
   };
-  appendFileSync(logPath, `${JSON.stringify(record)}\n`);
-  console.log(`labeled ${runId}: ${label}`);
+  const { logPath, fallback } = appendRecord(record);
+  console.log(`labeled ${runId}: ${label}${fallback ? ` (fallback: ${logPath}; ~/.claude/quorum-state not writable)` : ''}`);
   process.exit(0);
 }
 
@@ -63,5 +87,5 @@ const record = {
   ts: new Date().toISOString(),
   verdict: verdict.verdict,
 };
-appendFileSync(logPath, `${JSON.stringify(record)}\n`);
-console.log(`logged ${runId}: ${verdict.verdict}`);
+const { logPath, fallback } = appendRecord(record);
+console.log(`logged ${runId}: ${verdict.verdict}${fallback ? ` (fallback: ${logPath}; ~/.claude/quorum-state not writable)` : ''}`);
