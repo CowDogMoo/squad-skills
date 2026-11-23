@@ -28,7 +28,7 @@ except FileNotFoundError:
     sys.exit(0)
 import re
 # Test code is never a queue unit: with --cov=. the suite measures itself.
-is_test = re.compile(r'(^|/)(tests?|testing)/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$').search
+is_test = re.compile(r'(^|/)tests?/|(^|/)(test_[^/]*|conftest)\.py$').search
 files = {p: i for p, i in data.get('files', {}).items() if not is_test(p)}
 rows = sorted((info.get('summary', {}).get('percent_covered', 0), path)
               for path, info in files.items())

@@ -65,6 +65,26 @@ class EnqueueTests(unittest.TestCase):
         self.assertNotIn("tests/test_pricing.py", res.stdout.split("=== queue size ===")[0])
         self.assertFalse((proj / ".coverage").exists())
 
+    def test_python_queues_shipped_testing_package_but_not_tests(self):
+        proj = self.tmp / "shipped-testing"
+        (proj / "mypkg" / "testing").mkdir(parents=True)
+        (proj / "tests").mkdir()
+        (proj / "mypkg" / "__init__.py").write_text("")
+        (proj / "mypkg" / "testing" / "__init__.py").write_text("")
+        (proj / "mypkg" / "testing" / "fixtures.py").write_text(
+            "def make(n):\n    if n > 0:\n        return n\n    return -n\n"
+        )
+        (proj / "tests" / "test_fixtures.py").write_text(
+            "from mypkg.testing.fixtures import make\n\n"
+            "def test_make():\n    assert make(1) == 1\n"
+        )
+        make_read_only(proj)
+        res = self.enqueue("python", str(proj), target="90")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        queue = res.stdout.split("=== queue size ===")[0]
+        self.assertIn("mypkg/testing/fixtures.py\t", queue)
+        self.assertNotIn("tests/test_fixtures.py", queue)
+
     def test_language_and_directory_arguments_work_in_either_order(self):
         proj = self.project("cov-py")
         res = self.enqueue(str(proj), "python", target="90")

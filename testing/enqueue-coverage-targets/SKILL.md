@@ -83,9 +83,9 @@ scope is worse than one that reports it can't proceed.
 
 If the project directory is read-only, or the request says to copy it before
 changing it, make a writable copy now and do every later step in the copy.
-Try `cp -r` first. If the shell denies the copy, recreate each file with `Read`
-then `Write`, once, with identical contents. That `Write` is the copy, not a
-change. Do not look for another way around a denial.
+Use `cp -r`. If the shell denies the copy, stop and send the report below in
+its early-stop form, naming the denied copy under Skipped. Do not look for
+another way around a denial.
 
 After that the copy is the project. An existing test file in it still gets
 `Edit`, never a second `Write` with new contents, and its original tests must
@@ -173,7 +173,7 @@ Run Record
 ```
 
 - **Files Touched** — only files you `Write`d or `Edit`ed this run (a working
-  copy's recreated files are not "touched"; say that you made a copy).
+  copy's files are not "touched"; say that you made a copy).
 - **Tests Added** — only test functions you appended this run.
 - **After** — from re-measurement, or the literal `not measured`.
 - **Run Record** — in the order it happened, naming the tool for each file.
