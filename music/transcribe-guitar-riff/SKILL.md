@@ -128,9 +128,9 @@ octave of the candidate over a wide band, reporting how often each wins.
 
 It decides the register of the lowest voice; the upper voices then follow
 from the cents column and the fact that they are not harmonics of it (Step 4).
-Give it one pitch class at each octave in reach (`A#1,A#2,A#3,A#4` for a pedal
-you read as A#), over only the bars where that note is the lowest voice. When
-the pedal changes (A#3 for three bars, then A3), check each stretch on its
+Give it one pitch class at each octave in reach (`E1,E2,E3,E4` for a pedal
+you read as E), over only the bars where that note is the lowest voice. When
+the pedal changes (E3 for three bars, then D#3), check each stretch on its
 own: mixing two notes or two stretches splits the wins and prints LOW
 AGREEMENT even when the octave is clear. LOW AGREEMENT from a run set up that
 way means the register is unresolved. Then the reply says so and does not
@@ -324,10 +324,10 @@ A line may hold several notes (a dyad or chord sounding for the whole segment):
 
 ```text
 # bar start end notes      (beats 1-based, end exclusive; 5.0 = end of a 4/4 bar)
-1 1.0 2.0 A#3
-1 2.0 5.0 A#3 F#4
-2 1.0 2.0 A#3
-2 2.0 3.5 A#3 F4
+1 1.0 2.0 E3
+1 2.0 5.0 E3 B3
+2 1.0 2.0 E3
+2 2.0 3.5 E3 C4
 ```
 
 Then build the MIDI and the Ableton note list:
@@ -532,7 +532,7 @@ the folder. Put these in it, each copied from a script's output:
 
 - The reading: the bar-by-beat table, with intervals from `riff_midi.py` and
   an evidence column that quotes, as printed, the per-beat summary entries
-  covering each row (`1.2 A#3 + F#4`, `1.3 F#4 + A#3`), plus the slot id
+  covering each row (`1.2 E3 + B3`, `1.3 B3 + E3`), plus the slot id
   where a voice enters or drops out. Quote the entries rather than
   paraphrasing slot dB values: the entry is the line that says the note is
   sounding, and the user can find it in the output. Show the evidence row by
