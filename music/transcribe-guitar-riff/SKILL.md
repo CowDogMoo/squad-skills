@@ -365,7 +365,8 @@ means that, with difference tones and those sub-octave images set aside, the
 per-sixteenth table shows it in the top two for at least two consecutive slots
 where the voice an octave below is out of the top two, or a beat's per-beat
 summary lists it without that lower voice. A single slot where it edges past
-the lower voice is a flicker, not a note. Leave every other octave candidate
+the lower voice is a flicker, not a note, unless that slot shows its own
+attack (the one-slot exception below). Leave every other octave candidate
 out of the reading; what the reply says about them is governed by Step 8,
 including both of its exceptions. The candidates left are the voices, and
 "top two" from here on means the top two of those voices in a slot, with
@@ -374,13 +375,19 @@ moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
-easy to write to the barline. One two-slot rule settles both edges: start a
-note at the first of two consecutive slots where it is in the top two, and
-end it after its last top-two slot once it is out of the top two for at
-least two consecutive slots. A voice that leaves the top two for a single
-sixteenth (behind a set-aside candidate, or a flicker) keeps sounding through
-that slot; never write a one-slot gap. That hold covers dips inside a note
-still being played, never a note another note has replaced. A note seen in
+easy to write to the barline. By default one two-slot rule settles both
+edges: start a note at the first of two consecutive slots where it is in the
+top two, and end it after its last top-two slot once it is out of the top two
+for at least two consecutive slots. A voice that leaves the top two for a
+single sixteenth (behind a set-aside candidate, or a flicker) keeps sounding
+through that slot. The one exception is a slot with its own attack: the
+pitch's dB rises in that slot over the slot before, or the slot holds a pitch
+that the neighbouring notes and their ring-over do not explain. A pitch in
+the top two for only one slot that shows its own attack is a one-slot note.
+A voice out of the top two for one slot is a one-slot rest when the slot
+after it shows that voice's own attack. Without such an attack, never write
+a one-slot note or a one-slot gap. The single-slot hold covers dips inside a
+note still being played, never a note another note has replaced. A note seen in
 the top two only in the first slots after another note attacks, at falling
 level and with no attack of its own, is the previous note ringing over that
 attack: end it at the new attack and leave those slots out of the spec,
@@ -608,8 +615,9 @@ the folder. Put these in it, each copied from a script's output:
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
   two slots or more you would rather hold through; move the boundary. A
-  single-slot dip is held through (Step 5), not a gap. A note your reply
-  would call probable ring-over, decay or doubtful is not in the reading:
+  single-slot dip is held through, not a gap, unless it is a one-slot rest
+  with its own attack after it (Step 5's one-slot exception). A note your
+  reply would call probable ring-over, decay or doubtful is not in the reading:
   settle it from the slots and leave it out (Step 5).
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
