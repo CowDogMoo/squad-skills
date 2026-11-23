@@ -64,7 +64,7 @@ A few categories are strong enough that one clear example fires that category to
 
 - **Tier 1 vocabulary** (one Tier 1 word = Category 1 fires)
 - **HR-speak openers** ("Certainly!", "Great question!", "I'd be happy to help" = Category 4 fires)
-- **Model-specific opener phrases** (Category 7 full phrases and stage-setting openers on prose sections or comment blocks, not bare single words)
+- **Model-specific opener phrases** (Category 7 full phrases, not bare single words)
 - **Numbered step/phase labels in code comments** (two or more in sequence = Category 2 fires strongly; when paired with Category 6 code restatement in a comment block, this pair alone reaches `FLAG` at `MEDIUM` confidence — see Example 3 and Category 2 in `references/categories.md`)
 
 For Tier 2/3 vocabulary, transitional phrases, and em-dash use, require **2+ instances** within the same unit before that category fires. Single occurrences are baseline noise — note them as below-threshold rather than firing the category.
