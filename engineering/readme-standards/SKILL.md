@@ -87,7 +87,7 @@ When the user asks you to draft or write a README, the reply is the deliverable.
 - Put the README text in the reply itself. At minimum, show every section the user named or described (installation, usage, license, and so on), written out in full with its real commands and prerequisites.
 - Write the file as well when you have a working copy to put it in, but treat that as a convenience. A reply that says "I wrote the README to README.md" and then lists notes leaves the user with nothing to review.
 - Keep notes after the draft short: assumptions you made and anything the user must confirm.
-- Use only facts the user gave you. Where a detail is unknown, say so in a note rather than inventing it or leaving placeholder text in the draft.
+- Use only facts the user gave you or that the project's own files (manifests, license, entry points) confirm; do not invent details. Where a detail is unknown, say so in a note rather than inventing it or leaving placeholder text in the draft.
 
 ---
 
