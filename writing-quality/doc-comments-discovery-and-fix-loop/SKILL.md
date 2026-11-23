@@ -105,18 +105,21 @@ table, not by documenting them — a restating comment is not coverage.
 
 ## Phase 3 — Fix and Verify
 
-**Set-up for read-only inputs.** If the files you were pointed at are
-read-only or outside the working directory, copy them in with `cp`
-first, along with the build files the verify command needs (such as
-`go.mod` or `Cargo.toml`), then Read the copy. If the copy is denied,
-write one verbatim copy into the working directory as set-up (not as
-a fix) and Read it back. Either way every doc-comment change is then
-an Edit on the copy, never on the original, and the report says where
-the edited copy lives. Before the first Edit, commit the copies as a
-baseline (`git add` and `git commit` in the working directory) so the
-caller's `git checkout -- <file>` revert in step 5 restores them; if
-you cannot commit, revert a failing copy by copying the original over
-it again or by Edit-to-undo.
+**Set-up for read-only inputs.** Edit the files in place when they
+are writable inside the working directory. Only when they are
+read-only or outside it, `cp` them into a new, empty subdirectory of
+the working directory (for example `./doc-pass/`), keeping relative
+paths and the build files the verify command needs (such as `go.mod`
+or `Cargo.toml`). Never copy over an existing path, and run verify
+inside that subdirectory. If the copy is denied, write one verbatim
+copy there as set-up (not as a fix) and Read it back. Every
+doc-comment change is then an Edit on the copy, never on the
+original, and the report says where the copy lives. Before the first
+Edit, commit only the copied paths as a baseline (`git add <paths>`,
+then `git commit -m baseline -- <paths>`), never the whole index, so
+the caller's `git checkout -- <file>` revert in step 5 restores them.
+If the directory is not a safe place for a commit, revert a failing
+copy by copying the original over it again or by Edit-to-undo.
 
 1. **Edit tool only.** Apply every fix with the Edit tool, on a file
    you have Read in this session, highest priority first. Never

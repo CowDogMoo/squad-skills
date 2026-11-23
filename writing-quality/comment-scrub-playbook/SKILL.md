@@ -223,19 +223,24 @@ decision itself. Use this shape unless the caller dictates another:
 
 ### Applying the edits
 
-Inputs are often read-only. Copy the file into the working directory
-with `cp`, along with the build files the verify command needs (such
-as `go.mod` or `Cargo.toml`), Read it, and apply each decision as an
-Edit on the copy. Before the first Edit, commit the copies as a
-baseline (`git add` and `git commit` in the working directory) so the
-caller's `git checkout -- <file>` revert restores them; if you cannot
-commit, revert a failing copy by copying the original over it again
-or by Edit-to-undo. If the copy is denied, write one verbatim copy
-with Write as set-up, then Edit it, or, if you cannot write anywhere,
-still deliver the complete report above with the final text of each trim, and say that
-nothing was applied and why. A report with every decision is the
-deliverable; never stop at a one-line refusal. Report the path of the
-edited copy.
+Read each file and apply each decision as an Edit in place when the
+file is writable inside the working directory. Only when it is
+read-only or outside it, `cp` it into a new, empty subdirectory of
+the working directory (for example `./scrub-pass/`), keeping relative
+paths and the build files the verify command needs (such as `go.mod`
+or `Cargo.toml`). Never copy over an existing path, and run verify
+inside that subdirectory. Before the first Edit, commit only the
+copied paths as a baseline (`git add <paths>`, then
+`git commit -m baseline -- <paths>`), never the whole index, so the
+caller's `git checkout -- <file>` revert restores them. If the
+directory is not a safe place for a commit, revert a failing copy by
+copying the original over it again or by Edit-to-undo. If the copy is
+denied, write one verbatim copy there with Write as set-up, then Edit
+it, or, if you cannot write anywhere, still deliver the complete
+report above with the final text of each trim, and say that nothing
+was applied and why. A report with every decision is the deliverable;
+never stop at a one-line refusal. Report the path of every edited
+file.
 
 ## Examples
 
