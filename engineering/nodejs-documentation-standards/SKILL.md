@@ -536,8 +536,10 @@ module.exports = {
    that names a type in braces, because TypeScript signatures do not declare
    thrown error types).
 4. **Show the documented code only when the user cannot see the edits.** When
-   the documented declarations cannot be written where the user will see them,
-   or when the user asks for them, present them in a code block in your reply
+   the documented declarations cannot be written where the user will see them
+   (for example, the original file cannot be edited in place, so you write the
+   edits to a copy or scratch location instead), or when the user asks for
+   them, present them in a code block in your reply
    (the full file when concise, or every documented export with its attached
    JSDoc block and signature) so reviewers can verify block attachment, tag
    syntax, and descriptions directly. If a calling agent or task defines a
@@ -580,7 +582,7 @@ fix is ready to apply.
 - [ ] Async behavior documented when non-obvious
 - [ ] Cleanup requirements documented
 - [ ] Deprecated exports marked with `@deprecated`
-- [ ] Documented declarations shown in the response when the edits cannot be written where the user sees them or the user asks (a calling agent's report format takes precedence)
+- [ ] Documented declarations shown in the response when the edits cannot be written where the user sees them (including edits written to a copy instead of the original file) or the user asks (a calling agent's report format takes precedence)
 
 ### Common Patterns
 
