@@ -247,7 +247,13 @@ seat returns prose, schema-invalid JSON, or no output:
 2. **Re-ask only that missing or malformed seat, at most ONCE, with the exact
    same rendered prompt** (`<run>/prompts/<seat_id>.prompt.md` — never rewrite
    the prompt or append ad-hoc formatting instructions, which changes what the
-   seat was asked and bypasses `render-prompts.mjs` independence checks):
+   seat was asked and bypasses `render-prompts.mjs` independence checks).
+   The one re-ask is always the next step, even when no rendered prompt is on
+   disk (a staged run dir with only `panel.json` and `ballots/`). Never skip it
+   or decline it for that reason. Regenerate the identical prompt with
+   `render-prompts.mjs` from the run's `stage/` and `seats.json` (rendering is
+   deterministic). If those inputs are gone too, the decision is still exactly
+   one re-ask of that seat with its original rendered prompt, then step 3:
    - Subagent mode: spawn one fresh read-only subagent for `<seat_id>` alone
      (same isolation rules as step 2), recompute the fingerprint once it returns
      (a change voids the run as in step 4 and counts toward its one-retry cap),
