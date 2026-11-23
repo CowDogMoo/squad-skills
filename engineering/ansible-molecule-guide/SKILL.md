@@ -190,19 +190,18 @@ Rules that go with these patterns:
   reads, and the edited file may not be opened. Close the loop on each defect
   the original had: say which check now fails, under what broken-deploy
   condition (package absent, file missing, service stopped), and quote the
-  `fail_msg` it reports so the reader sees what the message names. Name each
-  original registered check by its module in its own item (for example "the
-  `stat` on nginx.conf is kept and now asserted on `.stat.exists`, failing
-  with `/etc/nginx/nginx.conf is missing`"); never fold it into a
-  combined line about config or `slurp`. State
-  file-wide properties as facts about the whole file instead of listing a
-  few examples, and give the concrete form: "every module uses its
-  `ansible.builtin.` name, including the original `ansible.builtin.stat`,
-  `ansible.builtin.package` and `ansible.builtin.assert`", "every assert has
-  a single-condition `fail_msg`". Name each new check by its FQCN module
-  too (for example "`ansible.builtin.command: nginx -t`"), so no task in the
-  reply appears without its module.
-  If the caller defines a report format, follow that and keep this content
+  `fail_msg` it reports so the reader sees what the message names. Give each
+  original registered check its own item named by its module and target
+  (for example "the `stat` on `<path>` is kept and now asserted on
+  `.stat.exists`, failing with `<path> is missing`"); never fold it into a
+  combined line about a neighbouring check.
+- State file-wide properties as facts about the whole file instead of
+  listing a few examples, in their concrete form: "every module uses its
+  `ansible.builtin.` name, including the ones that were short names in the
+  original", "every assert has a single-condition `fail_msg`". Name each
+  new check by its FQCN module too, so no task in the reply appears without
+  its module.
+- If the caller defines a report format, follow that and keep this content
   inside it.
 
 Verifier choice: the `ansible` verifier (default since Molecule v3) suits
