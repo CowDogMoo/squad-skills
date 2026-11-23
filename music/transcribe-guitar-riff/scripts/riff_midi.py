@@ -26,6 +26,30 @@ import librosa
 import pretty_midi
 
 
+INTERVALS = ["unison", "minor 2nd", "major 2nd", "minor 3rd", "major 3rd", "perfect 4th",
+             "tritone", "perfect 5th", "minor 6th", "major 6th", "minor 7th", "major 7th"]
+
+
+def interval_name(semitones: int) -> str:
+    """Name the interval between two MIDI notes (an octave counts as compound)."""
+    octaves, rest = divmod(semitones, 12)
+    if rest == 0 and octaves:
+        return "octave" if octaves == 1 else f"{octaves} octaves"
+    name = INTERVALS[rest]
+    return name if not octaves else f"{name} + {octaves} oct"
+
+
+def intervals_above_bass(notes: list[int]) -> str:
+    """Each upper note's interval above the lowest one, e.g. 'A#3-F4 perfect 5th'."""
+    ordered = sorted(notes)
+    bass = ordered[0]
+    return "; ".join(
+        f"{librosa.midi_to_note(bass, unicode=False)}-{librosa.midi_to_note(n, unicode=False)} "
+        f"{interval_name(n - bass)}"
+        for n in ordered[1:]
+    )
+
+
 def parse_spec(path: str, beats_per_bar: int):
     segs = []
     with open(path) as fh:
@@ -76,13 +100,14 @@ def main(argv=None) -> int:
             json.dump(ableton, fh)
     total_beats = max((t1 for _, t1, _ in segs), default=0)
     print(f"wrote {args.out}: {len(inst.notes)} notes, {len(segs)} segments, {total_beats / args.beats_per_bar:.2f} bars at {args.bpm:g} BPM")
-    print("bar(arr)  beats        notes")
+    print("bar(arr)  beats        notes          intervals above the lowest note")
     for t0, t1, notes in segs:
         bar = int(t0 // args.beats_per_bar)
         b0 = t0 - bar * args.beats_per_bar + 1
         b1 = t1 - bar * args.beats_per_bar + 1
         names = " ".join(librosa.midi_to_note(n).replace("♯", "#") for n in notes)
-        print(f"{bar + args.bar_offset:8d}  {b0:4.2f}-{b1:4.2f}   {names}")
+        intervals = intervals_above_bass(notes) if len(notes) > 1 else "-"
+        print(f"{bar + args.bar_offset:8d}  {b0:4.2f}-{b1:4.2f}   {names:<14} {intervals}")
     return 0
 
 

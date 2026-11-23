@@ -30,17 +30,30 @@ and read `references/pyguitarpro-notes.md` before you do.
 
 ## Setup
 
-Install the dependencies into a virtualenv inside this skill directory, so
-nothing lands in the system Python:
+Check what is already installed before you install anything. Many machines
+(and most prepared sandboxes) already have PyGuitarPro:
 
 ```bash
-uv venv .venv
-uv pip install --python .venv/bin/python -r scripts/requirements.txt
+python3 -c "import guitarpro, mido; print('ready')"
 ```
 
-Then run everything with `.venv/bin/python` instead of `python3`. Without `uv`,
-`python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`
-does the same job.
+If that prints `ready`, run the helper with that `python3` and skip the rest of
+this section. Only when the import fails, make a virtualenv in a directory you
+can write to (the skill directory is often read-only, so use a temp or project
+directory) and install into it:
+
+```bash
+uv venv "$TMPDIR/gp-venv"
+uv pip install --python "$TMPDIR/gp-venv/bin/python" -r scripts/requirements.txt
+```
+
+Without `uv`, `python3 -m venv "$TMPDIR/gp-venv" && "$TMPDIR/gp-venv/bin/pip"
+install -r scripts/requirements.txt` does the same job. If the install fails
+because there is no network, look for an interpreter that already has the
+packages (`which -a python3`, `pip list 2>/dev/null | grep -i guitarpro`) before
+telling the user the job cannot be done - a failed install is not a failed task.
+
+The commands below say `python`; use whichever interpreter passed the check.
 
 `mido` is only needed for MIDI export. Everything else works without it. Native
 `.gp` export additionally needs Node and `npm install @coderline/alphatab` in
@@ -166,6 +179,36 @@ answer to "what tuning is this in?" `to_riff()` closes the loop: read an
 existing tab, transform the notation as text, write it back out — no hand
 transcription.
 
+**Read the user's file where it is; write results under a new name.** Every
+command here takes the input path directly, so there is nothing to copy first:
+`python scripts/gp_tab.py info /path/to/their.gp5` reads it in place, and edits
+are saved as a new file in the working directory. The original is never
+modified, which is what the user expects of a file they handed you.
+
+### Transposing
+
+"Transpose it down a whole step" has two honest readings, and the riff decides
+which one works:
+
+- **Move the frets, keep the tuning** (`tab.transpose(-2)`). Fine when every
+  note has room. A riff on open strings does not - fret 0 cannot go lower.
+- **Keep the frets, retune the strings** (`tab.retune(-2)`). The tab reads the
+  same and sounds lower: drop D becomes drop C, standard becomes D standard.
+  This is how players actually take a riff down a step.
+
+The `transpose` command picks for you (frets when they fit, otherwise retune),
+writes a new file, and then proves the result by comparing every sounding note
+against the original:
+
+```bash
+python scripts/gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2 --midi song-down2.mid
+```
+
+It prints the original tuning, the method it used and why, the new tuning, and
+`verified: all N sounding notes ... are 2 semitone(s) lower`. A `VERIFY FAILED`
+line (exit 1) means the copy is wrong; do not deliver it. `--method frets` or
+`--method retune` forces a choice when the user asked for one.
+
 ### Guitar Pro 6/7+ files (`.gpx`, `.gp`)
 
 PyGuitarPro cannot open these, so `Tab.load()` will refuse. **Do not ask the user
@@ -253,7 +296,15 @@ python scripts/gp_tab.py to-riff song.gp5
 python scripts/gp_tab.py tunings
 python scripts/gp_tab.py riff out.gp5 --tuning 7-string --tempo 150 \
     --notes '8:7.0 8:7.3 4:r' --midi out.mid --print-ascii
+python scripts/gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2
 ```
+
+`riff` is the one-command way to write a new tab: it saves the file, reloads it
+from disk, and prints a line describing what the file holds - measures, tempo,
+time signature, tuning name and pitches, string count, note count, how many are
+palm-muted, and whether every bar adds up. With `--print-ascii` the ASCII is
+rendered from that reloaded file too, with a `PM` row marking palm-muted beats.
+So its output is already the verification, not just a claim of success.
 
 ## What to deliver
 
@@ -266,6 +317,23 @@ plus MIDI**:
 3. A `.mid` alongside it, for dropping into a DAW.
 
 Send files with the file-delivery tool rather than only describing them.
+
+**Put the evidence in the reply itself.** The user reads your final message,
+not your tool output, so what you checked has to appear there:
+
+- The file name and where it is.
+- The reloaded-file facts, quoted from the tool: the `reloaded ...` line that
+  `riff` prints, or the measures, tempo, tuning name and note count from
+  `python scripts/gp_tab.py info FILE`. When the user asked for a tempo, a
+  tuning or a bar count, these are the numbers that show you hit it.
+- The ASCII, pasted verbatim from `gp_tab.py ascii FILE` (or `--print-ascii`)
+  in a code block - every string, including the empty ones, and the `PM` row.
+  Never redraw or trim it by hand; a hand-drawn tab is a claim, the rendered
+  one is evidence.
+- For a transposition: the original tuning, the method and why, and the
+  `verified:` line.
+- What you did not check (for example, that you have not opened it in Guitar
+  Pro).
 
 ## Lay the score out before you hand it over
 
@@ -324,10 +392,10 @@ spend the extra few seconds:
   string 7 fret 0 is B1 (MIDI 35) — `info()` reports the tuning so you can
   confirm the part sits where the user expects.
 
-`.venv/bin/python scripts/test_gp_tab.py` runs 137 checks over the helper
+`python scripts/test_gp_tab.py` runs the regression checks over the helper
 itself (plus a native-`.gp` block that skips when Node or alphaTab is missing).
 Run it if you change `gp_tab.py`, or if something behaves unexpectedly and you
-want to rule the helper out. See Setup above for the virtualenv it needs.
+want to rule the helper out. See Setup above for the interpreter it needs.
 
 ## Writing music that's worth playing
 

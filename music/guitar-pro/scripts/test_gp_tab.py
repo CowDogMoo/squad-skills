@@ -269,6 +269,16 @@ def main() -> int:
     )
     empty = Tab(tuning="standard").ascii()
     check("empty song does not crash", "no notes" in empty, empty[:40])
+    check("no palm-mute row without palm mutes", not any(ln.startswith("PM ") for ln in art.splitlines()))
+    pm = Tab(tuning="drop-c").riff("8:6.0m 8:6.0m 4:6.3 2:6.0m").ascii().splitlines()
+    pm_rows = [ln for ln in pm if ln.startswith("PM ")]
+    low = [ln for ln in pm if ln.startswith("C2 ")]
+    check(
+        "palm-mute row marks exactly the muted beats",
+        len(pm_rows) == 1 and pm_rows[0].count("m") == 3
+        and all(low[0][i] == "0" for i, ch in enumerate(pm_rows[0]) if ch == "m"),
+        "\n".join(pm),
+    )
 
     print("\n[midi export]")
     tab = Tab(title="Midi", tempo=155, tuning="7-string")
@@ -400,6 +410,10 @@ def main() -> int:
     check("note count", data["tracks"][0]["notes"] == 7, str(data["tracks"][0]["notes"]))
     check("fret range", data["tracks"][0]["fret_range"] == [0, 7], str(data["tracks"][0]["fret_range"]))
     check("time signature", data["time_signatures"] == ["4/4"], str(data["time_signatures"]))
+    check("palm-mute count present", data["tracks"][0]["palm_muted"] == 0)
+    muted = os.path.join(tmp, "muted.gp5")
+    Tab(tuning="drop-c").riff("8:6.0m 8:6.0m 4:6.3 2:6.0m").save(muted)
+    check("palm-mute count survives a save", Tab.load(muted).info()["tracks"][0]["palm_muted"] == 3)
     round_tripped = Tab.load(p).to_riff()
     check(
         "to_riff preserves beat count",
@@ -423,6 +437,46 @@ def main() -> int:
         [n.value for b in beats_of(tab2) for n in b.notes] == [0, 2],
         str([n.value for b in beats_of(tab2) for n in b.notes]),
     )
+    check("fret_shift_fits sees the open string", not tab2.fret_shift_fits(-3))
+    before = [p for _t, _k, p in tab2.sounding_notes()]
+    tab2.retune(-2)
+    after = [p for _t, _k, p in tab2.sounding_notes()]
+    check(
+        "retune keeps frets and lowers every sounding pitch",
+        [n.value for b in beats_of(tab2) for n in b.notes] == [0, 2]
+        and after == [p - 2 for p in before],
+        f"{before} -> {after}",
+    )
+    check("retune names the new tuning", tab2.info()["tracks"][0]["tuning_name"] == "d-standard")
+
+    # The CLI writes a copy, never touches the original, and proves the shift.
+    src = os.path.join(tmp, "tr_src.gp5")
+    Tab(tuning="drop-d").riff("8:6.0 8:6.0 8:6.3 8:6.5 4:5.2 4:r").save(src)
+    src_bytes = open(src, "rb").read()
+    down = os.path.join(tmp, "tr_down.gp5")
+    down_mid = os.path.join(tmp, "tr_down.mid")
+    rc = gp_tab_cli(["transpose", src, down, "--semitones", "-2", "--midi", down_mid])
+    moved = Tab.load(down)
+    check(
+        "transpose CLI retunes when open strings cannot move down",
+        rc == 0
+        and moved.info()["tracks"][0]["tuning_name"] == "drop-c"
+        and [p for _t, _k, p in moved.sounding_notes()]
+        == [p - 2 for _t, _k, p in Tab.load(src).sounding_notes()]
+        and os.path.getsize(down_mid) > 0,
+        str(rc),
+    )
+    check("transpose CLI leaves the original untouched", open(src, "rb").read() == src_bytes)
+    up = os.path.join(tmp, "tr_up.gp5")
+    rc = gp_tab_cli(["transpose", src, up, "--semitones", "3"])
+    check(
+        "transpose CLI moves frets when they fit",
+        rc == 0
+        and Tab.load(up).info()["tracks"][0]["tuning_name"] == "drop-d"
+        and [n.value for b in beats_of(Tab.load(up)) for n in b.notes] == [3, 3, 6, 8, 5],
+    )
+    rc = gp_tab_cli(["transpose", src, up, "--semitones", "-2", "--method", "frets"])
+    check("transpose CLI refuses a fret shift that falls off the neck", rc == 1, str(rc))
 
     print("\n[measure length validation]")
     tab = Tab(tuning="7-string")
@@ -514,6 +568,24 @@ def main() -> int:
         "CLI takes a General MIDI program number",
         rc == 0 and Tab.load(cli_out).song.tracks[0].channel.instrument == 30,
         str(rc),
+    )
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = gp_tab_cli(
+            ["riff", cli_out, "--tuning", "drop-c", "--tempo", "160",
+             "--notes", "8:6.0m 8:6.0m 4:6.3 2:6.0m | 1:6.0", "--print-ascii"]
+        )
+    printed = buf.getvalue()
+    check(
+        "CLI riff reports the reloaded file",
+        rc == 0 and "2 measures, 160 BPM" in printed
+        and "drop-c (C2 G2 C3 F3 A3 D4)" in printed
+        and "5 notes (3 palm-muted)" in printed and "every bar adds up" in printed
+        and "\nPM " in printed,
+        printed,
     )
 
     print("\n[native GP7 export -- skipped if Node/alphaTab absent]")

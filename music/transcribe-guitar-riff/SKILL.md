@@ -1,6 +1,6 @@
 ---
 name: transcribe-guitar-riff
-description: Work out the notes of a recorded guitar riff, from an Ableton Live clip or a WAV, and deliver a per-beat reading, cleaned MIDI, an A/B reference track in Live, and a Guitar Pro tab in the player's tuning (8-string and drop included). Trigger on "what notes is this", "transcribe this riff", "tab out this recording". Do NOT use for writing a tab with no audio (guitar-pro), scoring a tab against a recording (tab-vs-recording), or for vocals, drums, or full mixes.
+description: Work out the notes of a recorded guitar riff, from an Ableton Live clip or a WAV, and deliver a per-beat reading, cleaned MIDI, an A/B reference track in Live, and a Guitar Pro tab in the player's tuning (8-string and drop included). Also use it to settle which octave or register a recorded riff is in, including when someone reads the octave off a single spectrum or analyzer peak that lands near an open string. Trigger on "what notes is this", "transcribe this riff", "tab out this recording", "which octave is this riff in". Do NOT use for writing a tab with no audio (guitar-pro), scoring a tab against a recording (tab-vs-recording), or for vocals, drums, or full mixes.
 ---
 
 # Transcribe a guitar riff
@@ -16,14 +16,45 @@ printed, and the report says plainly what has not been checked by ear.
 | Read the Live set's tracks and clips | `mcp__ableton-mcp__get_session_info`, `get_track_info`, `get_arrangement_info` | ableton-mcp equivalents, or parse the `.als` only |
 | Put a MIDI reference in Live | `create_midi_track`, `set_track_name`, `load_instrument_or_effect`, `create_clip`, `add_notes_to_clip`, `duplicate_clip_to_arrangement`, `set_arrangement_loop` | same names on ableton-mcp; skip the step and deliver the `.mid` if absent |
 | See Live's screen (verify a clip, read a meter) | `mcp__computer-use__*` after `request_access` for "Ableton Live 12 Suite" | any screen-control MCP; otherwise ask the user to look |
-| Write the tab | `Skill("guitar-pro")` | load the guitar-pro SKILL.md and run its `gp_tab.py` |
+| Write the tab | `scripts/tab_build.py --gp5` (up to 7 strings); `Skill("guitar-pro")` for a native `.gp` (8+ strings) | same scripts; load the guitar-pro SKILL.md for `.gp` |
 | Hand files to the user | `SendUserFile` | attach or link the files |
 
 Scripts live in this skill's `scripts/` and run with
 `uv run --with-requirements scripts/requirements.txt python scripts/<name>.py`
-(numpy, scipy, librosa, soundfile, pretty_midi, mido, matplotlib). `ffmpeg`
-must be on PATH for the cut. Paths below are relative to this skill's
-directory (`${CLAUDE_SKILL_DIR}` or `$SQUAD_SKILL_DIR`).
+(numpy, scipy, librosa, soundfile, pretty_midi, mido, matplotlib, pyguitarpro).
+If `uv` is missing but `python3 -c "import librosa, pretty_midi, guitarpro"`
+works, run `python3 scripts/<name>.py` instead - check this once, first, rather
+than discovering it command by command. `ffmpeg` must be on PATH for the cut.
+Paths below are relative to this skill's directory (`${CLAUDE_SKILL_DIR}` or
+`$SQUAD_SKILL_DIR`).
+
+## When the question is about the octave, not the notes
+
+People often settle the register from one spectrum peak that lands near an
+open string's frequency, and conclude the riff sits in that string's octave. Do
+not agree on that evidence alone, even when no audio is attached. Walk them
+through the tests that decide it, using their numbers:
+
+1. **Cents offset.** A played note sits within a few cents of where the guitar
+   is tuned. Compute the offset, cents = 1200 x log2(peak / tuned frequency),
+   and say what it means. On the real job behind this skill, a peak read as
+   "A#2" at 118.4 Hz sat +28 cents sharp of the tuned string (116.5 Hz) - far
+   too much for a string the player tuned - and it was not a played note.
+2. **Difference tone.** Distortion makes intermodulation products at |a - b|
+   of two stronger components. Check whether the suspect peak equals the
+   difference of two other peaks: on that job 118.4 = 349.9 (F4) - 231.5
+   (A#3), exactly. A peak that is off-grid AND equals a difference is a
+   distortion product, not the riff.
+3. **Independent harmonics.** A real fundamental also lights up its octave
+   above, so the loudest octave proves nothing; the register is the one whose
+   own harmonics stand up independently, and the upper voice (which is not a
+   harmonic of the lower octave) usually settles it.
+4. **Measure instead of reading the analyzer.** Run
+   `scripts/riff_salience.py` on the clip and read its **long-term spectrum
+   peaks** block: it prints every strong peak with its note and cents offset
+   and tags the off-grid peaks that equal the difference of two others as
+   distortion difference tones. Then confirm with `scripts/octave_check.py`
+   (Step 2). Offer to run both if they send the audio.
 
 ## Inputs to collect first
 
@@ -277,7 +308,8 @@ author.
 
 ## Step 5 - author the cleaned reading
 
-Write a spec, one segment per line, from the per-beat summary and the table:
+Write a spec, one segment per line, from the per-beat summary and the table.
+A line may hold several notes (a dyad or chord sounding for the whole segment):
 
 ```text
 # bar start end notes      (beats 1-based, end exclusive; 5.0 = end of a 4/4 bar)
@@ -293,6 +325,10 @@ Then build the MIDI and the Ableton note list:
 python scripts/riff_midi.py OUT/riff.spec --bpm 120 --bar-offset 70 \
   --out "OUT/cleaned.mid" --ableton-json OUT/notes.json
 ```
+
+It prints the reading back as a table with the interval each upper note forms
+above the lowest one. Copy intervals from that column rather than naming them
+by hand; hand-named intervals are where readings pick up errors.
 
 Quantize to the grid the table shows (sixteenths). A note that flickers for
 one slot is usually an attack transient of the next note, not a note.
@@ -311,6 +347,11 @@ track uses eight duration kinds total - that is the target.
 python scripts/tab_build.py OUT/section.spec --tuning E1,B1,E2,A2,D3,G3,B3,E4 \
   --single-note-durations --out OUT/riff.txt
 ```
+
+A tremolo-picked riff is the other case: every note is re-picked on a fixed
+grid, so the tab is straight sixteenths, not held values. `--tremolo 16` writes
+each segment that way, and dyad lines are fingered as shapes on two strings
+within the hand's reach.
 
 The same command maps the notes to the neck, and its fingering scorer carries a
 reach limit and a cross-string jump penalty - the two terms the first version
@@ -342,19 +383,32 @@ control and screenshot the note editor.
 
 ## Step 7 - tab, and score it with the real metric
 
-Hand the spec to the `guitar-pro` skill: straight sixteenths for tremolo
-(`16:2.3+1.6 ...`), the user's tuning low to high, `.gp5` up to seven
-strings, native `.gp` for eight or more (it says why). Verify the written
-file, not the writer:
+Write the tab from the same spec, in the user's tuning (low to high). Up to
+seven strings, one command writes the Guitar Pro file and its MIDI export:
+
+```bash
+python scripts/tab_build.py OUT/riff.spec --tuning E2,A2,D3,G3,B3,E4 --tremolo 16 \
+  --bpm 120 --gp5 "OUT/tab.gp5" --midi "OUT/tab.mid" --out OUT/riff.txt
+```
+
+`--gp5` goes through `scripts/gp5_write.py`, which writes the `.gp5`, reloads it
+from disk, and does the rest from the reload: a summary line (measures, tempo,
+tuning, note count), the MIDI export, and an ASCII tab with every string shown.
+Use `--single-note-durations` instead of `--tremolo 16` for a single-note line
+with held notes. The `.gp5` format stops at seven strings; for eight or more,
+hand the spec to the `guitar-pro` skill for a native `.gp` (it says why), and
+load that back with alphaTab to check string count, measure count, and tuning
+MIDI numbers.
+
+Then verify the written file, not the writer:
 
 ```bash
 python scripts/compare_rolls.py "OUT/tab.mid" "OUT/cleaned.mid" --expect match
 ```
 
-The tab writes every tremolo hit as its own note and the cleaned MIDI uses
-sustained notes, so compare sounding pitches per sixteenth (this script),
-never onset lists. For `.gp`, also load it back with alphaTab and check
-string count, measure count, and tuning MIDI numbers.
+It must print `ROLLS MATCH`. The tab writes every tremolo hit as its own note
+and the cleaned MIDI uses sustained notes, so compare sounding pitches per
+sixteenth (this script), never onset lists.
 
 That only proves the writer matched your spec. To find out whether the SPEC is
 any good, hand the tab to the `tab-vs-recording` skill, which does chroma-DTW
@@ -426,6 +480,24 @@ tab and its `.mid`, and a README with:
 - every place the transcription departs from a tab the player wrote;
 - the sentence **"Not yet verified by ear against the audio."** until the
   user has done that, and what to A/B in the DAW.
+
+**The reply itself carries the evidence** - the user reads your message, not
+the folder. Put these in it, each copied from a script's output:
+
+- The reading: the bar-by-beat table, with intervals from `riff_midi.py`.
+  Name only pitches the salience output shows; when you mention a candidate
+  you rejected (an octave ghost, a difference tone), say which output line
+  shows it and why it is not a played note.
+- The fretting in the user's tuning, with string and fret numbers, and the
+  alternative position.
+- The ASCII tab, pasted verbatim from `gp5_write.py` (or the guitar-pro
+  helper) in a code block. Never draw a tab by hand: a hand-drawn grid is
+  where wrong frets and garbled rhythms creep in, and nothing checked it.
+- The tab file's name and format, and the `compare_rolls.py` result against
+  the cleaned MIDI (`ROLLS MATCH`).
+- The octave evidence, and what you did not run.
+- "Not yet verified by ear against the audio." and a direct request for that
+  check, saying what to A/B.
 
 Then stop and ask for the ear check. When the user reports a wrong bar,
 fix the spec and regenerate MIDI, tab, and README together.
