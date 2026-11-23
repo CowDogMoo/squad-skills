@@ -347,15 +347,18 @@ one slot is usually an attack transient of the next note, not a note.
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
 easy to write to the barline. End each note at the last sixteenth where it
-is still in that slot's top two, and start it at the first. A voice that is
-missing from a beat's summary, or listed there only under "also seen", is not
-sounding on that beat.
+is still in that slot's top two, and start it at the first; the table, not
+the summary, settles a beat's edge slots. A voice that is missing from a
+beat's summary, or listed there only under "also seen", is not sounding on
+that beat, except in edge slots where the table shows it in the top two
+continuing a run from the slot before or into the slot after.
 
 Count only candidates that survived the octave tests in Step 4. A peak the
 long-term block tags as a distortion difference tone is never a voice, however
 high it ranks in a slot. Neither is the octave above a note that is already
-sounding: a candidate an octave over the pedal that rises and falls with it is
-that note's harmonic.
+sounding: a candidate an octave over any voice that enters and drops out in
+the same per-sixteenth slots as that voice is its harmonic. Note those slot
+ids; they are the evidence for dropping it.
 
 When a voice fades rather than stops, end it where the evidence ends and say
 it may ring on, so the user checks that by ear. The table in the reply, the
@@ -363,11 +366,14 @@ spec, the MIDI and the tab then all show the same notes.
 
 **Author the reading from the audio alone.** When the audio comes with its
 answer (a test fixture's spec or expected notes, the MIDI it was rendered
-from), leave that file unopened, and say in the reply that the reading was
-made without it. Do not use it to correct your reading afterwards either: a
-note or boundary taken from the answer is not one the audio showed you, and
-the reading stops being evidence of anything. If a boundary is uncertain, go
-back to the per-sixteenth table and report the doubt.
+from, the generator's source or docstring), leave that file unopened, and say
+in the reply that the reading was made without it. Do not use it to correct
+your reading afterwards either: a note or boundary taken from the answer is
+not one the audio showed you, and the reading stops being evidence of
+anything. If a boundary is uncertain, go back to the per-sixteenth table and
+report the doubt. Run a fixture generator without reading it, with the output
+directory as its only argument, adding each module it reports missing to
+`uv run --with`.
 
 **Decide durations from a closed set; never let an onset-to-onset span become a
 duration.** Measured gaps produce lengths like 5/4 or 7/4 of a quarter note,
@@ -542,10 +548,12 @@ the folder. Put these in it, each copied from a script's output:
   When you mention a candidate you rejected (an octave ghost, a difference
   tone), say which output line shows it and why it is not a played note. A
   rejection rests on printed evidence: the long-term block's difference-tone
-  tag, or the octave check's `verdict:` for the register, which is what rules
-  out the octave above and below the voice. A candidate neither of those
-  settles stays out of the reading and is listed as unresolved, not argued
-  away with your own arithmetic.
+  tag; the octave check's `verdict:` for the register, which is what rules
+  out the octave above and below the lowest voice; or, for the octave above
+  any voice, the per-sixteenth slot ids where it enters and drops out with
+  that voice (Step 5). A candidate none of those settles stays out of the
+  reading and is listed as unresolved, not argued away with your own
+  arithmetic.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak; move the boundary.
   Do not cite a check that came out weak as support for the reading.
