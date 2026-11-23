@@ -10,10 +10,11 @@ A comprehensive guide to writing effective README documentation for software pro
 
 1. [Core Principles](#core-principles)
 2. [Essential Sections](#essential-sections)
-3. [Writing Guidelines](#writing-guidelines)
-4. [Section Templates](#section-templates)
-5. [Project Type Variations](#project-type-variations)
-6. [Quality Checklist](#quality-checklist)
+3. [Delivering a Draft](#delivering-a-draft)
+4. [Writing Guidelines](#writing-guidelines)
+5. [Section Templates](#section-templates)
+6. [Project Type Variations](#project-type-variations)
+7. [Quality Checklist](#quality-checklist)
 
 ---
 
@@ -76,6 +77,17 @@ Structure information from general to specific:
 | Contributing | Open source projects |
 | Testing | Projects with test suites |
 | Acknowledgments | Projects with contributors/dependencies |
+
+---
+
+## Delivering a Draft
+
+When the user asks you to draft or write a README, the reply is the deliverable. Someone reading only your reply, without opening any file, should be able to judge the draft.
+
+- Put the README text in the reply itself. At minimum, show every section the user named or described (installation, usage, license, and so on), written out in full with its real commands and prerequisites.
+- Write the file as well when you have a working copy to put it in, but treat that as a convenience. A reply that says "I wrote the README to README.md" and then lists notes leaves the user with nothing to review.
+- Keep notes after the draft short: assumptions you made and anything the user must confirm.
+- Use only facts the user gave you or that the project's own files (manifests, license, entry points) confirm; do not invent details. Where a detail is unknown, say so in a note rather than inventing it or leaving placeholder text in the draft.
 
 ---
 
