@@ -53,10 +53,11 @@ individual tells.
 |---|---|---|---|
 | 4 or more | `FLAG` | `HIGH` | Converging multi-category signal |
 | Exactly 3 | `FLAG` | `MEDIUM` | Meets cluster threshold |
-| 1 or 2 | `NO-FLAG` | `LOW` | Isolated signal below threshold — report `NO-FLAG (LOW)`, never `FLAG` and never `clean` |
+| Exactly 2: Cat 2 sequential step labels + Cat 6 restatement (code comments) | `FLAG` | `MEDIUM` | Sole 2-category exception — see Example 3 |
+| 1 or 2 (any other combination) | `NO-FLAG` | `LOW` | Isolated signal below threshold — report `NO-FLAG (LOW)`, never `FLAG` and never `clean` |
 | 0 | `NO-FLAG` | `clean` | Zero tell categories fired |
 
-A single occurrence of "delve," one "Moreover," or one em-dash is never enough on its own. Convergence is the signal; isolated tells are not. Keep `NO-FLAG (LOW)` distinct from `NO-FLAG (clean)`: a unit where one or two categories fire still carries a weak signal and must be reported with `NO-FLAG` and `LOW` confidence rather than collapsed into `clean`.
+A single occurrence of "delve," one "Moreover," or one em-dash is never enough on its own. Convergence is the signal; isolated tells are not. Keep `NO-FLAG (LOW)` distinct from `NO-FLAG (clean)`: a unit where one or two categories fire (other than the step-label + Category 6 exception) still carries a weak signal and must be reported with `NO-FLAG` and `LOW` confidence rather than collapsed into `clean`.
 
 ### Tell categories that count, even at one hit
 
@@ -107,7 +108,7 @@ The reader sees only your final message. Unless the caller's prompt or `system.m
 1. **Per-unit verdicts** (table or per-unit entries) covering **every** in-scope unit (each prose paragraph or each contiguous comment block, scored as a whole block rather than line by line), not only the flagged ones:
    - **Unit / location**: paragraph number or comment block line range.
    - **Verdict**: literal `FLAG` or `NO-FLAG` on every unit (do not substitute informal prose headings alone without stating `FLAG` / `NO-FLAG` per unit).
-   - **Confidence**: `HIGH` (4+ categories), `MEDIUM` (3 categories, or sequential step labels + Category 6 restatement in code comments), `LOW` (1–2 categories), or `clean` (0 categories). When 1 or 2 categories fire, always write `NO-FLAG (LOW)` (or `NO-FLAG` with confidence `LOW`) — never omit `LOW` and never label a 1–2 category unit `clean`.
+   - **Confidence**: `HIGH` (4+ categories), `MEDIUM` (3 categories, or sequential step labels + Category 6 restatement in code comments), `LOW` (1–2 categories), or `clean` (0 categories). When 1 or 2 categories fire outside that step-label exception, always write `NO-FLAG (LOW)` (or `NO-FLAG` with confidence `LOW`) — never omit `LOW` and never label a 1–2 category unit `clean`.
    - **Categories fired**: named categories from the 8-category catalog (e.g., `Cat 2 Structure`, `Cat 6 Tech-doc`) or `none` when 0 fire, with brief evidence per unit (and note any single Tier 2/3 word or transition that stayed below the 2+ per-unit threshold).
 2. **Skipped items**: list skipped frontmatter, code fences, compiler/linter directives (`//nolint`, `//go:*`, `# noqa`, `# type:`), convention markers (`TODO`, `FIXME`), or license/generated headers separately as skipped, not scored.
 3. **Document-level pass** (prose callers only; omit for code comments): reported in its own separate section with measured rates against thresholds, never added to per-paragraph category counts.
@@ -211,8 +212,8 @@ category, and do not label it `clean` because Category 6 fired.
 
 **Solution:** Re-read the Cluster scoring table. One em-dash, one
 "Moreover," or one "delve" is never enough on its own. Require 3+
-distinct categories before flagging, and report 1- or 2-category units
-as `NO-FLAG (LOW)`. One-hit signals (Tier 1 vocabulary, HR-speak
+distinct categories before flagging, and report other 1- or 2-category
+units as `NO-FLAG (LOW)`. One-hit signals (Tier 1 vocabulary, HR-speak
 openers, model-specific opener phrases) still count as *one* category —
 they lower the threshold for *that* category firing, not the 3-category
 cluster threshold (the sole 2-category exception is 2+ sequential
@@ -251,7 +252,8 @@ weakly).
 **Solution:** When exactly 3 categories fire weakly, default to
 `FLAG` (`MEDIUM` confidence) and let the caller (which has the edit/keep
 authority) decide. If only 1 or 2 categories fire, report `NO-FLAG (LOW)`
-(never `clean`, which is reserved for 0 categories). Never flag on 1.
+(never `clean`, which is reserved for 0 categories) unless they are the
+step-label + Category 6 pair from Example 3. Never flag on 1.
 
 ### Error: References file not loaded
 
