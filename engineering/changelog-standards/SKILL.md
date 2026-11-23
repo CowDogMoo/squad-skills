@@ -60,12 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- New features not yet released
+- Added support for custom output templates
 
 ## [1.0.0] - 2026-01-10
 
 ### Added
-- Initial release with core features
+- Released initial version with core features
 
 [Unreleased]: https://github.com/user/repo/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/user/repo/releases/tag/v1.0.0
@@ -89,14 +89,14 @@ Components:
 
 ### Standard Categories
 
-Use these categories in this order:
+Include only the categories that apply to a release (omit empty headings), always in this exact order:
 
 | Category | Description | Examples |
 |----------|-------------|----------|
 | **Added** | New features | New API endpoint, new command |
 | **Changed** | Changes to existing functionality | Modified behavior, updated dependency |
 | **Deprecated** | Features marked for removal | Deprecated function, deprecated flag |
-| **Removed** | Removed features | Deleted endpoint, removed command |
+| **Removed** | Removed features | Deleted endpoint, removed command or field |
 | **Fixed** | Bug fixes | Corrected error, fixed crash |
 | **Security** | Security fixes | Patched vulnerability, fixed auth issue |
 
@@ -123,8 +123,9 @@ Use these categories in this order:
 
 **Removed:**
 
-- Features that have been removed
-- Only use after deprecation period (when possible)
+- Public features, commands, endpoints, flags, or configuration fields that have been deleted
+- Removing part of the public API (even one deprecated in an earlier release) is backwards-incompatible and requires a MAJOR version bump once past `1.0.0`
+- Prefer deprecating for at least one minor release before removing when practical
 
 **Fixed:**
 
@@ -145,13 +146,16 @@ Use these categories in this order:
 
 ### Entry Format
 
+In Keep a Changelog markdown, begin every bullet directly with a past-tense verb (`Added`, `Changed`, `Updated`, `Renamed`, `Deprecated`, `Removed`, `Fixed`, `Patched`) as the first word after `-`. Place callouts such as `(**BREAKING**)`, migration notes, and issue or PR references (`(#123)`) after the opening verb phrase, never as a prefix ahead of the verb. antsibull-changelog fragments are the one exception: they keep the required `<module/role/plugin> -` prefix, and the past-tense verb comes directly after it (see [Ansible/antsibull-changelog Format](#ansibleantsibull-changelog-format)).
+
 **Good entries:**
 
 ```markdown
 - Added `--verbose` flag to enable detailed output (#123)
-- Fixed crash when processing empty files
+- Fixed crash when processing empty files (#128)
 - Changed default timeout from 30s to 60s
 - Deprecated `OldFunction()` in favor of `NewFunction()`
+- Removed deprecated `LegacyOption` field (**BREAKING**; use `TimeoutOption` instead)
 ```
 
 **Bad entries:**
@@ -161,17 +165,19 @@ Use these categories in this order:
 - Various improvements  # Not specific
 - Updated code  # Meaningless
 - Bumped version  # Not user-relevant
+- **BREAKING:** Removed `LegacyOption`  # Prefix displaces the leading past-tense verb
+- `--verbose` flag for detailed output  # Noun phrase instead of past-tense verb
 ```
 
 ### Style Guidelines
 
 | Guideline | Example |
 |-----------|---------|
-| Use imperative mood | "Add feature" not "Added feature" in commits, but "Added" in changelog |
-| Start with verb | "Fixed", "Added", "Removed" |
-| Be specific | Name the function, command, or feature |
-| Include references | Issue numbers, PR links |
-| Keep entries concise | One line per change |
+| Use past-tense verbs | "Added", "Fixed", "Removed" in changelogs (commits use imperative "Add", "Fix") |
+| Lead with the verb | First word after `-` is the past-tense verb (antsibull: first word after `<name> -`); place `(**BREAKING**)` or `(#123)` after |
+| Be specific | Name the function, command, field, or behavior that changed |
+| Include references | Issue numbers, PR links, or CVEs where known |
+| Keep entries concise | One change per entry |
 
 ### What to Include
 
@@ -186,7 +192,9 @@ Use these categories in this order:
 
 **Exclude:**
 
-- Internal refactoring (unless affecting performance)
+- Internal refactoring (unless affecting user-visible performance or behavior)
+- Code formatting or style-only sweeps (e.g., `gofmt`, `prettier`, `rustfmt`)
+- Version-bump commits
 - Development tooling changes
 - Minor dependency updates
 - Typo fixes (unless in user-facing content)
@@ -217,6 +225,8 @@ Format: `MAJOR.MINOR.PATCH`
 | MINOR | New functionality (backwards-compatible) |
 | PATCH | Bug fixes (backwards-compatible) |
 
+When a release combines multiple types of changes (for example, a new feature, a bug fix, and a removed public field), the highest-impact change determines the version bump (`MAJOR` overrides `MINOR` and `PATCH`).
+
 ### Pre-release Versions
 
 ```markdown
@@ -228,15 +238,21 @@ Format: `MAJOR.MINOR.PATCH`
 
 ### Breaking Changes
 
-Always highlight breaking changes prominently:
+Removing a public function, flag, endpoint, or configuration field (even one deprecated in a prior release), renaming a public symbol without keeping an alias, or making an incompatible signature or behavior change warrants a **MAJOR** bump (`1.4.2` -> `2.0.0`).
+
+Group each breaking entry under the standard category that matches the change (`Removed` for deleted symbols/fields, `Changed` for renames or incompatible behavior modifications) and highlight it with `(**BREAKING**)` **after** the opening past-tense verb phrase so every bullet still starts with a past-tense verb:
 
 ```markdown
 ## [2.0.0] - 2026-01-10
 
 ### Changed
 
-- **BREAKING:** Renamed `config.yaml` to `settings.yaml`
-- **BREAKING:** Changed API response format for `/users` endpoint
+- Renamed `config.yaml` to `settings.yaml` (**BREAKING**; rename existing config files before upgrading)
+- Changed API response format for `/users` endpoint (**BREAKING**)
+
+### Removed
+
+- Removed deprecated `Client.LegacyMode` field (**BREAKING**; use `Client.Timeout` instead)
 ```
 
 ---
@@ -250,11 +266,11 @@ Always highlight breaking changes prominently:
 
 ### Added
 
-- Initial release
-- Core functionality for X, Y, and Z
-- Command-line interface with basic commands
-- Configuration file support
-- Documentation and examples
+- Released initial version of the CLI and library
+- Added core functionality for X, Y, and Z
+- Added command-line interface with basic commands
+- Added configuration file support
+- Added documentation and examples
 ```
 
 ### Feature Release
@@ -264,14 +280,14 @@ Always highlight breaking changes prominently:
 
 ### Added
 
-- New `export` command for data export (#234)
-- Support for YAML configuration files
-- Plugin system for custom extensions
+- Added `export` command for data export (#234)
+- Added support for YAML configuration files
+- Added plugin system for custom extensions
 
 ### Changed
 
 - Improved error messages with more context
-- Updated default timeout from 30s to 60s
+- Changed default timeout from 30s to 60s
 
 ### Fixed
 
@@ -301,14 +317,13 @@ Always highlight breaking changes prominently:
 
 ### Deprecated
 
-- `OldFunction()` is deprecated, use `NewFunction()` instead
-  Will be removed in v2.0.0
+- Deprecated `OldFunction()` in favor of `NewFunction()` (scheduled for removal in v2.0.0)
 
 ## [2.0.0] - 2026-06-01
 
 ### Removed
 
-- Removed `OldFunction()` (deprecated in v1.2.0)
+- Removed `OldFunction()`, deprecated in v1.2.0 (**BREAKING**; use `NewFunction()` instead)
 ```
 
 ---
@@ -373,7 +388,7 @@ bugfixes:
 
 ### Entry Quality
 
-- [ ] Starts with appropriate verb
+- [ ] Begins directly with a past-tense verb (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`), or with `<name> -` then the verb in antsibull fragments, with `(**BREAKING**)` placed after the verb phrase rather than before
 - [ ] Specific about what changed
 - [ ] Includes reference numbers
 - [ ] Single change per entry
@@ -403,13 +418,13 @@ bugfixes:
 ## [1.0.0] - 2026-01-10
 
 ### Added
-- New `export` command for CSV data export (#123)
-
-### Fixed
-- Fixed crash when processing files over 1GB (#456)
+- Added `export` command for CSV data export (#123)
 
 ### Changed
 - Updated authentication library to v2.0 for security improvements
+
+### Fixed
+- Fixed crash when processing files over 1GB (#456)
 ```
 
 ---
