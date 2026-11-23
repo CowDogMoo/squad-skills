@@ -64,7 +64,9 @@ if [ -z "$lang" ]; then
 fi
 
 # Clear stale state from prior runs (possibly a different language).
-rm -f /tmp/squad-targets.txt /tmp/squad-uncovered.out
+rm -f /tmp/squad-targets.txt /tmp/squad-uncovered.out /tmp/squad-cov.out /tmp/squad-cov.json \
+	/tmp/squad-rust/cov.json /tmp/squad-rust/tarpaulin-report.json \
+	/tmp/squad-node/coverage-summary.json /tmp/squad-node/coverage-final.json
 
 export SQUAD_COVERAGE_TARGET="${SQUAD_COVERAGE_TARGET:-75}"
 bash "$here/enqueue_$lang.sh"

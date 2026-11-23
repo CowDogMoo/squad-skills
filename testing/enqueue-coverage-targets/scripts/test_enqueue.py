@@ -8,6 +8,7 @@ stdout, because a sandboxed shell may not keep /tmp between commands.
 """
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import shutil
@@ -119,6 +120,11 @@ class EnqueueTests(unittest.TestCase):
             stub = bindir / tool
             stub.write_text("#!/bin/sh\nexit 1\n")
             stub.chmod(0o755)
+        stale = Path("/tmp/squad-rust/cov.json")
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text(json.dumps({"data": [{"files": [
+            {"filename": "/elsewhere/src/lib.rs", "summary": {"lines": {"percent": 10.0}}}
+        ], "functions": []}]}))
         env_path = f"{bindir}{os.pathsep}{os.environ['PATH']}"
         res = subprocess.run(
             ["bash", str(SCRIPT), "rust", str(proj)],
@@ -127,6 +133,7 @@ class EnqueueTests(unittest.TestCase):
         )
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertIn("NO_COVERAGE_DATA", res.stderr)
+        self.assertNotIn("/elsewhere/src/lib.rs", res.stdout)
         self.assertRegex(res.stdout, r"=== queue size ===\n\s*0\n")
 
     def test_language_and_directory_arguments_work_in_either_order(self):
