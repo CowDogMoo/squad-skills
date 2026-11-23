@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: "Shared review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents, a repo-scale review in edit or readonly mode, or a review prompt that injects a Pre-discovered source files list. Not for a conversational review that just asks what you'd change in a file or package (the per-language review-criteria skills), explaining review practice, reviewing a one-line diff, or security audits."
+description: "Shared review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents, a review that fixes code in place (apply the fixes, verify, revert what breaks), a repo-scale readonly review with a severity-rated report, or a review prompt that injects a Pre-discovered source files list. Not for a conversational review that just asks what you'd change in a file or package (the per-language review-criteria skills), explaining review practice, reviewing a one-line diff, or security audits."
 ---
 # Review Loop
 
@@ -64,10 +64,11 @@ core logic and the public API, and list what you did not read.
 1. **Explicit file list first.** If the prompt names files or injects a
    `Pre-discovered source files` block, those files are the complete,
    frozen set. Skip Glob, do not Glob to double-check, and do not
-   re-filter. A file that appears elsewhere in the prompt or the
-   directory but not in the list is out of scope: do not review it and
-   do not mention it in the report (read it only if a listed file
-   cannot be understood without it).
+   re-filter. Any file not in that list is out of scope, even when the
+   prompt names it somewhere else (an `Input files` or context-files
+   list added by a harness or caller) or it sits in the same directory.
+   Do not Read it, do not review it, and do not mention it or its issues
+   in the report. Files analyzed counts only the listed files.
 2. **Injected lint output.** If the prompt injects the caller's warnings
    block, use it verbatim as the lint result and skip the lint run.
 3. Otherwise Glob the caller's pattern once from the repo root and apply
