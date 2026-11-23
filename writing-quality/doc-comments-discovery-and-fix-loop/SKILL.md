@@ -105,21 +105,18 @@ table, not by documenting them — a restating comment is not coverage.
 
 ## Phase 3 — Fix and Verify
 
-**Set-up for read-only inputs.** Edit the files in place when they
-are writable inside the working directory. Only when they are
-read-only or outside it, `cp` them into a new, empty subdirectory of
-the working directory (for example `./doc-pass/`), keeping relative
-paths and the build files the verify command needs (such as `go.mod`
-or `Cargo.toml`). Never copy over an existing path, and run verify
-inside that subdirectory. If the copy is denied, write one verbatim
-copy there as set-up (not as a fix) and Read it back. Every
-doc-comment change is then an Edit on the copy, never on the
-original, and the report says where the copy lives. Before the first
-Edit, commit only the copied paths as a baseline (`git add <paths>`,
-then `git commit -m baseline -- <paths>`), never the whole index, so
-the caller's `git checkout -- <file>` revert in step 5 restores them.
-If the directory is not a safe place for a commit, revert a failing
-copy by copying the original over it again or by Edit-to-undo.
+**Set-up for read-only inputs.** By default, edit the files
+themselves: the user's real files are the deliverable. Copy only when
+an input is read-only or outside the working directory. Then `cp` it,
+with the build files verify needs (such as `go.mod`), into a new,
+empty subdirectory (for example `./doc-pass/`), never over an
+existing path, and run verify there. If the copy is denied, write one
+verbatim copy there as set-up (not as a fix) and Read it back. Every
+doc-comment change is then an Edit on the copy, and the report says
+where it lives. Before the first Edit, commit only the copied paths
+(`git add <paths>`, then `git commit -m baseline -- <paths>`) so the
+`git checkout -- <file>` revert in step 5 works; if committing there
+is unsafe, revert by re-copying the original or by Edit-to-undo.
 
 1. **Edit tool only.** Apply every fix with the Edit tool, on a file
    you have Read in this session, highest priority first. Never

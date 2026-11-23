@@ -223,24 +223,20 @@ decision itself. Use this shape unless the caller dictates another:
 
 ### Applying the edits
 
-Read each file and apply each decision as an Edit in place when the
-file is writable inside the working directory. Only when it is
-read-only or outside it, `cp` it into a new, empty subdirectory of
-the working directory (for example `./scrub-pass/`), keeping relative
-paths and the build files the verify command needs (such as `go.mod`
-or `Cargo.toml`). Never copy over an existing path, and run verify
-inside that subdirectory. Before the first Edit, commit only the
-copied paths as a baseline (`git add <paths>`, then
-`git commit -m baseline -- <paths>`), never the whole index, so the
-caller's `git checkout -- <file>` revert restores them. If the
-directory is not a safe place for a commit, revert a failing copy by
-copying the original over it again or by Edit-to-undo. If the copy is
-denied, write one verbatim copy there with Write as set-up, then Edit
-it, or, if you cannot write anywhere, still deliver the complete
-report above with the final text of each trim, and say that nothing
-was applied and why. A report with every decision is the deliverable;
-never stop at a one-line refusal. Report the path of every edited
-file.
+By default, Read each file and apply each decision as an Edit on the
+file itself: the user's real file is the deliverable. Copy only when
+the input is read-only or outside the working directory. Then `cp` it,
+with the build files verify needs (such as `go.mod`), into a new,
+empty subdirectory (for example `./scrub-pass/`), never over an
+existing path, and run verify there. Before the first Edit, commit
+only the copied paths (`git add <paths>`, then
+`git commit -m baseline -- <paths>`) so a `git checkout -- <file>`
+revert works; if committing there is unsafe, revert by re-copying the
+original or by Edit-to-undo. If the copy is denied, write one verbatim
+copy there with Write as set-up, then Edit it. If you cannot write
+anywhere, still deliver the complete report above with the final text
+of each trim, and say that nothing was applied and why; never stop at
+a one-line refusal. Report the path of every edited file.
 
 ## Examples
 
