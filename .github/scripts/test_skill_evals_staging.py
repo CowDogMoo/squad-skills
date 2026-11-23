@@ -229,8 +229,9 @@ class StagingTest(unittest.TestCase):
         # with `Edit(//<staged-skill>/**)` disallowed and only the scratch cwd
         # in workingDirectories, so Claude Code's Bash filter denies `cp` from
         # staged inputs into cwd. The staged header must stay single-line for
-        # prompt_paths() and steer the model away from `cp`/`mv` instead of
-        # telling it "copy one into your working directory".
+        # prompt_paths() and tell the model to read inputs in place and Read +
+        # Write changed versions into its working directory rather than telling
+        # it "copy one into your working directory" or teaching a denial bypass.
         self.assertNotIn("\n", skill_evals.INPUT_LIST_HEADER)
         skill = self.make_skill(
             {"evals/files/in.txt": "x\n"},
@@ -243,9 +244,10 @@ class StagingTest(unittest.TestCase):
         listed, _named = skill_evals.prompt_paths(prompt, plugin)
         self.assertEqual(listed, [plugin / "eval-inputs" / "files" / "in.txt"])
         self.assertNotIn("copy one into your working directory", prompt)
+        for banned in ("shutil", "cp", "mv"):
+            self.assertNotIn(banned, skill_evals.INPUT_LIST_HEADER)
         self.assertIn("read them in place", prompt)
-        self.assertIn("write outputs to your working directory", prompt)
-        self.assertIn("never `cp` or `mv`", prompt)
+        self.assertIn("Read it and Write your changed version into your working directory", prompt)
 
     def test_transcribe_guitar_riff_case_1_is_kept_locally_and_skipped_in_ci(self) -> None:
         name = "transcribe-guitar-riff"

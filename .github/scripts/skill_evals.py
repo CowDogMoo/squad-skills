@@ -117,10 +117,8 @@ EVALS_REF = re.compile(r"(?<![\w/.-])(?:\./)?" + EVALS_DIR + "/")
 # workingDirectories, and Claude Code's Bash filter checks `cp`/`mv` source
 # paths against those write rules, denying `cp` from staged inputs into cwd.
 INPUT_LIST_HEADER = (
-    "Input files (read-only; read them in place and write outputs to your "
-    "working directory, or use Read + Write or Python shutil if you need a "
-    "writable copy there; never `cp` or `mv`, which the sandbox permission "
-    "filter denies on read-only input paths):"
+    "Input files (read-only; read them in place, and to change one, Read it "
+    "and Write your changed version into your working directory):"
 )
 # Only these reach `claude plugin eval`; the step's other variables stay out.
 CHILD_ENV = [
