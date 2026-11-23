@@ -683,10 +683,10 @@ got := string(data)
 
 ## Authoring and Verification Workflow
 
-1. **Follow the `<source>_test.go` convention:** Place tests for `foo.go` in `foo_test.go` inside the same package directory. If the source package sits in a read-only directory, copy `go.mod` (`go.sum` if present) and the `.go` files into your writable working directory first so the module layout and package declaration stay intact.
+1. **Follow the `<source>_test.go` convention:** Place tests for `foo.go` in `foo_test.go` inside the same package directory.
 2. **Test behavior and skip trivial code:** Cover exported functions and methods that carry real logic, boundaries, and error returns, executing table cases as named subtests with `t.Run(tt.name, ...)`. Assert exported sentinel errors with `errors.Is` rather than `err != nil`. Leave trivial field getters and setters without dedicated tests, and note why they were skipped if they leave uncovered statements.
 3. **Run `go test` before finishing:** Execute `go test ./...` (or `go test -v -cover ./...`) in the module directory and resolve any compilation or test failures.
-4. **Show the test code and `go test` result in your response:** Include the newly written `*_test.go` file (or the added test functions when extending a large file) in a fenced `go` code block so the table structure, `t.Run` subtests, and assertions are visible, followed by the `go test ./...` command and passing output and a brief note on any trivial getters intentionally left untested.
+4. **Show the test code only when needed:** If a calling agent defines a report format, follow it instead. Otherwise, when the test files cannot be written where the user will see them or the user asks to see them, include the newly written `*_test.go` file (or the added test functions when extending a large file) in a fenced `go` code block so the table structure, `t.Run` subtests, and assertions are visible, followed by the `go test ./...` command and passing output and a brief note on any trivial getters intentionally left untested.
 
 ---
 

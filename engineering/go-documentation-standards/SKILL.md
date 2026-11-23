@@ -104,7 +104,7 @@ type Request struct {
 
 **Rules:**
 
-- Start directly with the type name ("[Type] represents..." or "[Type] manages...") so every doc comment begins with its declared identifier; Go's doc parser also accepts a leading article ("A [Type]...", "An [Type]...") in existing code
+- Start with the type name ("[Type] represents..." or "[Type] manages..."); a leading article ("A [Type] represents...", "An [Type]...", "The [Type]...") is also valid
 - Document concurrency safety if relevant
 - Explain zero value behavior if non-obvious
 - Document exported fields (in type comment or per-field)
@@ -503,15 +503,15 @@ if err == nil {
 
 ### Writing Doc Comments
 
-1. **Change comments only:** Never alter executable code, signatures, or imports during a documentation pass. If the source file is in a read-only location, read it with file tools and write the documented file into your working directory rather than copying the read-only path via shell commands.
+1. **Change comments only:** Never alter executable code, signatures, or imports during a documentation pass.
 2. **Cover non-obvious exports and skip trivial ones:** Place `// Package <name> ...` directly above `package <name>` with no blank line. Give each non-obvious exported type, function, method, constant, and variable a doc comment immediately above its declaration (no intervening blank line) starting with its declared name. Document error conditions, sentinel errors, parameter constraints, and concurrency safety; leave self-documenting methods (`String`, `Len`, simple getters) uncommented.
 3. **Verify formatting and compilation:** Run `gofmt -w` and `go vet` (using `gofmt -w <file.go> && go vet <file.go>` for a standalone file without `go.mod`, or `gofmt -w . && go vet ./...` in a module) to confirm valid, compilable Go.
-4. **Show the documented code in your response:** Include the resulting Go source in a fenced `go` block (the complete file when documenting a single file, or each added/updated comment block together with its adjacent `package` clause or declaration signature for multi-file packages), note any self-documenting exports intentionally left without a comment, and record the verification command run.
+4. **Show the documented code only when needed:** If a calling agent defines a report format, follow it instead. Otherwise, when the documented files cannot be written where the user will see them or the user asks to see the result, include the resulting Go source in a fenced `go` block (the complete file when documenting a single file, or each added/updated comment block together with its adjacent `package` clause or declaration signature for multi-file packages), note any self-documenting exports intentionally left without a comment, and record the verification command run.
 
 ### Auditing Doc Comments
 
 1. **Leave files unmodified:** When asked to audit or review comments without editing, do not modify any files.
-2. **Check every file systematically:** Inspect for a missing `// Package <name>` comment, blank lines detaching a comment from its `package` clause or declaration, comments that do not start with the declared name, tautological comments that only restate the identifier, comments describing internal implementation instead of caller-facing behavior, and undocumented exported declarations with non-obvious behavior, return values, or errors.
+2. **Check every file systematically:** Inspect for a missing `// Package <name>` comment, blank lines detaching a comment from its `package` clause or declaration, comments that do not start with the declared name (a leading "A", "An", or "The" before the name is not a defect), tautological comments that only restate the identifier, comments describing internal implementation instead of caller-facing behavior, and undocumented exported declarations with non-obvious behavior, return values, or errors.
 3. **Report concrete fixes:** List each defect with its declaration and line number, state the rule violated, and provide a concrete replacement comment. Distinguish non-defects such as unexported declarations and self-documenting exports that properly omit comments.
 
 ---
@@ -538,7 +538,7 @@ if err == nil {
 | Function returning value | "[Name] returns..." |
 | Function returning bool | "[Name] reports whether..." |
 | Function with side effects | "[Name] [action]s..." |
-| Type | "[Type] represents..." or "[Type] manages..." |
+| Type | "[Type] represents..." or "A [Type] represents..." |
 | Error variable | "[Name] is returned when..." |
 | Constant | "[Name] is the..." |
 
