@@ -12,6 +12,7 @@ review criteria, anti-patterns, and severity classification.
 ## Table of Contents
 
 - [Introduction](#introduction)
+- [Delivering Your Work](#delivering-your-work)
 - [File Naming and Structure](#file-naming-and-structure)
 - [Style Guide](#style-guide)
 - [Organization Best Practices](#organization-best-practices)
@@ -28,6 +29,35 @@ review criteria, anti-patterns, and severity classification.
 ## Introduction
 
 Go-Task (Task) is a modern, cross-platform task runner and build tool written in Go. It serves as a lightweight alternative to Make, with YAML-based configuration that emphasizes simplicity, cross-platform compatibility, and developer experience.
+
+## Delivering Your Work
+
+If an agent or skill that invoked you defines the report format, follow that
+format and ignore the rest of this section. The guidance below applies when
+you are working directly for a user and no report format is given.
+
+When you write, restructure, or fix a Taskfile for a user, the reply is what
+they review. A file path or a prose summary alone cannot be checked, and "I
+added descriptions" is not the same as "every task has one".
+
+- **Show the result.** If you edited an existing Taskfile in place, put the
+  changed or new tasks themselves in the reply in a `yaml` fence, plus the
+  top-level `version` and every top-level `env`, `dotenv`, `vars`, or
+  `includes` block the edit touched or those tasks rely on, and name the file
+  that holds the rest. Otherwise put the resulting Taskfile in a `yaml` fence,
+  even when you also saved it to a file. Either way, pair the YAML with the
+  per-standard evidence below; a prose summary of the diff is never enough on
+  its own.
+- **State the outcome against the standards, not just the edits.** List what
+  now holds, with the evidence: the `version: '3'` line, that every task
+  (including `default`) has a `desc`, which values moved into `vars`, which
+  task reuses another through `deps:` or `task:` instead of repeating
+  commands, what `sources`/`generates` or `status` skips work, and how secrets
+  and required inputs are handled. Check each claim against the file before
+  making it.
+- **Be honest about verification.** If `task` is installed, run `task --list`
+  and a `--dry` run and report the result. If not, or if you did not run it,
+  say the file is unvalidated.
 
 ## File Naming and Structure
 
