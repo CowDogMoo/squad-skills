@@ -1097,8 +1097,11 @@ class Tab:
             import mido
         except ImportError:  # pragma: no cover
             raise ImportError(
-                "MIDI export needs mido. From the skill directory:\n"
-                "    uv pip install --python .venv/bin/python -r scripts/requirements.txt"
+                f"MIDI export needs mido, which is not importable from {sys.executable}. "
+                "Another python3 may already have it (try `which -a python3`). "
+                "Otherwise make a virtualenv somewhere writable:\n"
+                '    uv venv "${TMPDIR:-/tmp}/gp-venv"\n'
+                '    uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt'
             ) from None
 
         ticks_per_beat = gpm.Duration.quarterTime

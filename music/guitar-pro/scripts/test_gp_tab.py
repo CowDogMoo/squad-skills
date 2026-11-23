@@ -24,10 +24,12 @@ try:
     import mido
 except ModuleNotFoundError as exc:
     raise SystemExit(
-        f"{exc.name} is required to run these tests. From the skill directory:\n"
-        "    uv venv .venv\n"
-        "    uv pip install --python .venv/bin/python -r scripts/requirements.txt\n"
-        "    .venv/bin/python scripts/test_gp_tab.py"
+        f"{exc.name} is required to run these tests and is not importable from "
+        f"{sys.executable}. Another python3 may already have it (try `which -a python3`). "
+        "Otherwise, from the skill directory, make a virtualenv somewhere writable:\n"
+        '    uv venv "${TMPDIR:-/tmp}/gp-venv"\n'
+        '    uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt\n'
+        '    "${TMPDIR:-/tmp}/gp-venv/bin/python" scripts/test_gp_tab.py'
     ) from None
 
 from gp_tab import (
