@@ -201,7 +201,9 @@ decision itself. Use this shape unless the caller dictates another:
      the category that fired. List every category that fired,
      primary first: numbered step labels are Category 5 and also a
      strong Category 2 tell in `detect-llm-tells`, so cite `5, 2`;
-     narration that also restates the next line is `5, 1`.
+     a numbered step label whose text also restates the next line is
+     `5, 1`. Plain narration that restates the next line, with no
+     step label, is Category 1 only: cite `1`.
    - For `KEEP`, the category is the one you tested and why it did not
      win, for example `1, overridden by exported-doc protection` or
      `1, not fired: records why (incident reference)`. Never leave
@@ -221,10 +223,15 @@ decision itself. Use this shape unless the caller dictates another:
 ### Applying the edits
 
 Inputs are often read-only. Copy the file into the working directory
-with `cp`, Read it, and apply each decision as an Edit on the copy.
-If the copy is denied, write one verbatim copy with Write as set-up,
-then Edit it, or, if you cannot write anywhere, still deliver the
-complete report above with the final text of each trim, and say that
+with `cp`, along with the build files the verify command needs (such
+as `go.mod` or `Cargo.toml`), Read it, and apply each decision as an
+Edit on the copy. Before the first Edit, commit the copies as a
+baseline (`git add` and `git commit` in the working directory) so the
+caller's `git checkout -- <file>` revert restores them; if you cannot
+commit, revert a failing copy by copying the original over it again
+or by Edit-to-undo. If the copy is denied, write one verbatim copy
+with Write as set-up, then Edit it, or, if you cannot write anywhere,
+still deliver the complete report above with the final text of each trim, and say that
 nothing was applied and why. A report with every decision is the
 deliverable; never stop at a one-line refusal. Report the path of the
 edited copy.
