@@ -17,7 +17,7 @@
     {
       "id": 2,
       "prompt": "I'm releasing a library that adds a --retry flag, fixes a crash on empty input (#412), and removes the deprecated Config.Legacy field. What version number, and how should the changelog entry read?",
-      "expected_output": "A MAJOR bump because a public field was removed, with entries grouped under Added, Fixed, and Removed in that order, each starting with a past-tense verb and citing the issue where known.",
+      "expected_output": "A MAJOR bump because a public field was removed, with entries grouped under Added, Removed, and Fixed in that order, each starting with a past-tense verb and citing the issue where known.",
       "files": [],
       "expectations": [
         "A MAJOR version bump is recommended because removing the public `Config.Legacy` field is a backwards-incompatible change",
