@@ -28,6 +28,10 @@ uv run --with numpy --with scipy --with soundfile --with librosa \
   TAB.mid SONG.wav --ref-midi SONG_basic_pitch.mid --json report.json
 ```
 
+If `uv` is not installed but `python3 -c "import librosa, mir_eval,
+pretty_midi"` works, run `python3 scripts/compare_tab.py ...` with the same
+arguments; the packages are what matter, not the launcher.
+
 Pass `--subseq` when the tab covers only part of the song (a riff, one
 section). The script trims silence on both sides, aligns in chroma space
 with an onset-weighted feature (a lightweight DLNCO), warps the tab's note
@@ -37,14 +41,14 @@ times onto the recording's timeline, and scores.
 
 - **DTW cost/step** is the same-song confidence — lower is better. It has
   no universal threshold; calibrate once against a known-good pair. On the
-  bundled synthetic fixtures a matching tab scores **0.075** and a wrong
-  song **0.69** — the separation is roughly an order of magnitude, not a
-  close call. If the confidence is in wrong-song territory, stop: the
-  note-level scores below are meaningless.
+  bundled synthetic fixtures the wrong song's cost is many times the
+  matching tab's, not a close call. If the confidence is in wrong-song
+  territory, stop: the note-level scores below are meaningless.
 - **Onset+pitch F1** at the MIREX tolerances (onset ±50 ms, pitch
   ±50 cents, offsets ignored) is the headline faithfulness number:
   **≥ 0.9 excellent** (at the ceiling of what transcribers resolve),
-  **0.7–0.9 usable with errors**, **< 0.5 substantially unfaithful**.
+  **0.7–0.9 usable with errors**, **0.5–0.7 weak**, **< 0.5 substantially
+  unfaithful**. The script prints the rung it landed on as a `rung:` line.
 - **Per-quarter F1** localizes the damage — a global score hides one wrong
   section; a bad quarter says where to look.
 - **The ceiling is the transcriber, not the tab.** Basic Pitch itself lands
@@ -54,6 +58,26 @@ times onto the recording's timeline, and scores.
 - Tabs are often written an octave off. Onset F1 far above onset+pitch F1
   with clean quarters suggests octave errors rather than wrong notes; see
   the octave note in `references/alignment-and-scoring.md`.
+
+## Reporting the result
+
+The point of running a script is that the verdict rests on measurements, so
+the report must not mix in numbers that were never measured. **Every number
+in the reply comes from this run's script output**, copied as printed:
+
+- Quote, per tab: DTW cost/step, chroma similarity, onset F1, onset+pitch F1,
+  the per-quarter scores, and the `rung:` word.
+- Say the verdict in words the output supports: the matching tab's `rung:`
+  (for example "excellent"), and for a tab whose cost/step is far above the
+  known-good one, that it is not the same music and its F1 is meaningless.
+- Compare two runs in words ("far higher than the matching tab's"), not with
+  a ratio or difference you computed yourself.
+- Explain the transcriber ceiling and calibration in words ("scores are a
+  lower bound, because the transcriber itself misses notes"). Do not restate
+  ranges or calibration values from this document, the references, or a
+  fixture generator's docstring as if they were results.
+- If you want to state something the script did not print, run something
+  that prints it, or leave the number out.
 
 ## Quick check without Basic Pitch
 

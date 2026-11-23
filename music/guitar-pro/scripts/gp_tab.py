@@ -36,10 +36,12 @@ try:
     from guitarpro import models as gpm
 except ImportError:  # pragma: no cover
     sys.exit(
-        "PyGuitarPro is required. From the skill directory:\n"
-        "    uv venv .venv\n"
-        "    uv pip install --python .venv/bin/python -r scripts/requirements.txt\n"
-        "then run this script with .venv/bin/python."
+        f"PyGuitarPro is not importable from {sys.executable}. Another python3 "
+        "on this machine may already have it (try `which -a python3`). "
+        "Otherwise make a virtualenv somewhere writable:\n"
+        '    uv venv "${TMPDIR:-/tmp}/gp-venv"\n'
+        '    uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt\n'
+        'then run this script with "${TMPDIR:-/tmp}/gp-venv/bin/python".'
     )
 
 
@@ -534,6 +536,11 @@ class Tab:
                 return i
         return len(track.measures)
 
+    def _pitched_tracks(self, track: int | None) -> list[tuple[int, gpm.Track]]:
+        if track is not None:
+            return [(track, self._track(track))]
+        return [(i, t) for i, t in enumerate(self.song.tracks) if not t.isPercussionTrack]
+
     def _track(self, index: int) -> gpm.Track:
         try:
             return self.song.tracks[index]
@@ -997,12 +1004,17 @@ class Tab:
         The layout is proportional to note duration, so a run of sixteenths
         looks tighter than a row of whole notes -- which is what makes the
         output usable for checking rhythm at a glance, not just pitches.
+        A "PM" row above the strings puts an "m" over every palm-muted beat.
         """
         trk = self._track(track)
         strings = trk.strings  # string 1 first == highest pitch == top line
         labels = [name_from_midi(s.value).ljust(3) for s in strings]
 
         columns: list[list[str]] = []  # each column is one char slot per string
+        # One char per column for the palm-mute row: "m" over a palm-muted
+        # beat. Chugs are mostly palm mutes, and a tab that hides them reads
+        # as open, ringing notes.
+        pm_row: list[str] = []
         bar_positions: list[int] = []
 
         for measure in trk.measures:
@@ -1020,14 +1032,20 @@ class Tab:
                 cell_width = max(len(s) for s in slot)
                 for i in range(len(strings)):
                     slot[i] = slot[i].ljust(cell_width, "-")
+                muted = any(
+                    note.type != gpm.NoteType.rest and note.effect.palmMute
+                    for note in beat.notes
+                )
                 for i in range(cell_width):
                     columns.append([slot[s][i] for s in range(len(strings))])
+                    pm_row.append("m" if muted and i == 0 else " ")
                 # Space proportional to duration, so a run of sixteenths looks
                 # tighter than a row of half notes and you can read the rhythm
                 # off the page instead of counting note heads.
                 pad = min(10, max(1, beat.duration.time // 240))
                 for _ in range(pad):
                     columns.append(["-"] * len(strings))
+                    pm_row.append(" ")
         bar_positions.append(len(columns))
 
         if not columns:
@@ -1049,6 +1067,13 @@ class Tab:
             if candidates and chunk_end < len(columns):
                 chunk_end = max(candidates)
             lines = []
+            if "m" in pm_row[chunk_start:chunk_end]:
+                row = ["PM ", " "]
+                for c in range(chunk_start, chunk_end):
+                    if c in bar_positions and c != chunk_start:
+                        row.append(" ")
+                    row.append(pm_row[c])
+                lines.append("".join(row).rstrip())
             for s in range(len(strings)):
                 row = [labels[s], "|"]
                 for c in range(chunk_start, chunk_end):
@@ -1072,8 +1097,11 @@ class Tab:
             import mido
         except ImportError:  # pragma: no cover
             raise ImportError(
-                "MIDI export needs mido. From the skill directory:\n"
-                "    uv pip install --python .venv/bin/python -r scripts/requirements.txt"
+                f"MIDI export needs mido, which is not importable from {sys.executable}. "
+                "Another python3 may already have it (try `which -a python3`). "
+                "Otherwise make a virtualenv somewhere writable:\n"
+                '    uv venv "${TMPDIR:-/tmp}/gp-venv"\n'
+                '    uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt'
             ) from None
 
         ticks_per_beat = gpm.Duration.quarterTime
@@ -1176,6 +1204,14 @@ class Tab:
                 for n in b.notes
                 if n.type != gpm.NoteType.rest
             ]
+            palm_muted = sum(
+                1
+                for m in trk.measures
+                for v in m.voices
+                for b in v.beats
+                for n in b.notes
+                if n.type != gpm.NoteType.rest and n.effect.palmMute
+            )
             tuning_low_first = [name_from_midi(s.value) for s in reversed(trk.strings)]
             tracks.append(
                 {
@@ -1186,6 +1222,7 @@ class Tab:
                     "tuning_name": self._name_tuning(tuning_low_first),
                     "measures": len(trk.measures),
                     "notes": note_count,
+                    "palm_muted": palm_muted,
                     "fret_range": [min(frets), max(frets)] if frets else None,
                     "instrument": trk.channel.instrument,
                     "is_percussion": trk.isPercussionTrack,
@@ -1275,9 +1312,8 @@ class Tab:
         left alone rather than silently wrapping to a wrong pitch -- the count
         of skipped notes is reported so you know the shift did not fit.
         """
-        targets = self.song.tracks if track is None else [self._track(track)]
         skipped = 0
-        for trk in targets:
+        for _index, trk in self._pitched_tracks(track):
             for measure in trk.measures:
                 for voice in measure.voices:
                     for beat in voice.beats:
@@ -1297,6 +1333,53 @@ class Tab:
                 file=sys.stderr,
             )
         return self
+
+    def retune(self, semitones: int, track: int | None = None) -> "Tab":
+        """Shift pitch by retuning every string, keeping every fret.
+
+        The tab reads the same and sounds `semitones` away: standard tuning
+        moved by -2 is D standard. This is the move when a fret shift would
+        push open strings below fret 0, which a downward transposition of a
+        riff built on open strings always does.
+        """
+        for _index, trk in self._pitched_tracks(track):
+            for string in trk.strings:
+                string.value += semitones
+        return self
+
+    def fret_shift_fits(self, semitones: int, track: int | None = None) -> bool:
+        """True when transpose(semitones) can move every note without any
+        falling off the fretboard."""
+        return all(
+            0 <= note.value + semitones <= trk.fretCount
+            for _index, trk in self._pitched_tracks(track)
+            for measure in trk.measures
+            for voice in measure.voices
+            for beat in voice.beats
+            for note in beat.notes
+            if note.type != gpm.NoteType.rest
+        )
+
+    def sounding_notes(self, track: int | None = None) -> list[tuple[int, int, int]]:
+        """(track index, tick, MIDI pitch) for every sounding note, in order.
+
+        Comparing these lists before and after an edit is how you prove a
+        transposition moved every note, and moved it by the right amount.
+        """
+        out = []
+        for index, trk in self._pitched_tracks(track):
+            tuning = {s.number: s.value for s in trk.strings}
+            cursor = 0
+            for measure in trk.measures:
+                voice = measure.voices[0] if measure.voices else None
+                for beat in (voice.beats if voice else []):
+                    for note in beat.notes:
+                        if note.type in (gpm.NoteType.rest, gpm.NoteType.dead):
+                            continue
+                        if note.string in tuning:
+                            out.append((index, cursor, tuning[note.string] + note.value))
+                    cursor += beat.duration.time
+        return out
 
 
 # --------------------------------------------------------------------------
@@ -1454,6 +1537,30 @@ def _lyric_lines(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------------
 
 
+def _tuning_label(track_info: dict[str, Any]) -> str:
+    pitches = " ".join(track_info["tuning"])
+    name = track_info.get("tuning_name")
+    return f"{name} ({pitches})" if name else pitches
+
+
+def _first_pitched(info: dict[str, Any]) -> dict[str, Any]:
+    return next((t for t in info["tracks"] if not t["is_percussion"]), info["tracks"][0])
+
+
+def _verify_line(path: str, tab: "Tab") -> str:
+    """One line summarizing a file as reloaded from disk."""
+    info = tab.info()
+    track = info["tracks"][0]
+    bad = tab.check_measures()
+    return (
+        f"reloaded {path}: {info['measures']} measures, {info['tempo']} BPM, "
+        f"{'/'.join(info['time_signatures'])}, tuning {_tuning_label(track)}, "
+        f"{track['strings']} strings, {track['notes']} notes "
+        f"({track['palm_muted']} palm-muted), "
+        + ("every bar adds up" if not bad else f"{len(bad)} bar(s) do NOT add up")
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build and inspect Guitar Pro files.",
@@ -1465,6 +1572,8 @@ def main(argv: list[str] | None = None) -> int:
             "  python gp_tab.py riff out.gp5 --tuning 8-string --tempo 150 \\\n"
             "      --notes '8:8.0 8:8.0 8:8.3 | 4:8.0 4:r'\n"
             "  python gp_tab.py tunings\n"
+            "  python gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2 \\\n"
+            "      --midi song-down2.mid\n"
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1491,6 +1600,16 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("tunings", help="list built-in tuning names")
 
+    p_tr = sub.add_parser(
+        "transpose",
+        help="write a transposed copy (frets moved when every note fits, else "
+        "strings retuned), then prove every note moved by the shift",
+    )
+    p_tr.add_argument("path", help="the file to read; it is never modified")
+    p_tr.add_argument("out", help="where to write the transposed copy")
+    p_tr.add_argument("--semitones", type=int, required=True, help="-2 = down a whole step")
+    p_tr.add_argument("--midi", help="also write a .mid of the transposed copy")
+
     p_riffout = sub.add_parser("to-riff", help="dump a track as riff notation")
     p_riffout.add_argument("path")
     p_riffout.add_argument("--track", type=int, default=0)
@@ -1504,6 +1623,44 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "info":
         print(json.dumps(Tab.load(args.path).info(), indent=2))
+        return 0
+
+    if args.command == "transpose":
+        original = Tab.load(args.path)
+        before = original.sounding_notes()
+        old_tuning = _tuning_label(_first_pitched(original.info()))
+        method = "frets" if original.fret_shift_fits(args.semitones) else "retune"
+        tab = Tab.load(args.path)
+        if method == "frets":
+            tab.transpose(args.semitones)
+        else:
+            tab.retune(args.semitones)
+        tab.save(args.out)
+        saved = Tab.load(args.out)
+        after = saved.sounding_notes()
+        shifted = [(t, tick, pitch + args.semitones) for t, tick, pitch in before]
+        print(f"read {args.path}: tuning {old_tuning}")
+        print(
+            f"method: {method} "
+            + ("(frets moved, tuning kept)" if method == "frets"
+               else "(frets kept, every string re-pitched; a fret shift would push notes below fret 0 or past the last fret)")
+        )
+        print(f"wrote {args.out}: tuning {_tuning_label(_first_pitched(saved.info()))}")
+        if after != shifted:
+            print(
+                f"VERIFY FAILED: the copy's notes are not all {args.semitones:+d} "
+                f"semitones from the original ({len(before)} before, {len(after)} after)"
+            )
+            return 1
+        direction = "lower" if args.semitones < 0 else "higher"
+        print(
+            f"verified: all {len(after)} sounding notes in {args.out} are "
+            f"{abs(args.semitones)} semitone(s) {direction} than in {args.path}, "
+            "at the same positions"
+        )
+        if args.midi:
+            saved.midi(args.midi)
+            print(f"wrote {args.midi}")
         return 0
 
     if args.command == "ascii":
@@ -1534,12 +1691,18 @@ def main(argv: list[str] | None = None) -> int:
         tab.riff(args.notes)
         tab.save(args.out)
         print(f"wrote {args.out}")
+        # Report what the FILE holds, not what the writer was asked for: a
+        # reload is what catches collapsed beats and missing measures.
+        shown = tab
+        if os.path.splitext(args.out)[1].lower() in (".gp3", ".gp4", ".gp5"):
+            shown = Tab.load(args.out)
+            print(_verify_line(args.out, shown))
         if args.midi:
-            tab.midi(args.midi)
+            shown.midi(args.midi)
             print(f"wrote {args.midi}")
         if args.print_ascii:
             print()
-            print(tab.ascii())
+            print(shown.ascii())
         return 0
 
     return 1

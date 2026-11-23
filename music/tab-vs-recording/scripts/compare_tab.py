@@ -76,6 +76,17 @@ def f1_for(ref_i, ref_p, est_i, est_p):
     return f
 
 
+def rung(f):
+    """The ladder rung an onset+pitch F1 lands on, as a word to quote."""
+    if f >= 0.9:
+        return "excellent"
+    if f >= 0.7:
+        return "usable with errors"
+    if f >= 0.5:
+        return "weak: many wrong or missing notes"
+    return "substantially unfaithful"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("tab", help="the tab as MIDI (Guitar Pro export, gp_tab.py --to-midi, ...)")
@@ -155,10 +166,12 @@ def main():
         print("per-quarter onset+pitch F1: "
               + "  ".join("n/a" if q is None else f"{q:.2f}" for q in per_q))
         print("ladder: >=0.9 excellent (at the transcriber ceiling), "
-              "0.7-0.9 usable with errors, <0.5 substantially unfaithful")
+              "0.7-0.9 usable with errors, 0.5-0.7 weak, <0.5 substantially unfaithful")
+        print(f"rung: {rung(f)} (onset+pitch F1 {f:.2f}); meaningful only if the "
+              "same-song confidence above is in the matching range")
         scores = {"p_onset": p_on, "r_onset": r_on, "f_onset": f_on,
                   "p_onset_pitch": p, "r_onset_pitch": r, "f_onset_pitch": f,
-                  "per_quarter_f": per_q}
+                  "per_quarter_f": per_q, "rung": rung(f)}
     else:
         print("no --ref-midi: alignment-only report; transcribe the recording "
               "(e.g. Basic Pitch) for note-level F-measure")

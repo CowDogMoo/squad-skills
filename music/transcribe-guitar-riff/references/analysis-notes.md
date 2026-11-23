@@ -207,7 +207,8 @@ corroboration; the cleaned reading is authored from the salience table.
 
 ## Tab output
 
-The guitar-pro skill owns file writing. Eight or more strings cannot be
+The guitar-pro skill owns file writing; `scripts/gp_tab.py` here is a
+byte-identical copy of its helper for `.gp5`. Eight or more strings cannot be
 written to `.gp5`; the native `.gp` route needs alphaTab installed next to
 that skill's scripts. Verify the written file by loading it back with
 alphaTab (string count, measure count, tuning MIDI numbers) and by the
