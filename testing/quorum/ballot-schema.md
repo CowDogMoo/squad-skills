@@ -67,7 +67,7 @@ type is protocol corruption) alongside `seat_id`, `jurisdiction`, and
 | `complete` | schema-valid ballot, verdict `complete`, empty `unmet` |
 | `veto` | schema-valid ballot, verdict `incomplete`, at least one cited unmet criterion |
 | `abstain` | verdict `abstain`, or a demoted ballot (rules above; fault recorded) |
-| `absent` | no `ballots/<seat_id>.json` file exists (hang/kill/no output) |
+| `absent` | no `ballots/<seat_id>.json` file exists (hang/kill/no output, or prose/invalid output `run-seats.mjs` refused to write) |
 | `malformed` | ballot file unparsable or schema-invalid (never repaired) |
 
 ## Judge semantics (unanimity)
