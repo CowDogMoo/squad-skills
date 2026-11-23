@@ -8,8 +8,7 @@ A comprehensive guide to creating production-quality Ansible collections, roles,
 playbooks, and testing with Molecule. This document serves as the knowledge base
 for the ansible-review agent.
 
-**Companion document**: See [references/review-criteria.md](references/review-criteria.md) for
-detailed coverage of conditionals, loops, handlers, error handling, and Jinja2 templates.
+**When reviewing or auditing Ansible code**: Read [references/review-criteria.md](references/review-criteria.md) for the review checklist, severity scale, false-positive calibrations, and a read-when index to the topic files (`variables-precedence.md`, `control-flow.md`, `error-handling.md`, `roles.md`, `jinja-and-registers.md`, `inventory-performance.md`).
 
 ---
 
@@ -21,6 +20,7 @@ detailed coverage of conditionals, loops, handlers, error handling, and Jinja2 t
 - [Playbooks](#playbooks)
 - [Naming Conventions](#naming-conventions)
 - [Task Quality](#task-quality)
+- [Review Calibrations](#review-calibrations)
 - [Molecule Testing](#molecule-testing)
 - [Linting](#linting)
 - [Security Best Practices](#security-best-practices)
@@ -84,7 +84,7 @@ my_namespace/my_collection/
 
 ### galaxy.yml Requirements
 
-The `galaxy.yml` file is required at the collection root:
+The `galaxy.yml` file is required at the collection root and must define five required fields: `namespace`, `name`, `version`, `readme`, and `authors`:
 
 ```yaml
 ---
@@ -393,6 +393,30 @@ Roles must produce the same result on repeated runs:
     creates: /opt/app/.db_initialized
 ```
 
+**Use declarative file modules instead of shell redirects:**
+
+Replace `echo ... >>`, `sed -i`, or heredoc shell appends with `ansible.builtin.lineinfile` (single line), `ansible.builtin.blockinfile` (delimited multi-line block), or `ansible.builtin.template` / `ansible.builtin.copy` (whole managed file):
+
+```yaml
+# Bad: appends a duplicate line and reports changed on every run
+- name: Set sysctl forwarding
+  ansible.builtin.shell: echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+
+# Good: idempotent key=value management with regexp + line
+- name: Ensure IPv4 forwarding is enabled
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    regexp: "^net\\.ipv4\\.ip_forward="
+    line: "net.ipv4.ip_forward=1"
+
+# Good: idempotent literal line check (state defaults to present; without
+# regexp, lineinfile matches the exact line and skips if already present)
+- name: Ensure local bin include directive exists
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    line: "export PATH=$PATH:/usr/local/sbin"
+```
+
 **Report changes accurately:**
 
 ```yaml
@@ -492,12 +516,28 @@ Always use Fully Qualified Collection Names:
 
 ### Conditional Logic
 
+`when`, `changed_when`, `failed_when`, and `assert.that` already evaluate in a Jinja2 expression context — **never** wrap them in `{{ }}` delimiters (`no-jinja-when`). Use `| bool` when coercing variables that may arrive as strings:
+
 ```yaml
-# Good - simple conditionals
+# Good - bare expression, no {{ }} braces
 - name: Install packages on Debian
   ansible.builtin.apt:
     name: nginx
+    state: present
   when: ansible_facts['os_family'] == 'Debian'
+
+# Good - coerce boolean variables safely without {{ }}
+- name: Enable HTTPS vhost
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    line: "IncludeOptional conf.d/ssl.conf"
+  when: httpd_enable_ssl | bool
+
+# Bad - Jinja2 delimiters inside when
+- name: Enable HTTPS vhost
+  ansible.builtin.debug:
+    msg: "SSL enabled"
+  when: "{{ httpd_enable_ssl }}"
 
 # Good - combine related conditions
 - name: Configure firewall
@@ -518,6 +558,16 @@ Always use Fully Qualified Collection Names:
     (var3 == 'c' and var4 in ['d', 'e', 'f']) or
     (var5 | length > 3)
 ```
+
+---
+
+## Review Calibrations
+
+When reviewing or auditing Ansible playbooks, roles, or task files, report **only genuine violations** and avoid false positives on valid, idiomatic constructs:
+
+- **Do not flag valid `ansible.builtin.lineinfile` module usage.** `state` defaults to `present`, and when `regexp` is omitted `lineinfile` checks the file for an exact match of `line:` — reruns report `ok` and do **not** append duplicate lines. Require `regexp` when replacing a key whose value may vary, not when ensuring a fixed literal line exists. Likewise, `lineinfile` without `create: true` edits an existing file rather than creating one, so omitting `mode` there is valid. Do not report `lineinfile` module usage itself as a violation or insist on `template`, `blockinfile`, `state: present`, `insertafter`, or `backup: true` without concrete evidence of a bug; if the task has an unrelated issue (such as `{{ }}` in `when:`), flag **only** that issue.
+- **Match findings to the artifact's scope.** Enforce role conventions (role-prefixed variable names `<role>_*`, `defaults/main.yml` vs `vars/main.yml`, `meta/argument_specs.yml`, `handlers/main.yml`, Molecule layout) when reviewing a **role**. When reviewing a standalone task file with no role context, evaluate the tasks themselves (task `name:`, FQCN, idempotent modules over `shell`/`command`, `changed_when: false` on read-only commands, bare `when:` expressions, quoted octal modes, `no_log: true` on secrets) instead of inventing violations for absent role directories or role variable prefixes.
+- **Keep correct constructs out of the violations list.** Do not pad reviews by flagging omitted default parameters whose defaults are already right, or by treating optional hardening ideas as best-practice violations.
 
 ---
 
@@ -742,9 +792,10 @@ offline: false
 | `yaml[line-length]` | Lines should be <=160 chars         |
 | `name[casing]`      | Task names should be capitalized    |
 | `fqcn[action-core]` | Use FQCN for builtin modules        |
-| `no-changed-when`   | Commands should have `changed_when` |
-| `risky-shell-pipe`  | Shell pipes can hide failures       |
-| `package-latest`    | Avoid `state: latest`               |
+| `no-changed-when`   | Commands should have `changed_when`         |
+| `no-jinja-when`     | Never wrap `when`/`changed_when` in `{{ }}` |
+| `risky-shell-pipe`  | Shell pipes can hide failures               |
+| `package-latest`    | Avoid `state: latest`                       |
 
 ### YAML Style
 
@@ -851,13 +902,15 @@ ansible-playbook site.yml --ask-vault-pass
 
 ### Task Anti-Patterns
 
-| Anti-Pattern                     | Problem           | Solution                 |
-| -------------------------------- | ----------------- | ------------------------ |
-| `command`/`shell` without guards | Not idempotent    | Use `creates`/`removes`  |
-| Missing `changed_when`           | False positives   | Set explicit conditions  |
-| `state: latest`                  | Non-deterministic | Pin versions             |
-| Unnamed tasks                    | Hard to debug     | Descriptive names        |
-| Complex Jinja2 in playbooks      | Hard to read      | Use filters or variables |
+| Anti-Pattern                      | Problem                     | Solution                                                |
+| --------------------------------- | --------------------------- | ------------------------------------------------------- |
+| `command`/`shell` over a module   | Not idempotent              | Use `package`/`apt`, `lineinfile`, `file`, or `service` |
+| `command`/`shell` without guards  | Always reports `changed`    | Use `creates`/`removes` or `changed_when: false`        |
+| Missing `changed_when` on reads   | False-positive changes      | Set `changed_when: false` on read-only checks           |
+| `{{ }}` in `when`/`changed_when`  | Double templating           | Bare expression: `when: enable_feature \| bool`         |
+| `state: latest`                   | Non-deterministic           | Use `state: present` or pin a version                   |
+| Unnamed tasks                     | Hard to debug               | Descriptive verb-first names                            |
+| Complex Jinja2 in playbooks       | Hard to read                | Use filters or variables                                |
 
 ### Testing Anti-Patterns
 
