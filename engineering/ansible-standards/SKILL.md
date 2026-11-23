@@ -402,17 +402,17 @@ Replace `echo ... >>`, `sed -i`, or heredoc shell appends with `ansible.builtin.
   ansible.builtin.shell: echo "max_connections=200" >> /etc/myapp/app.conf
 
 # Good: idempotent key=value management with regexp + line
-- name: Ensure app connection limit is 200
+- name: Ensure max_connections=200 is set in app.conf
   ansible.builtin.lineinfile:
     path: /etc/myapp/app.conf
     regexp: "^max_connections="
     line: "max_connections=200"
 
 # Good: ensures a fixed literal line exists
-- name: Ensure local bin include directive exists
+- name: Ensure app.conf includes conf.d/*.conf
   ansible.builtin.lineinfile:
-    path: /etc/profile
-    line: "export PATH=$PATH:/usr/local/sbin"
+    path: /etc/myapp/app.conf
+    line: "include /etc/myapp/conf.d/*.conf"
 ```
 
 **Report changes accurately:**
@@ -525,14 +525,14 @@ Always use Fully Qualified Collection Names:
   when: ansible_facts['os_family'] == 'Debian'
 
 # Good - coerce boolean variables safely without {{ }}
-- name: Enable HTTPS vhost
+- name: Ensure httpd.conf includes conf.d/ssl.conf
   ansible.builtin.lineinfile:
     path: /etc/httpd/conf/httpd.conf
     line: "IncludeOptional conf.d/ssl.conf"
   when: httpd_enable_ssl | bool
 
 # Bad - Jinja2 delimiters inside when
-- name: Enable HTTPS vhost
+- name: Report that SSL is enabled
   ansible.builtin.debug:
     msg: "SSL enabled"
   when: "{{ httpd_enable_ssl }}"
