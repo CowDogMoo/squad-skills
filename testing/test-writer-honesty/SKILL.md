@@ -36,14 +36,14 @@ The pattern that has failed prior runs:
 
 **The required response to "text not found":**
 
-1. If the target tree is read-only (such as staged fixtures or mounted inputs), copy the enclosing module/package directory byte-for-byte into a writable scratch directory under `"${TMPDIR:-/tmp}"` using `Bash` (`mkdir -p "${TMPDIR:-/tmp}/work" && cp -R <src-dir>/. "${TMPDIR:-/tmp}/work/"`). Copying into `"${TMPDIR:-/tmp}"` avoids permission denials on protected working directories while keeping `go.mod` / package metadata intact. Never substitute `Write` for `cp`.
+1. If the target tree is read-only (such as staged fixtures or mounted inputs), copy the enclosing module/package directory byte-for-byte into a writable scratch directory under `"${TMPDIR:-/tmp}"` using `Bash` (`work=$(mktemp -d "${TMPDIR:-/tmp}/work.XXXXXX") && cp -R <src-dir>/. "$work/" && echo "$work"`), using a fresh `mktemp -d` directory for every copy so no stale files or `.git` from another run or package leak in. Copying into `"${TMPDIR:-/tmp}"` avoids permission denials on protected working directories while keeping `go.mod` / package metadata intact. Never substitute `Write` for `cp`.
 2. Call `Read` on the test file you are about to edit so its exact current lines are in context.
 3. Pick an exact multi-line `old_string` anchor directly from the lines `Read` returned and apply `Edit`.
-4. **3-strike and blocked-edit skip rule:** If `Edit` still fails after 3 re-read-and-retry attempts on the same file — or if sandbox permissions block creating a byte-for-byte copy and block editing in place — **STOP trying to edit that file, do NOT call `Write`, and do NOT stall waiting for interactive input in an autonomous run.** Emit your final report (§16) and list the package/module under **Skipped** with the concrete reason. When `Edit` succeeds on retry, state in the report that re-reading and anchoring on actual file contents resolved the failure (and note under **Skipped** that no packages were skipped, whereas persistent failure after 3 attempts would skip the package there).
+4. **3-strike and blocked-edit skip rule:** If `Edit` still fails after 3 re-read-and-retry attempts on the same file — or if sandbox permissions block creating a byte-for-byte copy and block editing in place — **STOP trying to edit that file, do NOT call `Write`, and do NOT stall waiting for interactive input in an autonomous run.** Emit your final report (§16) and list the package/module under **Skipped** with the concrete reason.
 
 ## 3. `git diff` is the ground truth for your report
 
-**Establish a `git` baseline first when working in a copied or untracked directory.** If you copied read-only inputs into a scratch directory (such as `"${TMPDIR:-/tmp}/work"`) or your target directory is not yet tracked by git, `git diff --stat` will print nothing unless git has the unmodified originals in its index. Immediately after copying — **before** any `Edit` or `Write` — run `git init -q && git add -A` inside that working copy (no `git commit` needed). If you later create a brand-new test file with `Write`, run `git add -N <new-file>` so `git diff` tracks its added lines too. Never replace `git diff --stat` with `diff -u` or `git diff --no-index` when staging the baseline lets real `git diff --stat` run.
+**Establish a `git` baseline first when working in a copied or untracked directory.** If you copied read-only inputs into a scratch directory (the `mktemp -d` path from §2) or your target directory is not yet tracked by git, `git diff --stat` will print nothing unless git has the unmodified originals in its index. Immediately after copying — **before** any `Edit` or `Write` — check `git -C <dir> rev-parse --is-inside-work-tree`. Only when that fails (a scratch copy outside any repository) run `git init -q && git add -A` inside that working copy (no `git commit` needed). When the directory is inside an existing repository but its files are untracked, run `git add -- <dir>` in that repository instead; never create a nested repository inside a user's tree. If you later create a brand-new test file with `Write`, run `git add -N <new-file>` so `git diff` tracks its added lines too. Never replace `git diff --stat` with `diff -u` or `git diff --no-index` when staging the baseline lets real `git diff --stat` run.
 
 Before drafting the final report, run these two commands as Bash calls in the working tree:
 
@@ -140,7 +140,7 @@ Skip the following patterns even when they would raise coverage. They look like 
 - **Functional duplicates.** Before adding `TestFoo_Bar`, scan the package's existing test files for any test that already covers the same input → behavior under a different name (`TestFooBar`, `TestFoo_BarCase`, snake-case vs camel-case variants). A different name is not a different test. Skip.
 - **"Should not panic" with no assertions.** A test body that calls a function, has no asserts, and relies on the absence of a panic is only a smoke test. Keep it only when the function under test could plausibly panic on the inputs given and no observable side effect is available to assert on. Otherwise skip.
 
-If you find yourself writing one of these to fill a coverage gap, the gap is telling you the code is too trivial to test. Document it under Skipped Functions with reason "no testable behavior" — that is the honest report.
+If you find yourself writing one of these to fill a coverage gap, the gap is telling you the code is too trivial to test. Document it under **Skipped** (§16) with reason "no testable behavior" — that is the honest report.
 
 ## 11. Test names must describe the branch the test actually exercises
 
@@ -247,6 +247,7 @@ you didn't get to, say why.
 Every run — whether tests were added, packages were skipped, or the iteration budget ran out before any edit — ends with an explicit report containing every field below (if your calling agent supplies a table or section template, use its layout while preserving all of these ground-truth fields and values):
 
 - **Existing Tests Read & Preserved:** Each pre-existing test file you `Read` before editing, confirmation that `Edit` (never `Write`) was used on existing test files, the existing test functions kept unremoved and unrenamed, and confirmation of `0` `-<test-decl>` lines in `git diff` (or `none — no test files edited` on a zero-work run).
+- **Working copy:** `in place`, or the scratch directory path when you edited a copy (§2), so readers know whether their own tree changed.
 - **Files Touched:** Exact paths from `git diff --stat`, or `none`.
 - **`git diff --stat`:** Verbatim `git diff --stat` output in a fenced code block (or `(empty — zero files changed)` when `git diff --stat` printed nothing because zero files changed).
 - **Tests Added:** Numeric count of newly added `+<test-decl>` lines from `git diff` (`0` when none were added).
