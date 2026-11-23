@@ -239,8 +239,9 @@ seat returns prose, schema-invalid JSON, or no output:
 
 1. **Never treat prose as a vote, and never write, patch, or repair a ballot** on
    that seat's behalf — even when the prose says the work looks done or you
-   expected `"complete"`. Prose or schema-invalid JSON is `malformed` (never
-   counted as `"complete"` or rewritten into an `"abstain"` ballot), and only
+   expected `"complete"`. Prose or schema-invalid JSON is malformed output, not
+   a ballot (never counted as `"complete"` or rewritten into an `"abstain"`
+   ballot; `run-seats.mjs` refuses to write it, so the judge sees `absent`), and only
    `run-seats.mjs` may write `<run>/ballots/<seat_id>.json` (if unparsable prose
    or invalid JSON was mistakenly placed in `ballots/<seat_id>.json`, remove it
    before re-asking rather than editing it into JSON).
