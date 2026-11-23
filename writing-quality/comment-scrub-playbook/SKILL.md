@@ -214,8 +214,8 @@ including for free-form requests that name no format:
      step labels always cite Category 2 (a strong tell in
      `detect-llm-tells`) and Category 5: Category `2`, Also fired
      `5`. Add Category 1 when the label's text also restates the next
-     line: Also fired `5, 1`. Plain narration that restates the next line,
-     with no step label, is Category `1` only.
+     line: Also fired `5, 1`. Plain narration that restates the next
+     line, with no step label, is Category `1` only.
    - For `KEEP`, the category is the one you tested, and `Why` says
      why it did not win, for example "overridden by exported-doc
      protection" or "not fired: records why (incident reference)".
@@ -244,9 +244,9 @@ only the copied paths (`git add <paths>`, then
 `git commit -m baseline -- <paths>`) so a `git checkout -- <file>`
 revert works; if committing there is unsafe, revert by re-copying the
 original or by Edit-to-undo. If the copy is denied, Write one copy
-there as set-up, byte-identical to what Read returned, then apply every
-decision to it with Edit. If you cannot write
-anywhere, still deliver the complete report above with the final text
+there as set-up, byte-identical to what Read returned, then apply
+every decision to it with Edit. If you cannot write anywhere, still
+deliver the complete report above with the final text
 of each trim, and say that nothing was applied and why; never stop at
 a one-line refusal. Report the path of every edited file.
 
@@ -343,8 +343,8 @@ Decision: `DELETE` all three comment lines. Category 5 visual noise
 (numbered step labels in source comments are always deletions). The
 code is already three statements — the numbered prose is redundant.
 Each label also restates its statement and is a Category 2 tell, so
-the row reads Category `2`, Also fired `5, 1`. Format strings showing step numbers to end users are exempt; these are
-comments, not strings.
+the row reads Category `2`, Also fired `5, 1`. Format strings showing
+step numbers to end users are exempt; these are comments, not strings.
 
 ## Troubleshooting
 

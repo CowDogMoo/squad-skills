@@ -114,10 +114,11 @@ existing path, and run verify there. If the copy is denied, Write one
 copy there as set-up (not as a fix): its content must be byte-identical
 to what Read returned, with zero added or changed comments. Read it
 back. Every doc comment is then added afterwards as an Edit on the
-copy, and the report says where it lives. Before the first Edit, commit only the copied paths
-(`git add <paths>`, then `git commit -m baseline -- <paths>`) so the
-`git checkout -- <file>` revert in step 6 works; if committing there
-is unsafe, revert by re-copying the original or by Edit-to-undo.
+copy, and the report says where it lives. Before the first Edit,
+commit only the copied paths (`git add <paths>`, then
+`git commit -m baseline -- <paths>`) so the `git checkout -- <file>`
+revert in step 6 works; if committing there is unsafe, revert by
+re-copying the original or by Edit-to-undo.
 
 1. **Edit tool only.** Apply every fix with the Edit tool, on a file
    you have Read in this session, highest priority first. Never
