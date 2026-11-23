@@ -64,11 +64,14 @@ core logic and the public API, and list what you did not read.
 1. **Explicit file list first.** If the prompt names files or injects a
    `Pre-discovered source files` block, those files are the complete,
    frozen set. Skip Glob, do not Glob to double-check, and do not
-   re-filter. Any file not in that list is out of scope, even when the
-   prompt names it somewhere else (an `Input files` or context-files
-   list added by a harness or caller) or it sits in the same directory.
-   Do not Read it, do not review it, and do not mention it or its issues
-   in the report. Files analyzed counts only the listed files.
+   re-filter. Report findings on and edit only the listed files. A file
+   outside the list, even one the prompt names elsewhere (an `Input
+   files` or context-files list added by a harness or caller) or one in
+   the same directory, may be Read only as context for a finding in a
+   listed file: the calling code (edit-mode rule 9), a cross-module
+   contract (Phase 2), or a test that asserts current behavior (edit-mode
+   rule 6). It never gets findings, edits, or report entries of its own.
+   Files analyzed counts only the listed files.
 2. **Injected lint output.** If the prompt injects the caller's warnings
    block, use it verbatim as the lint result and skip the lint run.
 3. Otherwise Glob the caller's pattern once from the repo root and apply
