@@ -11,6 +11,10 @@ from `package.json`.
 grep -F '<file>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
 ```
 
+These are the rows `enqueue.sh` printed per unit in Step 1. If
+`/tmp/squad-uncovered.out` is gone by now (a fresh `/tmp` per command), use
+that output instead of re-measuring.
+
 Take the 3–5 lowest-hit functions.
 
 ## Files

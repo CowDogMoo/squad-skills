@@ -1,9 +1,9 @@
 ---
 name: score-coverage-and-report-gaps
-description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use when asked to raise coverage and report what is still untested. Do NOT load alongside enqueue-coverage-targets — that skill replaces this discover-measure loop with a queue a script builds once, and running both makes the agent re-measure between batches.
+description: Measure baseline test coverage, enumerate zero-coverage functions and untested packages, prioritize by impact, write tests, re-verify, and report the before/after delta. Use when asked to raise coverage and report what is still untested, or to say whether anything is left to cover (a report-only request measures and lists the gaps without writing tests). Do NOT load alongside enqueue-coverage-targets — that skill replaces this discover-measure loop with a queue a script builds once, and running both makes the agent re-measure between batches.
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Score Coverage and Report Gaps
@@ -15,6 +15,23 @@ rules, and the gap-analysis requirement that holds even when the
 overall target is met. The caller (a language-specific test agent)
 supplies the coverage tool, idiom patterns, file naming, and target
 percentage.
+
+## First decide: report or write
+
+Read what the user actually asked before touching a file.
+
+- **Report-only** — a question or audit, such as "anything left to do?", "is
+  coverage good enough?", "where are the gaps?". Run Phase 1 (it only reads)
+  and Phase 2, then go to Phase 5 with the gaps as the finding. Write no
+  tests; offer the ranked list as the next step. An answer that quietly
+  closes every gap hands back a different deliverable than the one asked for,
+  and leaves the reader with no gap list at all.
+- **Write** — the user asks to raise, improve, or fill coverage, or to write
+  tests. Run all five phases.
+
+Either way, measure before believing a stated premise. "Already above my 60%
+target" is a claim to check in Phase 1, and when the measurement disagrees,
+say so in the first line of the answer, with both numbers.
 
 ## Inputs the caller supplies
 
@@ -28,6 +45,8 @@ percentage.
   - Go: `go test ./... -coverprofile=coverage.out -count=1` plus
     `go tool cover -func=coverage.out`.
   - Python: `pytest --cov=<pkg> --cov-branch --cov-report=term-missing`.
+    Set `COVERAGE_FILE` to a path outside the project so the data file
+    doesn't land in the repo (or fail on a read-only checkout).
   - Rust: `cargo llvm-cov` (preferred) or `cargo tarpaulin`.
   - Node: `npm test -- --coverage --passWithNoTests` or
     `npx jest --coverage`.
@@ -151,11 +170,21 @@ section, even on runs where the total was already above target.
 The orchestrator and the human reader both need to see what
 remains uncovered.
 
-Report shape the caller assembles:
+Report shape the caller assembles. Put the answer to the user's question
+first, and make the report self-contained, since it is the only part the
+reader sees:
 
-- **Coverage Report** — Target, Before, After, Delta.
+- **Coverage Report** — Target, Before, After, Delta. For a report-only
+  request After is "not measured" and Delta is "n/a".
 - **Discovered Gaps** — modules with no test files; functions at
-  0% (top 10-20 by impact).
+  0% (top 10-20 by impact), each by name with its line range or the
+  branches it is missing.
+- **Remaining Gaps** — what is still untested when the report is written:
+  every function or branch not covered, by name, and any edge case the
+  tests you wrote still don't pin down. On a report-only request this is
+  the Discovered Gaps list again, ranked, with the suggested next tests. If
+  you truly leave nothing, say "none" and name the evidence (the final
+  per-function and branch figures).
 - **Tested Packages/Modules** — per-unit before/after table with
   target and met/not-met.
 - **Tests Written** — per-file list of test names.
@@ -206,7 +235,8 @@ These hold regardless of language.
   `coverage report`, Jest's `--coverageReporters text`).
 - **Always analyze gaps — even if target is met.** A run without
   the gap-analysis section is a failure regardless of total
-  percentage.
+  percentage. "Target met" is never the whole answer: the report
+  still names the specific untested functions or branches.
 - **Budget awareness.** Prefer Write over Edit for new test
   files. Cap at 20 iterations per package/module.
 - **Wind-down protocol.** Approaching the iteration cap: stop

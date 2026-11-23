@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Runs the bundled script suites: gp_tab, transcription, timing fixtures, and
-# the quorum harness tests. Used by pre-commit and by CI (Script Tests job).
+# Runs the bundled script suites: gp_tab, transcription, timing fixtures, the
+# enqueue-coverage-targets queue builder, and the quorum harness tests. Used
+# by pre-commit and by CI (Script Tests job).
 # Needs node and uv. The Python suites install their own requirements
 # into uv's cache, so nothing is written into the repo.
 set -euo pipefail
@@ -21,3 +22,7 @@ uv run --quiet --with-requirements "$root/music/transcribe-guitar-riff/scripts/r
 echo "== ableton-double-track-timing fixture tests"
 uv run --quiet --with-requirements "$root/music/ableton-double-track-timing/scripts/requirements.txt" \
 	python "$root/music/ableton-double-track-timing/evals/test_fixtures.py"
+
+echo "== enqueue-coverage-targets queue builder tests"
+uv run --quiet --with pytest --with pytest-cov \
+	python "$root/testing/enqueue-coverage-targets/scripts/test_enqueue.py"

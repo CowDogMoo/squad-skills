@@ -9,6 +9,10 @@ Queue unit: package (import path). `/tmp/squad-uncovered.out` lines are
 grep '<pkg-path>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
 ```
 
+These are the rows `enqueue.sh` printed per unit in Step 1. If
+`/tmp/squad-uncovered.out` is gone by now (a fresh `/tmp` per command), use
+that output instead of re-measuring.
+
 Take the 3–5 lowest-percentage functions. Packages with no test files at
 all don't print a `coverage:` line and so never reach the queue — if you
 notice one while reading, treat it as a bonus target, not a reason to
