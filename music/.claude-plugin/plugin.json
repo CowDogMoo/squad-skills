@@ -18,7 +18,5 @@
     "audio-measurement",
     "computer-use"
   ],
-  "skills": [
-    "./"
-  ]
+  "skills": ["./"]
 }
