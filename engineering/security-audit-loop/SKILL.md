@@ -198,6 +198,9 @@ Validation.
 ```markdown
 ### Changes Summary
 
+**Files read before editing:** [every source file, each Read in full
+before any Edit or Write to it]
+
 [Brief overview, 2-3 sentences]
 
 ### Issues Found and Fixed
