@@ -126,6 +126,17 @@ python scripts/octave_check.py "OUT/clip (raw).wav" --bpm 120 --origin-beat 64 \
 It samples attacks across the whole section and fits a harmonic comb at every
 octave of the candidate over a wide band, reporting how often each wins.
 
+It decides the register of the lowest voice; the upper voices then follow
+from the cents column and the fact that they are not harmonics of it (Step 4).
+Give it one pitch class at each octave in reach (`A#1,A#2,A#3,A#4` for a pedal
+you read as A#), over only the bars where that note is the lowest voice. When
+the pedal changes (A#3 for three bars, then A3), check each stretch on its
+own: mixing two notes or two stretches splits the wins and prints LOW
+AGREEMENT even when the octave is clear. LOW AGREEMENT from a run set up that
+way means the register is unresolved. Then the reply says so and does not
+assert it, and the same goes for a register you never ran this check on.
+Quote the `verdict:` line in the reply.
+
 **Why this is a hard gate and not an optional nicety.** On a real job a
 low-string tracker was run over 38-100 Hz, answered "F1/F#1", and that answer
 was then written up as independent confirmation of an earlier F1/F#1 reading.
@@ -333,6 +344,31 @@ by hand; hand-named intervals are where readings pick up errors.
 Quantize to the grid the table shows (sixteenths). A note that flickers for
 one slot is usually an attack transient of the next note, not a note.
 
+**Take every segment boundary from the per-sixteenth table.** The per-beat
+summary is the draft, and it smooths: a voice that sounds for half a bar is
+easy to write to the barline. End each note at the last sixteenth where it
+is still in that slot's top two, and start it at the first. A voice that is
+missing from a beat's summary, or listed there only under "also seen", is not
+sounding on that beat.
+
+Count only candidates that survived the octave tests in Step 4. A peak the
+long-term block tags as a distortion difference tone is never a voice, however
+high it ranks in a slot. Neither is the octave above a note that is already
+sounding: a candidate an octave over the pedal that rises and falls with it is
+that note's harmonic.
+
+When a voice fades rather than stops, end it where the evidence ends and say
+it may ring on, so the user checks that by ear. The table in the reply, the
+spec, the MIDI and the tab then all show the same notes.
+
+**Author the reading from the audio alone.** When the audio comes with its
+answer (a test fixture's spec or expected notes, the MIDI it was rendered
+from), leave that file unopened, and say in the reply that the reading was
+made without it. Do not use it to correct your reading afterwards either: a
+note or boundary taken from the answer is not one the audio showed you, and
+the reading stops being evidence of anything. If a boundary is uncertain, go
+back to the per-sixteenth table and report the doubt.
+
 **Decide durations from a closed set; never let an onset-to-onset span become a
 duration.** Measured gaps produce lengths like 5/4 or 7/4 of a quarter note,
 which no single note value can draw, so the writer splits each into re-picked
@@ -412,7 +448,11 @@ python scripts/compare_rolls.py "OUT/tab.mid" "OUT/cleaned.mid" --expect match
 
 It must print `ROLLS MATCH`. The tab writes every tremolo hit as its own note
 and the cleaned MIDI uses sustained notes, so compare sounding pitches per
-sixteenth (this script), never onset lists.
+sixteenth (this script), never onset lists. On `ROLLS DIFFER`, fix the spec
+or the riff string and rebuild both files before reporting; a tab that does
+not match its own reading is not a deliverable. A common cause is a partial
+last bar: the writer pads it to a whole bar, so end the spec at the last
+barline and mention the ring-out past it in words.
 
 That only proves the writer matched your spec. To find out whether the SPEC is
 any good, hand the tab to the `tab-vs-recording` skill, which does chroma-DTW
@@ -455,6 +495,8 @@ python scripts/shift_score.py "OUT/clip (mono).wav" --start S --bpm 120 --bar 36
   each note on the middle of its own window misjudged a 32nd-note lick and
   ranked the wrong version higher. `--require-beats` exits non-zero unless the
   new tab beats the known-bad one - the gate the guardrail below asks for.
+  pYIN follows one pitch, so this is for single-note lines; on a dyad or chord
+  riff a low match rate says nothing either way, so skip it there.
 
 If the user has a reference tab (Songsterr, a published transcription, an
 earlier version they have actually played, a tab in their own notes), get it
@@ -488,10 +530,26 @@ tab and its `.mid`, and a README with:
 **The reply itself carries the evidence** - the user reads your message, not
 the folder. Put these in it, each copied from a script's output:
 
-- The reading: the bar-by-beat table, with intervals from `riff_midi.py`.
-  Name only pitches the salience output shows; when you mention a candidate
-  you rejected (an octave ghost, a difference tone), say which output line
-  shows it and why it is not a played note.
+- The reading: the bar-by-beat table, with intervals from `riff_midi.py` and
+  an evidence column that quotes, as printed, the per-beat summary entries
+  covering each row (`1.2 A#3 + F#4`, `1.3 F#4 + A#3`), plus the slot id
+  where a voice enters or drops out. Quote the entries rather than
+  paraphrasing slot dB values: the entry is the line that says the note is
+  sounding, and the user can find it in the output. Show the evidence row by
+  row; a blanket line such as "every note is supported" checks nothing and
+  invites the question of which one is not. Name only pitches the salience
+  output shows, and no key, scale or chord name the scripts did not print.
+  When you mention a candidate you rejected (an octave ghost, a difference
+  tone), say which output line shows it and why it is not a played note. A
+  rejection rests on printed evidence: the long-term block's difference-tone
+  tag, or the octave check's `verdict:` for the register, which is what rules
+  out the octave above and below the voice. A candidate neither of those
+  settles stays out of the reading and is listed as unresolved, not argued
+  away with your own arithmetic.
+- Keep the reply consistent with itself. Do not write a note over a stretch
+  your own evidence column or doubts call absent or weak; move the boundary.
+  Do not cite a check that came out weak as support for the reading.
+- That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
   alternative position.
 - The ASCII tab, pasted verbatim from `gp_tab.py riff --print-ascii` in a

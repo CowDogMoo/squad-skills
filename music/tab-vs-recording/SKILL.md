@@ -65,17 +65,33 @@ The point of running a script is that the verdict rests on measurements, so
 the report must not mix in numbers that were never measured. **Every number
 in the reply comes from this run's script output**, copied as printed:
 
-- Quote, per tab: DTW cost/step, chroma similarity, onset F1, onset+pitch F1,
-  the per-quarter scores, and the `rung:` word.
+- Paste the script's printed result lines for each tab (cost/step, chroma
+  similarity, alignment span, onset and onset+pitch F1, per-quarter scores,
+  `rung:`) verbatim in a code block, headed by the tab's name. The reader can
+  then check every number in the reply against the output it came from, and
+  so can you before sending. Say which command ran, including `--ref-midi`
+  when a reference transcription was used.
 - Say the verdict in words the output supports: the matching tab's `rung:`
   (for example "excellent"), and for a tab whose cost/step is far above the
   known-good one, that it is not the same music and its F1 is meaningless.
+- A number in the prose is one copied from that block. Do not hang a reading
+  on a single number that the output does not give ("the 0.22 is chance
+  overlap", "the 1.00 is a best case"), and do not count or total what the
+  script did not ("all four quarters"). Make such points about the run in
+  words instead ("the reference is the exact source MIDI, so this pair is a
+  best case").
 - Compare two runs in words ("far higher than the matching tab's"), not with
   a ratio or difference you computed yourself.
 - Explain the transcriber ceiling and calibration in words ("scores are a
   lower bound, because the transcriber itself misses notes"). Do not restate
   ranges or calibration values from this document, the references, or a
   fixture generator's docstring as if they were results.
+- What an input says about itself is not a measurement. A generator's
+  docstring, a filename or the user's description may say how the
+  performance was stretched or shifted, or what the wrong tab plays. Do not
+  use that to explain the output ("alignment absorbed the stretch and
+  shift"). The script printed an alignment span, not the cause of it, so
+  report what it printed.
 - If you want to state something the script did not print, run something
   that prints it, or leave the number out.
 
