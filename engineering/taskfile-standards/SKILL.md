@@ -42,11 +42,12 @@ added descriptions" is not the same as "every task has one".
 
 - **Show the result.** If you edited an existing Taskfile in place, put the
   changed or new tasks themselves in the reply in a `yaml` fence, plus the
-  top-level `version`, `vars`, and `includes`, and name the file that holds
-  the rest. Otherwise put the resulting Taskfile in a `yaml` fence, even when
-  you also saved it to a file.
-  Either way, pair the YAML with the per-standard evidence below; a prose
-  summary of the diff is never enough on its own.
+  top-level `version` and every top-level `env`, `dotenv`, `vars`, or
+  `includes` block the edit touched or those tasks rely on, and name the file
+  that holds the rest. Otherwise put the resulting Taskfile in a `yaml` fence,
+  even when you also saved it to a file. Either way, pair the YAML with the
+  per-standard evidence below; a prose summary of the diff is never enough on
+  its own.
 - **State the outcome against the standards, not just the edits.** List what
   now holds, with the evidence: the `version: '3'` line, that every task
   (including `default`) has a `desc`, which values moved into `vars`, which
