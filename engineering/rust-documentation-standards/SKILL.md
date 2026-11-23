@@ -29,7 +29,8 @@ Comprehensive reference for writing idiomatic Rust documentation.
   informative std-style noun phrase (`A UTF-8–encoded, growable string.`) or
   a verb sentence (`Holds the application settings loaded from config.toml
   at startup.`); only an uninformative fragment is wrong. Field, variant, and
-  constant summaries use a descriptive noun phrase, not a verb.
+  constant docs may be a short noun phrase (`When the task started.`) or a
+  sentence (`The task failed with an error.`).
 
 ## Doc Comment Syntax
 
