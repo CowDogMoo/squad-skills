@@ -111,12 +111,19 @@ it out:
    ffmpeg -y -ss START -to END -i "SAMPLE.wav" -ac 1 -c:a pcm_s24le "OUT/clip (mono).wav"
    ```
 
+   Set END one beat (60/BPM seconds) past the region's last barline. That
+   tail is the last notes' ring: the reader still stops at the last barline,
+   but without it nothing tells a note still picked at the barline from one
+   ringing out, and every note that reaches the clip's end is listed as a
+   doubt.
+
    Prove the cut with `ffmpeg -ss START -to END -i SAMPLE.wav -f md5 -`
    against `ffmpeg -i OUT.wav -f md5 -`; check the mono file is not silent
    (`-af volumedetect`). Put outputs in a folder next to the project, not in
    the project's `Samples/`.
 4. If the input is already a file, skip to Step 2, but still trim to the
-   passage in question and note where its first downbeat is.
+   passage in question, keeping one beat past its last barline, and note
+   where its first downbeat is.
 
 ## Step 2 - settle the octave BEFORE anything band-limited
 
@@ -288,8 +295,8 @@ python scripts/riff_salience.py "OUT/clip (mono).wav" --bpm 120 \
 
 Read two things here; Step 5's reader makes the note decisions:
 
-1. **The per-beat summary** is a draft: notes in the top two playable
-   candidates of at least half a beat's slots. It ranks harmonics and images
+1. **The per-beat summary** is a draft: notes in the top two candidates of
+   at least half a beat's slots. It ranks harmonics and images
    with the played notes, so it is never the reading.
 2. **The long-term spectrum peaks** to settle the octave. A played note sits
    within a few cents of the tuned grid; a peak more than 20 cents off that
@@ -346,13 +353,20 @@ lists the rules; in short:
   the register the octave check named, so a sub-octave image or difference
   tone, including the octave below an upper voice), `octave above/below X`,
   `12th above X` or `two octaves above X` (a harmonic or image of a stronger
-  note), `N dB under the lead`, or `weaker than 2 voices`.
+  note), `N dB under the lead`, or `weaker than 2 voices`. Of a `--lowest`
+  note and its octave, the `--lowest` note wins unless the octave leads it
+  for two or more slots in a row (more than 6 dB stronger, or the slot's
+  strongest where the `--lowest` note has no peak): then the octave is
+  played and the `--lowest` note under it is its image.
 - **Edges.** A one-slot dip is held; a one-slot flicker is dropped. A note
   that a new note in the same line attacks over ends at that attack. A note
   that ends on its own is cut 0.25 s before its fade: that sound is taken as
   its last pick ringing on, so a held or let-ring note may be written up to
   0.25 s short. A note still sounding at the last barline ends there; the
-  ring-out after the final chord is not another bar.
+  ring-out after the final chord is not another bar. A pedal ends where the
+  next stretch's `--lowest` note puts it under the octave check's register.
+  In a clip with no tail past the last barline, every note that reaches the
+  clip's end is listed under `check by ear` as possibly ringing.
 
 It prints the reading as a spec (also written by `--spec`), a `note edges`
 block giving each note's first and last slot, why it stops there and its level

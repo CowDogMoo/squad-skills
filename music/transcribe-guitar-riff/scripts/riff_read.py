@@ -25,12 +25,17 @@ table prints). Every candidate that is not a voice is listed with its reason:
   the lowest voice's register; anything under it is a sub-octave image or a
   difference tone, including the octave below an upper voice.
 - "octave above/below X": of two candidates an octave apart, a --lowest note
-  always wins; otherwise the one with the higher mean level over the
+  wins unless the octave above it leads it (is OCTAVE_LEAD_DB stronger, or,
+  where the --lowest note has no peak, is the slot's strongest candidate) in
+  this slot and in a neighbouring one: two or more slots
+  leading is a played note, and the --lowest note under it is its sub-octave
+  image. A lead of one slot, or by less, is the harmonic of a dipping or
+  ringing note. Otherwise the one with the higher mean level over the
   surrounding beat is the voice and the other its harmonic or sub-octave
   image. A partner with no peak in this slot (a dip) still counts when it
-  peaks in the surrounding slots. "12th / two octaves above X": the 3rd or 4th harmonic of a stronger
-  note. A played doubling at these intervals looks the same, so it is never
-  read as a voice, and the report says so.
+  peaks in the surrounding slots. "12th / two octaves above X": the 3rd or
+  4th harmonic of a stronger note. A played doubling at these intervals
+  looks the same, so it is never read as a voice, and the report says so.
 - "N dB under the lead": more than FLOOR_DB under the slot's strongest voice.
 - "weaker than N voices": only the --voices strongest count (2 = dyad).
 
@@ -41,10 +46,13 @@ sounds, ends at that attack. A note that fades out on its own has its last
 RING_S seconds cut: that sound is the last pick ringing on (measured on
 re-picked notes). A held or let-ring note's tail is cut the same way, so it
 may be written up to RING_S short; "check by ear" lists each one. A note
-still sounding past the last whole bar ends at that barline: the ring-out
-after the final chord is its sustain, not another bar. A one-slot dip in the
-file's last slot is held too, so a clip cut on the barline keeps its last
-sixteenth.
+whose sound, less that ring, carries past the last whole bar ends at that
+barline: the ring-out after the final chord is its sustain, not another
+bar. A one-slot dip in the file's last slot is held too, so a clip cut on the barline keeps its last
+sixteenth; with no audio past the last barline, every note reaching the end
+is listed under "check by ear" as possibly ringing (cut clips with a one-beat
+tail). A note that falls under the next stretch's --lowest note ends where
+that stretch starts.
 
 The CQT here uses filters FILTER_SCALE as long as riff_salience.py's table
 (still a third of a semitone per bin) so a slot's level leaks less into its
@@ -67,7 +75,8 @@ FLOOR_DB = 15.0  # a voice weaker than this below the slot's leader is not read
 RING_S = 0.25  # ring after the last pick that a note fading out on its own loses (seconds)
 FILTER_SCALE = 0.7  # CQT filter length relative to riff_salience.py's table
 OCTAVE_WINDOW = 4  # slots each side used to decide which member of an octave pair sounds
-ABSENT_DB = -60.0  # level a slot without the peak contributes to that decision
+ABSENT_DB = rs.PEAK_FLOOR_DB  # level a slot without the peak contributes to that decision
+OCTAVE_LEAD_DB = 6.0  # margin by which the octave above a --lowest note must beat it to count as leading
 
 
 def midi_of(note: str) -> int:
@@ -128,16 +137,28 @@ def classify(rows, lowest: list[set[int]], voices: int):
                 return p not in reason
             return p >= gate and any(p in cand[j] and cand[j][p]["frets"] for j in range(lo, hi))
 
+        def leads(x, j):
+            # the octave above the --lowest note x leads it in slot j: OCTAVE_LEAD_DB stronger,
+            # or, where x has no peak, the slot's strongest candidate
+            up = cand[j].get(x + 12) if 0 <= j < n else None
+            if up is None:
+                return False
+            if x in cand[j]:
+                return up["db"] > cand[j][x]["db"] + OCTAVE_LEAD_DB
+            return up["db"] >= max(c["db"] for c in cand[j].values())
+
         for m in sorted(cs):
             if m in reason:
                 continue
-            if m in low:
-                continue  # the octave check named this register; its octaves are the images
             for other, rel in ((m - 12, "above"), (m + 12, "below")):
                 if partner(other):
-                    if other in low:
-                        reason[m] = f"octave {rel} {name_of(other)}"
-                        break
+                    x = min(m, other)
+                    if x in low:
+                        upper_played = leads(x, i) and (leads(x, i - 1) or leads(x, i + 1))
+                        if upper_played == (m == x):
+                            reason[m] = f"octave {rel} {name_of(other)}"
+                            break
+                        continue
                     pm, po = presence(m), presence(other)
                     lower_wins = rel == "above"  # ties go to the lower note
                     if pm < po or (pm == po and lower_wins):
@@ -160,7 +181,7 @@ def classify(rows, lowest: list[set[int]], voices: int):
                 reason[m] = f"weaker than {voices} voices"
             else:
                 kept.append(m)
-        out.append({"voices": kept, "reason": reason, "cands": cs})
+        out.append({"voices": kept, "reason": reason, "cands": cs, "gate": gate})
     return out
 
 
@@ -201,6 +222,8 @@ def read(rows, slots, n_read, slot_len):
         end, ring, how = s1, [], "faded"
         if s1 >= len(slots):
             how = "end"
+        elif m < slots[s1]["gate"]:
+            how = "gated"
         else:
             # a new note in the same line (nearer this pitch than any other voice sounding
             # at its attack or once this one has stopped) attacking while this one still
@@ -216,7 +239,7 @@ def read(rows, slots, n_read, slot_len):
                 end, how = new[0], "replaced"
             elif pushed:
                 how = "replaced"
-            elif not ringout:
+            else:
                 # it faded out on its own: the last RING_S of the sound is its last pick ringing on
                 while end - s0 > 2 and len(ring) < ring_max:
                     end -= 1
@@ -332,6 +355,8 @@ def main(argv=None) -> int:
                    f"last pick ringing on ({RING_S:g} s), left out")
         elif x["how"] == "replaced" and x["end"] < len(ids):
             why = f"a new note in the same line attacks at {ids[x['end']]}"
+        elif x["how"] == "gated":
+            why = f"the next stretch's lowest voice, {name_of(slots[x['end']]['gate'])}, starts at {ids[x['end']]} (--lowest)"
         else:
             nxt = x["end"]
             why = f"absent from the voices at {ids[nxt]}" if nxt < len(ids) else "end of file"
@@ -361,6 +386,9 @@ def main(argv=None) -> int:
             doubts.append(f"{nm} ends at {ids[x['end'] - 1]}; its sound continues through {ids[x['ring'][-1]]} (ring, or still picked?)")
         if x["held"]:
             doubts.append(f"{nm} is held through a one-slot dip at {', '.join(ids[h] for h in x['held'])}")
+        if x["how"] == "end" and not x["ringout"]:
+            doubts.append(f"{nm} sounds to the end of the clip at {ids[x['end'] - 1]}: with no audio past the last barline "
+                          "its end may be ring, not picking (cut the clip with a one-beat tail)")
     print("\ncheck by ear:")
     for d in doubts or ["(no marginal edges)"]:
         print(f"  {d}")

@@ -24,6 +24,8 @@ import sys
 import librosa
 import numpy as np
 
+PEAK_FLOOR_DB = -60.0  # a peak this far under the file's strongest salience is silence or the CQT's padded edge, not a note
+
 
 def parse_tuning(s: str) -> list[tuple[str, float]]:
     names = [n.strip().replace("♯", "#").replace("♭", "b") for n in s.split(",") if n.strip()]
@@ -99,6 +101,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
             # and none of the played notes (assuming the guitar is within
             # ~20 cents of A440 - pass --all-peaks otherwise).
             peaks = [j for j in peaks if abs(cents_off(freqs[j] * shift)) <= 20]
+        peaks = [j for j in peaks if s[j] >= ref * 10 ** (PEAK_FLOOR_DB / 20)]
         if collapse_octaves:
             peaks = drop_octave_duplicates(peaks, s, freqs)
         peaks.sort(key=lambda j: -s[j])

@@ -9,8 +9,11 @@
    riff_read.py must then read the fixture exactly as riff.spec, in tune and
    40 cents sharp and cut exactly on the barlines, read a re-render with
    every boundary moved exactly as rendered, keep a pedal an upper voice
-   anticipates, read a pedal change with --lowest given per stretch, and give
-   a different reading when --lowest is an octave low or covers every bar.
+   anticipates, end a pedal where the next stretch starts, see a last chord
+   fade in a one-beat tail and flag it without one, read octave jumps over
+   the --lowest note, read a pedal change with --lowest given per stretch,
+   and give a different reading when --lowest is an octave low or covers
+   every bar.
 3. riff_midi.py builds MIDI from the spec; compare_rolls.py must report a
    match against a tremolo rendering of the same spec and a mismatch against
    a spec with one note changed (negative control).
@@ -152,14 +155,22 @@ def main() -> int:
             raise SystemExit(f"FAIL: riff_read.py on the {label} read {got}, riff.spec says {truth}")
     sys.path.insert(0, os.path.join(SKILL, "evals", "files"))
     import make_fixtures  # noqa: E402  (the fixture's own renderer, fed a different score)
+    import numpy as np  # noqa: E402
     import soundfile  # noqa: E402
+
+    def render_wav(name, spec, seed=20260912, seconds=None):
+        # the pick jitter is drawn per render from this seed, so a reading never depends on what rendered before
+        make_fixtures.RNG = np.random.default_rng(seed)
+        y = make_fixtures.render([(b, s, e, list(n)) for b, s, e, n in spec])
+        path = os.path.join(tmp, f"{name}.wav")
+        soundfile.write(path, y[: int(seconds * make_fixtures.SR)] if seconds else y, make_fixtures.SR, subtype="PCM_24")
+        return path
 
     moved = [(1, 1.0, 1.75, ("A#3",)), (1, 1.75, 5.0, ("A#3", "F#4")), (2, 1.0, 2.5, ("A#3",)),
              (2, 2.5, 4.0, ("A#3", "F4")), (2, 4.0, 5.0, ("A#3",)), (3, 1.0, 2.0, ("A#3",)),
              (3, 2.0, 3.75, ("A#3", "D4")), (3, 3.75, 5.0, ("A#3",)), (4, 1.0, 2.5, ("A3",)),
              (4, 2.5, 5.0, ("A3", "D4"))]
-    moved_wav = os.path.join(tmp, "moved.wav")
-    soundfile.write(moved_wav, make_fixtures.render([(b, s, e, list(n)) for b, s, e, n in moved]), make_fixtures.SR, subtype="PCM_24")
+    moved_wav = render_wav("moved", moved)
     got = read_spec(moved_wav, "--lowest", "A#3,A3")
     if got != moved:
         raise SystemExit(f"FAIL: riff_read.py on the moved-boundary render read {got}, it was rendered from {moved}")
@@ -177,14 +188,50 @@ def main() -> int:
 
     #     An upper voice entering a sixteenth before a pedal change must not
     #     end the pedal, and no octave image of a dipping voice may be read.
-    anticip = [(1, 1.0, 2.0, ["A#3"]), (1, 2.0, 5.0, ["A#3", "F#4"]), (2, 1.0, 4.75, ["A#3"]),
-               (2, 4.75, 5.0, ["A#3", "D4"]), (3, 1.0, 5.0, ["A3", "D4"])]
-    anticip_wav = os.path.join(tmp, "anticip.wav")
-    soundfile.write(anticip_wav, make_fixtures.render(anticip), make_fixtures.SR, subtype="PCM_24")
-    got = read_spec(anticip_wav, "--lowest", "A#3,A3")
+    anticip = [(1, 1.0, 2.0, ("A#3",)), (1, 2.0, 5.0, ("A#3", "F#4")), (2, 1.0, 4.75, ("A#3",)),
+               (2, 4.75, 5.0, ("A#3", "D4")), (3, 1.0, 5.0, ("A3", "D4"))]
+    got = read_spec(render_wav("anticip", anticip), "--lowest", "A#3,A3")
     played = {n for *_, notes in anticip for n in notes}
     if any("A#3" not in notes for bar, *_, notes in got if bar == 2) or {n for *_, notes in got for n in notes} - played:
         raise SystemExit(f"FAIL: riff_read.py on the anticipated pedal change read {got}, it was rendered from {anticip}")
+    #     ... nor when the upper voice then carries on alone as the next
+    #     stretch's lowest voice: the pedal ends where that stretch starts.
+    handover = [(1, 1.0, 4.75, ("A#3",)), (1, 4.75, 5.0, ("A#3", "D4")), (2, 1.0, 5.0, ("D4",))]
+    got = read_spec(render_wav("handover", handover), "--lowest", "A#3@1,D4@2")
+    if got != handover:
+        raise SystemExit(f"FAIL: riff_read.py on the pedal handover read {got}, it was rendered from {handover}")
+
+    #     A last chord picked to beat 4.5 and then let ring: cut with the
+    #     one-beat tail Step 1 asks for, the reader sees it fade before the
+    #     barline; cut exactly on the barline it cannot, and its check-by-ear
+    #     block (the doubts the reply passes on) names every note reaching the
+    #     clip's end as possibly ringing.
+    last = [(1, 1.0, 2.0, ("A#3",)), (1, 2.0, 5.0, ("A#3", "F4")), (2, 1.0, 4.5, ("A3", "D4"))]
+
+    def read_ear(wav, *extra):
+        out = run(os.path.join(HERE, "riff_read.py"), wav, "--bpm", "120", "--tuning", "E2,A2,D3,G3,B3,E4",
+                  "--spec", os.path.join(tmp, "read.spec"), *extra)
+        return spec_rows(os.path.join(tmp, "read.spec")), out.split("\ncheck by ear:\n", 1)[1].splitlines()
+
+    for label, seconds in (("a one-beat tail", None), ("no tail", 4.0)):
+        got, ear = read_ear(render_wav("last_chord", last, seconds=seconds), "--lowest", "A#3@1,A3@2")
+        reach_end = {line.split()[0] for line in ear if " sounds to the end of the clip " in line}
+        last_end = max(e for bar, _, e, notes in got if bar == 2 and "D4" in notes)
+        if seconds is None and (last_end >= 5.0 or reach_end):
+            raise SystemExit(f"FAIL: riff_read.py with {label} read the last chord to {last_end} with end doubts {reach_end}; it stops at 4.5")
+        if seconds is not None and reach_end != {"A3", "D4"}:
+            raise SystemExit(f"FAIL: riff_read.py with {label} listed {reach_end or 'nothing'} as reaching the clip's end, not A3 and D4")
+
+    #     A line jumping between the --lowest note and its octave: the octave
+    #     leading for a beat is played and read, so every beat keeps its own
+    #     note, and nothing else is read.
+    alt = [(1, 1.0, 2.0, ("A3",)), (1, 2.0, 3.0, ("A4",)), (1, 3.0, 4.0, ("A3",)), (1, 4.0, 5.0, ("A4",)),
+           (2, 1.0, 3.0, ("A3",)), (2, 3.0, 5.0, ("A4",))]
+    got = read_spec(render_wav("octave_jump", alt, seed=0), "--lowest", "A3")
+    missed = [(bar, b0, notes[0]) for bar, b0, b1, notes in alt
+              if not any(gb == bar and gs < b1 and ge > b0 and notes[0] in gn for gb, gs, ge, gn in got)]
+    if missed or {n for *_, notes in got for n in notes} - {"A3", "A4"}:
+        raise SystemExit(f"FAIL: riff_read.py on the A3/A4 octave jumps read {got}, it was rendered from {alt}")
 
     #     A pedal change whose new pedal (F#3, bar 3) is the octave below the
     #     old stretch's upper voice (F#4, bars 1-2): each --lowest note applies
@@ -192,8 +239,7 @@ def main() -> int:
     #     every bar F#3 sets F#4 aside as its octave and the bars misread.
     pedal = [(1, 1.0, 2.0, ("D4",)), (1, 2.0, 5.0, ("D4", "F#4")), (2, 1.0, 3.0, ("D4", "F#4")),
              (2, 3.0, 5.0, ("D4",)), (3, 1.0, 2.0, ("F#3",)), (3, 2.0, 5.0, ("F#3", "B3"))]
-    pedal_wav = os.path.join(tmp, "pedal.wav")
-    soundfile.write(pedal_wav, make_fixtures.render([(b, s, e, list(n)) for b, s, e, n in pedal]), make_fixtures.SR, subtype="PCM_24")
+    pedal_wav = render_wav("pedal", pedal)
     first_stretch = [r for r in pedal if r[0] <= 2]
     got = [r for r in read_spec(pedal_wav, "--lowest", "D4@1-2,F#3@3") if r[0] <= 2]
     if got != first_stretch:
@@ -203,7 +249,8 @@ def main() -> int:
     run(os.path.join(HERE, "riff_read.py"), pedal_wav, "--bpm", "120", "--tuning", "E2,A2,D3,G3,B3,E4",
         "--lowest", "D4@1-2", expect_rc=2)
     print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune, +40 cents and cut on the barlines, "
-          "a moved-boundary render, an anticipated pedal change, and a pedal change with --lowest per stretch")
+          "a moved-boundary render, an anticipated pedal change and handover, a last chord with and without a ring tail, "
+          "octave jumps over the --lowest note, and a pedal change with --lowest per stretch")
 
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")
