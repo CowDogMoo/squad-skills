@@ -4,10 +4,9 @@ Copy this to the job's working folder as `GATES.md`. Replace `SET`, the pair,
 and the control clips. Record the actual commands, settings, exit codes and
 measured outputs; mark a gate only after all its checks pass. Controls belong
 to every audit, including a targeted check: without a clean negative control
-and sensitive positive controls, neither silence nor flags are trustworthy. Keep `HANDOFF.md` beside it.
-Run every CHECK
-from the skill directory, or prefix the script paths with
-`${CLAUDE_SKILL_DIR}/`.
+and sensitive positive controls, neither silence nor flags are trustworthy.
+Keep `HANDOFF.md` beside it. Run every CHECK from the skill directory, or
+prefix the script paths with `${CLAUDE_SKILL_DIR}/`.
 
 ```markdown
 # Gates: double-track timing, <song>

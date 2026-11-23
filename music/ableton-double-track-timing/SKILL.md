@@ -111,9 +111,9 @@ available, record the limitation and leave affected verdicts unconfirmed.
 This checks false alarms; the positive controls below check missed slips.
 
 **Placement positive control (gate G1):** inject a fractional shift on a clean
-clip whose take is reused, and require `CONTROL OK`. The real state must stay clean at that
-clip. The control refuses whole-beat shifts and clips that are the only copy
-of their take, because the detector is blind to both by design.
+clip whose take is reused, and require `CONTROL OK`. The real state must stay
+clean at that clip. The control refuses whole-beat shifts and clips that are
+the only copy of their take, because the detector is blind to both by design.
 
 ### 3. Confirm with audio, alias-free, where a section repeats
 
