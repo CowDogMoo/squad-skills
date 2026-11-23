@@ -639,10 +639,9 @@ the folder. Put these in it, each copied from a script's output:
   shows one. A note your
   reply would call probable ring-over, decay or doubtful is not in the
   reading: settle it from the slots and leave it out (Step 5), and give the
-  measured reason where a quoted row shows it. The same goes for every
-  note and every edge: if you would call it weak, thin, approximate or
-  possibly something else, it does not go in. Report what was left out and
-  what was not run, not doubts about what was written.
+  measured reason where a quoted row shows it. Report what was left out,
+  what was not run, and each uncertain edge or possible ring-on as a doubt
+  for the user to check by ear (Step 5).
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
