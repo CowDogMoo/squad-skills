@@ -16,7 +16,7 @@
     },
     {
       "id": 2,
-      "prompt": "Run the review loop as go-review would on this Go code. Language: Go. Report only, do not modify anything.\n\nPre-discovered source files\nevals/files/readonly/store.go",
+      "prompt": "Review this Go code, report only, do not modify anything.\n\nPre-discovered source files\nevals/files/readonly/store.go",
       "expected_output": "A readonly-mode report covering only store.go: the string-concatenated SQL query in FindUser at CRITICAL and the ignored f.Close() error after a write in Save, each with file, line, and a suggested fix. notes.go is not read or reported because the pre-discovered list is authoritative, and no file is modified.",
       "files": [
         "evals/files/readonly/store.go",
