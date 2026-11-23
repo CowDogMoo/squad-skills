@@ -120,7 +120,19 @@ def main() -> int:
 
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")
-    run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", a_mid)
+    out = run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", a_mid,
+              "--evidence", sal_json)
+    # the evidence block must print the start row of each voice and a pitch map
+    # line for every written pitch, and nothing for a pitch the spec never writes
+    pitch_map = out.split("pitch map", 1)[-1]
+    for slot in ("1.2.1", "2.2.1", "4.1.1"):
+        if f"  {slot} " not in out:
+            raise SystemExit(f"FAIL: --evidence did not print the row where a voice starts ({slot})")
+    for n in ("A#3", "F#4", "F4", "D4", "A3"):
+        if f"\n  {n} " not in pitch_map:
+            raise SystemExit(f"FAIL: --evidence pitch map has no line for written pitch {n}")
+    if "\n  A#4 " in pitch_map or "(5 pitches)" not in pitch_map:
+        raise SystemExit("FAIL: --evidence pitch map lists a pitch the spec does not write")
     # tremolo rendering: same spec, every segment split into sixteenths
     trem_spec = os.path.join(tmp, "trem.spec")
     with open(trem_spec, "w") as fh:

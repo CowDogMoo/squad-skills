@@ -14,11 +14,19 @@ changes the labels printed in the table.
 
     python riff_midi.py riff.spec --bpm 120 --out cleaned.mid
     python riff_midi.py riff.spec --bpm 120 --out cleaned.mid --ableton-json notes.json
+    python riff_midi.py riff.spec --bpm 120 --out cleaned.mid --evidence slots.json
+
+--evidence takes riff_salience.py's --json output (run with the same
+--bar-offset) and prints the lines the reading rests on: the per-beat entry
+of every beat the spec writes, every row of each beat whose entry does not
+list all its written notes, and a pitch map. Paste that block whole rather
+than assembling rows by hand.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 
@@ -72,6 +80,76 @@ def parse_spec(path: str, beats_per_bar: int):
     return segs
 
 
+def note_label(n: int) -> str:
+    return librosa.midi_to_note(n).replace("♯", "#")
+
+
+def print_evidence(segs, slots_path: str, beats_per_bar: int, bar_offset: int) -> None:
+    from riff_salience import PER_BEAT_HEADER, format_beat, format_peak, per_beat_summary
+
+    with open(slots_path) as fh:
+        data = json.load(fh)
+    rows = data["slots"]
+    per_beat_slots = data["grid"] // beats_per_bar
+    summary = per_beat_summary(rows)
+    by_id = {r["slot"]: r for r in rows}
+
+    def slot_id(i: int) -> str:
+        bar, rest = divmod(i, data["grid"])
+        return f"{bar + bar_offset}.{rest // per_beat_slots + 1}.{rest % per_beat_slots + 1}"
+
+    def shows(r, name: str) -> bool:
+        return any(c["note"] == name for c in r["candidates"])
+
+    covered: dict[str, set[int]] = {}
+    for t0, t1, notes in segs:
+        for name in map(note_label, notes):
+            covered.setdefault(name, set()).update(
+                range(round(t0 * per_beat_slots), round(t1 * per_beat_slots)))
+    written: dict[str, list[str]] = {}
+    for name, idxs in covered.items():
+        for i in sorted(idxs):
+            key = slot_id(i).rsplit(".", 1)[0]
+            if name not in written.setdefault(key, []):
+                written[key].append(name)
+    keys = sorted(written, key=lambda k: tuple(int(x) for x in k.split(".")))
+    stable = {k: summary[k][0] if k in summary else [] for k in keys}
+    short = {k for k in keys if any(n not in stable[k] for n in written[k])}
+    # rows to show: every row of a beat whose entry misses a written note, plus
+    # the slot where each voice starts and the slot after it stops
+    show = {r["slot"] for r in rows if r["slot"].rsplit(".", 1)[0] in short}
+    for idxs in covered.values():
+        show.update(slot_id(i) for i in idxs if i - 1 not in idxs)
+        show.update(slot_id(i + 1) for i in idxs if i + 1 not in idxs)
+
+    print("\nevidence for the reading (riff_midi.py --evidence; paste it whole):")
+    print(PER_BEAT_HEADER)
+    for k in keys:
+        print(format_beat(k, *summary[k]) if k in summary else f"  {k:6s} (no slots in the JSON)")
+    print("\nrows where a voice starts or stops, and every row of a beat whose entry"
+          " does not list all the notes written there (note cents dB):")
+    for r in rows:
+        if r["slot"] in show:
+            desc = " | ".join(f"{c['note']} {c['cents']:+d} {c['db']:.1f}dB" for c in r["candidates"])
+            print(f"  {r['slot']:9s} {desc}")
+    print("\npitch map (pitch: beat entries that list it | rows that show it on other beats"
+          " | long-term peak, if any):")
+    for name in covered:
+        entries = [k for k in keys if name in written[k] and name in stable[k]]
+        other = [slot_id(i) for i in sorted(covered[name])
+                 if slot_id(i).rsplit(".", 1)[0] in short and name not in stable[slot_id(i).rsplit(".", 1)[0]]
+                 and slot_id(i) in by_id and shows(by_id[slot_id(i)], name)]
+        peaks = [format_peak(hz, d).strip() for hz, d in sorted(data.get("long_term_peaks", []))
+                 if librosa.hz_to_note(hz).replace("♯", "#") == name]
+        print(f"  {name:4s} {' '.join(entries) or '-'} | {' '.join(other) or '-'}"
+              + (f" | {'; '.join(peaks)}" if peaks else ""))
+        unshown = [k for k in keys if name in written[k] and name not in stable[k]
+                   and not any(shows(r, name) for r in rows if r["slot"].startswith(k + "."))]
+        if unshown:
+            print(f"       written on beats where no row shows it: {' '.join(unshown)}")
+    print(f"  no other pitch is written ({len(covered)} pitches)")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("spec")
@@ -82,6 +160,7 @@ def main(argv=None) -> int:
     ap.add_argument("--bar-offset", type=int, default=1, help="arrangement bar of spec bar 1 (labels only)")
     ap.add_argument("--velocity", type=int, default=100)
     ap.add_argument("--program", type=int, default=30, help="General MIDI program (30 = distortion guitar)")
+    ap.add_argument("--evidence", metavar="SLOTS_JSON", help="riff_salience.py --json output; print the evidence block and pitch map for the reading")
     args = ap.parse_args(argv)
 
     segs = parse_spec(args.spec, args.beats_per_bar)
@@ -105,9 +184,11 @@ def main(argv=None) -> int:
         bar = int(t0 // args.beats_per_bar)
         b0 = t0 - bar * args.beats_per_bar + 1
         b1 = t1 - bar * args.beats_per_bar + 1
-        names = " ".join(librosa.midi_to_note(n).replace("♯", "#") for n in notes)
+        names = " ".join(map(note_label, notes))
         intervals = intervals_above_bass(notes) if len(notes) > 1 else "-"
         print(f"{bar + args.bar_offset:8d}  {b0:4.2f}-{b1:4.2f}   {names:<14} {intervals}")
+    if args.evidence:
+        print_evidence(segs, args.evidence, args.beats_per_bar, args.bar_offset)
     return 0
 
 
