@@ -178,5 +178,90 @@ class JudgeTest(unittest.TestCase):
         self.assertIn("All 2 runnable case(s) met the threshold (1 skipped).", written)
 
 
+class ExpectationFocusTest(unittest.TestCase):
+    """An expectation is a string or {"text", "focus"}; focus "trace" shows the
+    judge the tool calls and their output, not only the final reply."""
+
+    TRACED = {"text": "No pitch is asserted that the salience output does not support", "focus": "trace"}
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = Path(tmp.name)
+
+    def skill(self, expectations: list, files: dict[str, str] | None = None) -> Path:
+        skill = self.tmp / "src" / "demo"
+        (skill / "evals").mkdir(parents=True, exist_ok=True)
+        (skill / "SKILL.md").write_text("---\nname: demo\n---\n", encoding="utf-8")
+        for rel, text in (files or {}).items():
+            (skill / rel).parent.mkdir(parents=True, exist_ok=True)
+            (skill / rel).write_text(text, encoding="utf-8")
+        case = {"id": 1, "prompt": "Do it.", "expectations": expectations}
+        if files:
+            case["files"] = list(files)
+        (skill / "evals" / "evals.json").write_text(
+            json.dumps({"skill_name": "demo", "evals": [case]}), encoding="utf-8"
+        )
+        return skill
+
+    def stage(self, skill: Path) -> Path:
+        dest = self.tmp / "staged"
+        with mock.patch.object(skill_evals, "allowlist", return_value={"demo": {}}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(skill_evals.stage("demo", skill, dest), [])
+        return dest / "demo" / skill_evals.CASE_DIR / "case-1"
+
+    def test_string_expectations_are_unchanged(self) -> None:
+        case = self.stage(self.skill(["plain"]))
+        self.assertEqual(
+            (case / "graders" / "expectation-1.md").read_text(encoding="utf-8"),
+            "---\ntype: llm\nweight: 1\n---\n\nplain\n",
+        )
+
+    def test_trace_focus_is_written_to_the_grader_frontmatter(self) -> None:
+        case = self.stage(self.skill(["plain", self.TRACED]))
+        self.assertNotIn("focus", (case / "graders" / "expectation-1.md").read_text(encoding="utf-8"))
+        self.assertEqual(
+            (case / "graders" / "expectation-2.md").read_text(encoding="utf-8"),
+            f"---\ntype: llm\nweight: 1\nfocus: trace\n---\n\n{self.TRACED['text']}\n",
+        )
+        _prompt, criteria = skill_evals.read_case(case)
+        self.assertEqual(criteria, ["plain", self.TRACED["text"]])
+
+    def test_trace_focus_is_written_to_case_yaml_for_cases_with_inputs(self) -> None:
+        case = self.stage(self.skill(["plain", self.TRACED], {"evals/files/in.txt": "x"}))
+        graders = json.loads((case / "case.yaml").read_text(encoding="utf-8"))["graders"]
+        self.assertNotIn("focus", graders[0])
+        self.assertEqual(graders[1]["focus"], "trace")
+        self.assertEqual(graders[1]["criteria"], self.TRACED["text"])
+
+    def test_validation(self) -> None:
+        def errors(expectations: list) -> list[str]:
+            return skill_evals.check_evals(self.skill(expectations))
+
+        self.assertEqual(errors(["plain", self.TRACED, {"text": "last", "focus": "last_message"}]), [])
+        self.assertEqual(errors([{"text": "no focus"}]), [])
+        self.assertTrue(any("has an empty expectation" in e for e in errors([" "])))
+        self.assertTrue(any("non-empty text" in e for e in errors([{"focus": "trace"}])))
+        self.assertTrue(any("non-empty text" in e for e in errors([{"text": "", "focus": "trace"}])))
+        self.assertTrue(any("focus must be one of" in e for e in errors([{"text": "x", "focus": "files"}])))
+        self.assertTrue(any("only text and focus" in e for e in errors([{"text": "x", "weight": 2}])))
+        self.assertTrue(any("has an empty expectation" in e for e in errors([3])))
+
+    def test_transcribe_guitar_riff_case_2_judges_the_salience_criterion_on_the_trace(self) -> None:
+        src = skill_evals.skill_dirs()["transcribe-guitar-riff"]
+        case = next(
+            c for c in json.loads((src / "evals" / "evals.json").read_text(encoding="utf-8"))["evals"]
+            if c["id"] == 2
+        )
+        self.assertEqual(skill_evals.check_evals(src), [])
+        traced = [e for e in case["expectations"] if skill_evals.expectation_focus(e) == "trace"]
+        self.assertEqual(
+            [skill_evals.expectation_text(e) for e in traced],
+            ["No pitch is asserted that the salience output does not support"],
+        )
+        self.assertEqual(len(case["expectations"]), 4)
+
+
 if __name__ == "__main__":
     unittest.main()

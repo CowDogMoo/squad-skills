@@ -23,7 +23,10 @@
         "The reported pedal note is A#3 (not A#2 or A#4) and the upper voice is F#4, F4, D4 in that order, with A3 under D4 in the last bar",
         "The tab file's MIDI export is checked against the cleaned MIDI with compare_rolls.py and reported as matching",
         "The tab uses .gp5 for a 6-string (the 8-string .gp routing is not applied)",
-        "No pitch is asserted that the salience output does not support"
+        {
+          "text": "No pitch is asserted that the salience output does not support",
+          "focus": "trace"
+        }
       ]
     },
     {
