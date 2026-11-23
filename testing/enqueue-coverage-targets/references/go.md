@@ -7,7 +7,7 @@ Queue unit: package (import path). `/tmp/squad-uncovered.out` lines are
 
 ```bash
 awk -F'\t' -v u='<pkg-path>/' 'index($1, u) == 1 && substr($1, length(u) + 1) !~ /\// && $2 != "100.0%"' \
-	/tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
+    /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
 ```
 
 These are the rows `enqueue.sh` printed per unit in Step 1. If
