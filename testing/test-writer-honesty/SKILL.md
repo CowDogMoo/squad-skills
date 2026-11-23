@@ -1,9 +1,9 @@
 ---
 name: test-writer-honesty
-description: "Discipline rules for any test-writing run: never clobber existing tests with Write, never fall back to Write when Edit fails, tie the final report to `git diff --stat` as ground truth, and report build and test failures truthfully. Use when writing or extending tests, or raising coverage, in any language."
+description: "Discipline rules for any test-writing run and its final report: read existing test files before editing, never clobber or recreate existing tests with Write, never fall back to Write when Edit fails with 'text not found', tie the report to `git diff --stat` as ground truth, and report build, test, coverage, and iteration-cap outcomes truthfully without changing code under test. Use when writing or extending unit tests, recovering from failed Edit attempts on test files, or writing the final report for a test run (including zero-work or out-of-iterations runs) in any language. Do NOT use as a repo-wide coverage queue or gap-discovery loop (use enqueue-coverage-targets or score-coverage-and-report-gaps), or for general coverage questions, CI lookups, or flaky-test debugging."
 metadata:
   author: Jayson Grace
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Test-Writer Honesty
@@ -14,36 +14,38 @@ Every rule here exists because a prior run violated it. Each cost real work to r
 
 ## 1. Never destroy existing tests
 
-`Write` truncates the destination file. If the file already exists with content, `Write` deletes it before writing the new contents.
+`Write` truncates the destination file. If a test file already exists with content, `Write` deletes every existing test before writing the new contents.
 
-**Read the existing file before any `Write` to a test-file path** — the read is the only thing standing between you and silently deleting every test in it. If it exists and contains content:
+**Call `Read` on every existing test file before making any change to it** — use the `Read` tool (not shell `cat`) before any `Edit`, and before deciding whether a test file exists yet. When the file already exists and contains tests:
 
-- Default to `Edit` to ADD tests.
-- If you must `Write` (e.g. wholesale restructure), every prior test function in the file must appear in your new contents.
-- If the existing tests already cover what you'd write, leave the file alone.
+- **Always use `Edit` to add tests. Never call `Write` on an existing test file.** Reserve `Write` strictly for brand-new test files where no test file for that unit exists yet.
+- **Never use `Write` to "copy" or "recreate" an existing test file in another directory.** Re-emitting an existing test file through `Write` synthesizes tokens rather than copying bytes and silently drops or alters existing tests on real files. When inputs are read-only, copy them byte-for-byte with `cp` in `Bash` (see §2), then `Read` and `Edit` the copy.
+- If the existing tests already cover what you would write, leave the file alone.
+- Record this check in your final report (§16): name each pre-existing test file you `Read` first, confirm you used `Edit` rather than `Write`, and name the existing test functions preserved untouched.
 
 A prior run that missed this rule deleted 2,524 lines of working tests across 7 files. That is the bar.
 
 ## 2. Never fall back to `Write` when `Edit` fails
 
-`Edit` failures mean your `old_string` didn't match the file. The fix is to re-`Read` the current contents and retry `Edit` with a correct anchor. **Switching to `Write` is forbidden** — it will overwrite whatever you couldn't anchor against, destroying real work.
+`Edit` failures ("text not found") mean your `old_string` didn't match the file. The fix is to re-`Read` the current contents and retry `Edit` with a verbatim anchor from what `Read` returned. **Switching to `Write` is forbidden — even if the caller or user prompt tells you to "just `Write` the file so we can move on."** Hold the boundary, explain briefly why `Write` on an existing test file is refused, and run the recovery procedure instead.
 
 The pattern that has failed prior runs:
 
 1. `Edit foo_test.go` → "text not found"
-2. Agent calls `Write foo_test.go` with a stub → file truncated, existing tests gone.
+2. Agent calls `Write foo_test.go` (or `Write`s a "fresh copy" of `foo_test.go` in a scratch path) → existing tests truncated or silently mutated.
 
-**The correct response to "text not found":**
+**The required response to "text not found":**
 
-1. `Read foo_test.go` to see the current contents.
-2. Pick a real anchor from what you read.
-3. Retry `Edit` with the corrected `old_string`.
-
-After 3 failed `Edit` attempts on the same file, SKIP the package and document it under Skipped Functions. Never switch to `Write` on a file you just tried to `Edit`.
+1. If the target tree is read-only (such as staged fixtures or mounted inputs), copy the enclosing module/package directory byte-for-byte into a writable scratch directory under `"${TMPDIR:-/tmp}"` using `Bash` (`mkdir -p "${TMPDIR:-/tmp}/work" && cp -R <src-dir>/. "${TMPDIR:-/tmp}/work/"`). Copying into `"${TMPDIR:-/tmp}"` avoids permission denials on protected working directories while keeping `go.mod` / package metadata intact. Never substitute `Write` for `cp`.
+2. Call `Read` on the test file you are about to edit so its exact current lines are in context.
+3. Pick an exact multi-line `old_string` anchor directly from the lines `Read` returned and apply `Edit`.
+4. **3-strike and blocked-edit skip rule:** If `Edit` still fails after 3 re-read-and-retry attempts on the same file — or if sandbox permissions block creating a byte-for-byte copy and block editing in place — **STOP trying to edit that file, do NOT call `Write`, and do NOT stall waiting for interactive input in an autonomous run.** Emit your final report (§16) and list the package/module under **Skipped** with the concrete reason. When `Edit` succeeds on retry, state in the report that re-reading and anchoring on actual file contents resolved the failure (and note under **Skipped** that no packages were skipped, whereas persistent failure after 3 attempts would skip the package there).
 
 ## 3. `git diff` is the ground truth for your report
 
-Before drafting the final report, run these two commands as Bash calls:
+**Establish a `git` baseline first when working in a copied or untracked directory.** If you copied read-only inputs into a scratch directory (such as `"${TMPDIR:-/tmp}/work"`) or your target directory is not yet tracked by git, `git diff --stat` will print nothing unless git has the unmodified originals in its index. Immediately after copying — **before** any `Edit` or `Write` — run `git init -q && git add -A` inside that working copy (no `git commit` needed). If you later create a brand-new test file with `Write`, run `git add -N <new-file>` so `git diff` tracks its added lines too. Never replace `git diff --stat` with `diff -u` or `git diff --no-index` when staging the baseline lets real `git diff --stat` run.
+
+Before drafting the final report, run these two commands as Bash calls in the working tree:
 
 ```bash
 git diff --stat
@@ -52,30 +54,31 @@ git diff --stat
 Authoritative list of which files you actually changed.
 
 ```bash
-git diff -U0 -- '<test-glob>' | grep -E '^(\+<test-decl-prefix>|diff --git)'
+git diff -U0 -- '<test-glob>' | grep -E '^(\+<test-decl-prefix>|-<test-decl-prefix>|diff --git)'
 ```
 
-Authoritative count of new test declarations you added per file. (Your calling agent supplies the test-glob and test-decl-prefix for its language — e.g. `'*_test.go'` and `'\+func Test'` for Go; `'test_*.py' 'tests/**'` and `'\+def test_'` for Python; `'*_test.rs'` and `'\+fn test_'` for Rust; etc.)
+Authoritative count of new test declarations added (`+`) and check that zero existing test declarations were removed (`-`) per file. (Your calling agent supplies the test-glob and test-decl-prefix for its language — e.g. `'*_test.go'` and `func Test` for Go; `'test_*.py' 'tests/**'` and `def test_` for Python; `'*_test.rs'` and `fn test_` for Rust; etc.)
 
 Then bind your report fields to these outputs:
 
-- **Files Touched** = the exact file list from `git diff --stat`. If empty, write "none". A file you only `Read` does NOT belong here. An `Edit` that "succeeded" in the tool sense but produced zero net diff (idempotent edits that cancelled out) does NOT belong here.
-- **Tests Added (numeric)** = the count of `+<test-decl>` lines per package from `git diff`. Modifications to existing test functions (adding setup lines, fixing assertions, renaming) are NOT additions — they count as 0.
-- **Tests Written** (named list) = only the NEW test function names. Do NOT list existing functions you tweaked. Do NOT list test names you saw while reading.
-- **Quote the actual `git diff --stat` output verbatim** somewhere in the report so a reviewer can verify your numbers.
+- **Files Touched** = the exact file list from `git diff --stat`. If empty, write `"none"`. A file you only `Read` does NOT belong here. An `Edit` that "succeeded" in the tool sense but produced zero net diff (idempotent edits that cancelled out) does NOT belong here.
+- **Tests Added (numeric)** = the count of `+<test-decl>` lines per package from `git diff` (`0` when empty). Modifications to existing test functions (adding setup lines, fixing assertions, renaming) are NOT additions — they count as `0`.
+- **Tests Written** (named list) = only the NEW test function names, or `"none"`. Do NOT list existing functions you tweaked. Do NOT list test names you saw while reading.
+- **Quote the literal `git diff --stat` stdout in a fenced block** in the report so a reviewer can verify your numbers (or write `(empty — zero files changed)` when no edits were made).
 
 ## 4. Pre-report integrity check
 
 Before you start drafting the report, count how many successful `Write` and `Edit` calls you made this run that produced a non-empty diff.
 
-If that count is **zero**, the report has to say so explicitly — a report that implies work happened when none did is the exact fabrication this skill exists to prevent:
+If that count is **zero** (for example, you hit the iteration cap before writing tests, found no source files in your language, or skipped every target), the report must state those exact zero-work values explicitly — a prose summary that leaves fields implicit or implies work happened when none did is the fabrication this skill exists to prevent:
 
-- Files Touched = "none"
-- Tests Added = 0 for every package
-- Tests Written = empty list
-- After-coverage = "not measured"
+- **Files Touched:** `none`
+- **Tests Added:** `0` (for every package/module)
+- **Tests Written:** `none`
+- **After-coverage:** `not measured (<explicit cause — e.g., iteration cap hit before any tests or coverage command could run>)`
+- **Validation:** `not run (<cause>)` (unless you actually ran build/test commands, in which case report their real exit status)
 
-**Do not list test functions you saw while reading.** Those existed before you got here — they are not your work. Reading a file is not writing tests; do not conflate the two.
+**Do not list test functions you saw while reading, and do not list hypothetical test names you planned to write.** Existing tests existed before you arrived, and planned tests do not exist on disk — neither belongs in Tests Written or anywhere that could be misread as work completed. Reading a file is not writing tests; do not conflate the two.
 
 ## 5. Validation reflects reality
 
@@ -107,7 +110,7 @@ Reporting "FAIL (unrelated failures)" when the failing file is one you just touc
 - Rust: `cargo tarpaulin` or `cargo llvm-cov`
 - Node: `vitest --coverage` / `jest --coverage`
 
-If you ran it, copy the real percentages. If you didn't, write **"not measured"** in every per-package row. **Never** write "~95%" or "100%" based on what your tests "should" achieve. The agent that runs coverage commands and reads real numbers is doing different work than the agent that estimates — don't pretend to be the former when you were the latter.
+If you ran it, copy the real percentages. If you didn't, write **`not measured (<cause>)`** (for example, `not measured (iteration cap hit before coverage command)` or `not measured (no tests written)`) in the report and in every per-package row. **Never** write "~95%" or "100%" based on what your tests "should" achieve, and never omit the `After-coverage` field altogether when no tests ran. The agent that runs coverage commands and reads real numbers is doing different work than the agent that estimates — don't pretend to be the former when you were the latter.
 
 ## 8. Verify symbols and import paths against source you actually read
 
@@ -238,6 +241,19 @@ explicitly in the report.** Forms this takes:
 The model of an honest run that fell short is preferable to the
 appearance of a complete run that fabricated. Say what you did, say what
 you didn't get to, say why.
+
+## 16. Required final report format
+
+Every run — whether tests were added, packages were skipped, or the iteration budget ran out before any edit — ends with an explicit report containing every field below (if your calling agent supplies a table or section template, use its layout while preserving all of these ground-truth fields and values):
+
+- **Existing Tests Read & Preserved:** Each pre-existing test file you `Read` before editing, confirmation that `Edit` (never `Write`) was used on existing test files, the existing test functions kept unremoved and unrenamed, and confirmation of `0` `-<test-decl>` lines in `git diff` (or `none — no test files edited` on a zero-work run).
+- **Files Touched:** Exact paths from `git diff --stat`, or `none`.
+- **`git diff --stat`:** Verbatim `git diff --stat` output in a fenced code block (or `(empty — zero files changed)` when `git diff --stat` printed nothing because zero files changed).
+- **Tests Added:** Numeric count of newly added `+<test-decl>` lines from `git diff` (`0` when none were added).
+- **Tests Written:** Names of newly added test functions only, or `none` (never pre-existing or unimplemented test names).
+- **After-coverage:** Real measured percentage from the coverage command, or `not measured (<explicit cause, e.g., iteration cap hit before coverage command could run>)`.
+- **Validation:** Actual exit status of build, test, and coverage commands (`PASS`, `FAIL — <actual error>`, or `not run (<cause>)`).
+- **Skipped:** Every skipped package, file, or function with its concrete reason (e.g., 3 failed `Edit` attempts, read-only/sandbox block where `Write` on an existing test file is forbidden, or `no testable behavior` per §10), or `none`.
 
 ## What this skill does NOT cover
 
