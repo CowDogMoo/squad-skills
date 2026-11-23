@@ -295,8 +295,8 @@ inventing an unverified unit:
  */
 export class RateLimitError extends Error {
   /**
-   * How long the caller should wait before retrying the rate-limited
-   * operation, as supplied by the code that threw this error.
+   * Caller-supplied retry/backoff value, set by the code that threw this
+   * error, indicating when the rate-limited operation may be retried.
    */
   retryAfter: number;
 }
@@ -326,8 +326,8 @@ does not enforce:
 /**
  * Schedules a job to run at the specified interval.
  *
- * @param intervalMs - Polling interval in milliseconds. Must be >= 100;
- *   values below 100 are rounded up to 100 to prevent CPU saturation.
+ * @param intervalMs - Polling interval in milliseconds; values below 100
+ *   are rounded up to 100 to prevent CPU saturation.
  * @param fn - Async callback invoked on each tick.
  */
 export function schedule(intervalMs: number, fn: () => Promise<void>): Job {}
