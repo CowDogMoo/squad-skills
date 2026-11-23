@@ -290,8 +290,9 @@ Read three things, in this order:
    slots are what is sounding; two stable notes per beat is a dyad. This is
    the draft.
 2. **The per-sixteenth table** for the beats where the summary is unsure
-   (`?` or three notes). Note changes usually land on a sixteenth boundary;
-   read the dB column to see which note leads.
+   (`?` or three notes), and for every segment boundary (Step 5). Note
+   changes usually land on a sixteenth boundary; read the dB column to see
+   which note leads.
 3. **The long-term spectrum peaks** to settle the octave. A played note sits
    within a few cents of the tuned grid; a peak more than 20 cents off that
    also equals the difference of two other peaks is distortion
