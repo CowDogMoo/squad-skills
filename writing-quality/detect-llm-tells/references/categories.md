@@ -132,12 +132,12 @@ These patterns apply specifically to LLM-generated code comments:
 
 ## 7. Model-Specific Opening Words and Signatures
 
-These apply to the first sentence of a response or document section:
+These apply to the first sentence of a response, document section, or comment block:
 
 - **ChatGPT** tends to start with: "As," "Sure," "Certainly," "Here," "Creating," "To," "Let's." The "Certainly!" opener was extremely common in GPT-3.5 and early GPT-4 but has been suppressed in later versions. ChatGPT has the strongest documented vocabulary fingerprint of any model family. Detection rate: ~68% average across detectors.
 - **Claude** tends to start with: "I'd," "Based," "Here," "This," "How," "Looking." The "I'd be happy to help" pattern is a strong Claude signal, especially in technical contexts where no help was requested. Claude's strongest formatting tell is em-dash overuse. Distinctive Claude phrases include "complex and multifaceted" (700x more frequent in AI text), "intricate interplay" (100x). Claude has higher burstiness (genuine sentence-length variation) than ChatGPT, making it harder to detect. Detection rate: ~23% average — the least detectable major model.
 - **Gemini** tends to start with: "Absolutely," "Great," "Here," "That's a great question." Gemini's tells are structural rather than lexical — heavy reliance on bullet points and numbered lists even when not requested, bold headings and subheadings, strict claim-evidence-conclusion paragraph format. Reads like a well-organized Wikipedia entry. Detection rate: ~61% average.
-- **General LLM pattern**: Starting a document or section with a meta-statement about what the document will cover ("In this guide, we'll explore...") rather than just starting the content.
+- **General LLM pattern**: Starting a document, section, or code comment block with a stage-setting meta-statement that narrates what follows ("In this guide, we'll explore...", or in code comments "Here we...", "This function...", "This struct...", "In this block, we...") rather than stating the content or contract directly.
 
 ## 8. Caveats and Operationalization
 

@@ -9,18 +9,19 @@ description: Score prose paragraphs or code comments against 8 LLM-generated-tex
 # access (readonly mode is still enforced by the readonly backstop).
 metadata:
   author: Jayson Grace
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # Detect LLM Tells
 
-You are scoring text against known indicators that an LLM (rather than a human) wrote it. Your output is a per-unit classification (FLAG / NO-FLAG) with the tell categories that convinced you and a confidence level. The caller decides what to do with flagged units (delete, rewrite, report) — this skill only judges.
+You are scoring text against known indicators that an LLM (rather than a human) wrote it. Your output is a per-unit classification (`FLAG` / `NO-FLAG`) with the tell categories that convinced you and a confidence level (`HIGH`, `MEDIUM`, `LOW`, or `clean`). The caller decides what to do with flagged units (delete, rewrite, report) — this skill only judges.
 
-Before scoring, consult `references/categories.md` for the full catalog
-of patterns that count toward each of the 8 categories (vocabulary tiers,
-structural patterns, em-dash thresholds, model-specific openers, etc.).
-The decision rules in this file are authoritative; the catalog is the
-lookup table you check each unit against.
+Read `references/categories.md` before scoring your first unit so you
+check every unit against the full 8-category catalog (vocabulary tiers,
+structural patterns, code-comment sub-patterns, em-dash thresholds,
+model-specific openers, etc.). Do not skip the catalog for "obvious"
+inputs. The decision rules in this file are authoritative; the catalog
+is the lookup table you check each unit against.
 
 ## How to use this skill
 
@@ -48,25 +49,25 @@ Score each unit against the 8 categories from `references/categories.md`.
 Count **distinct categories** that fire — not the total number of
 individual tells.
 
-| Categories fired | Confidence | Action |
-|---|---|---|
-| 4 or more | HIGH | FLAG |
-| Exactly 3 | MEDIUM | FLAG |
-| 1 or 2 | LOW | Don't flag — single-category hits are too noisy |
-| 0 | — | clean |
+| Categories fired | Verdict | Confidence | Meaning |
+|---|---|---|---|
+| 4 or more | `FLAG` | `HIGH` | Converging multi-category signal |
+| Exactly 3 | `FLAG` | `MEDIUM` | Meets cluster threshold |
+| 1 or 2 | `NO-FLAG` | `LOW` | Isolated signal below threshold — report `NO-FLAG (LOW)`, never `FLAG` and never `clean` |
+| 0 | `NO-FLAG` | `clean` | Zero tell categories fired |
 
-A single occurrence of "delve," one "Moreover," or one em-dash is never enough on its own. Convergence is the signal; isolated tells are not.
+A single occurrence of "delve," one "Moreover," or one em-dash is never enough on its own. Convergence is the signal; isolated tells are not. Keep `NO-FLAG (LOW)` distinct from `NO-FLAG (clean)`: a unit where one or two categories fire still carries a weak signal and must be reported with `NO-FLAG` and `LOW` confidence rather than collapsed into `clean`.
 
 ### Tell categories that count, even at one hit
 
-A few categories are strong enough that one clear example counts toward the cluster:
+A few categories are strong enough that one clear example fires that category toward the cluster:
 
-- **Tier 1 vocabulary** (one Tier 1 word = vocabulary fires)
-- **HR-speak openers** ("Certainly!", "Great question!", "I'd be happy to help")
-- **Numbered step/phase labels in code comments** (two or more in sequence = strong by themselves; see Category 2 in `references/categories.md`)
-- **Model-specific opener phrases** (Category 7, full phrases not single words)
+- **Tier 1 vocabulary** (one Tier 1 word = Category 1 fires)
+- **HR-speak openers** ("Certainly!", "Great question!", "I'd be happy to help" = Category 4 fires)
+- **Model-specific opener phrases** (Category 7 full phrases and stage-setting openers on prose sections or comment blocks, not bare single words)
+- **Numbered step/phase labels in code comments** (two or more in sequence = Category 2 fires strongly; when paired with Category 6 code restatement in a comment block, this pair alone reaches `FLAG` at `MEDIUM` confidence — see Example 3 and Category 2 in `references/categories.md`)
 
-For Tier 2/3 vocabulary, transitional phrases, and em-dash use, require **2+ instances** within the same unit before that category fires. Single occurrences are baseline noise.
+For Tier 2/3 vocabulary, transitional phrases, and em-dash use, require **2+ instances** within the same unit before that category fires. Single occurrences are baseline noise — note them as below-threshold rather than firing the category.
 
 ### Document-level scoring (second pass, prose callers only)
 
@@ -99,13 +100,25 @@ Score against the conventions of what the text actually is:
 
 If the caller states the genre, use it. If not, infer from the file and say which baseline you applied.
 
+### Report shape
+
+The reader sees only your final message. Unless the caller's prompt or `system.md` specifies another format — including on free-form requests such as "which paragraphs or comments look machine-written?" — report every unit explicitly using this structure:
+
+1. **Per-unit verdicts** (table or per-unit entries) covering **every** in-scope unit (each prose paragraph or each contiguous comment block, scored as a whole block rather than line by line), not only the flagged ones:
+   - **Unit / location**: paragraph number or comment block line range.
+   - **Verdict**: literal `FLAG` or `NO-FLAG` on every unit (do not substitute informal prose headings alone without stating `FLAG` / `NO-FLAG` per unit).
+   - **Confidence**: `HIGH` (4+ categories), `MEDIUM` (3 categories, or sequential step labels + Category 6 restatement in code comments), `LOW` (1–2 categories), or `clean` (0 categories). When 1 or 2 categories fire, always write `NO-FLAG (LOW)` (or `NO-FLAG` with confidence `LOW`) — never omit `LOW` and never label a 1–2 category unit `clean`.
+   - **Categories fired**: named categories from the 8-category catalog (e.g., `Cat 2 Structure`, `Cat 6 Tech-doc`) or `none` when 0 fire, with brief evidence per unit (and note any single Tier 2/3 word or transition that stayed below the 2+ per-unit threshold).
+2. **Skipped items**: list skipped frontmatter, code fences, compiler/linter directives (`//nolint`, `//go:*`, `# noqa`, `# type:`), convention markers (`TODO`, `FIXME`), or license/generated headers separately as skipped, not scored.
+3. **Document-level pass** (prose callers only; omit for code comments): reported in its own separate section with measured rates against thresholds, never added to per-paragraph category counts.
+
 ### What this skill does NOT cover
 
 The caller's `system.md` is authoritative for:
 
 - File discovery (glob patterns, exemptions)
 - Edit-mode vs readonly-mode behavior
-- Output format
+- Custom output format (when the caller overrides the default report shape above)
 - Whether to keep or delete specific kinds of useful comments
 - Compilation/lint verification after changes
 
@@ -148,7 +161,7 @@ Scoring:
 - No Tier 1 vocabulary, no Rule of Three, no transitional phrases.
 - Explains *why* (the cancellation contract), not *what*.
 
-0 categories fire → **clean, NO-FLAG.**
+0 categories fire → **NO-FLAG, clean.**
 
 ### Example 3 — Code comment FLAGged (numbered step labels)
 
@@ -167,9 +180,28 @@ Scoring:
 - **Cat 6 Tech-doc (code comments):** restates what the next lines do
   without explaining why.
 
-2 categories fire — but the numbered-step-labels signal is in the
-one-hit list, and it's reinforced by Category 6 → **FLAG, MEDIUM
-confidence.** The caller (a scrub agent) deletes the block.
+2 categories fire — sequential numbered step labels in a code comment
+reinforced by Category 6 restatement → **FLAG, MEDIUM confidence.** The
+caller (a scrub agent) deletes the block.
+
+### Example 4 — Code comment NOT FLAGged (single-category LOW)
+
+Unit:
+
+```python
+# Facilitates token refresh for expired sessions.
+def refresh_token(session: Session) -> Token:
+```
+
+Scoring:
+
+- **Cat 6 Tech-doc (code comments):** restates what the function name
+  and signature already show without explaining why — fires.
+- **Cat 1 Vocabulary:** "Facilitates" is a single Tier 3 verb, below the
+  2+ per-unit threshold — does not fire.
+
+1 category fires → **NO-FLAG (LOW confidence).** Do not flag on a single
+category, and do not label it `clean` because Category 6 fired.
 
 ## Troubleshooting
 
@@ -179,11 +211,13 @@ confidence.** The caller (a scrub agent) deletes the block.
 
 **Solution:** Re-read the Cluster scoring table. One em-dash, one
 "Moreover," or one "delve" is never enough on its own. Require 3+
-distinct categories before flagging. The exceptions (Tier 1 vocabulary,
-HR-speak openers, numbered step labels in comments, model-specific
-opener phrases) still count as *one* category — they don't bypass the
-cluster threshold; they just lower the threshold for *that* category
-firing.
+distinct categories before flagging, and report 1- or 2-category units
+as `NO-FLAG (LOW)`. One-hit signals (Tier 1 vocabulary, HR-speak
+openers, model-specific opener phrases) still count as *one* category —
+they lower the threshold for *that* category firing, not the 3-category
+cluster threshold (the sole 2-category exception is 2+ sequential
+numbered step/phase labels paired with Category 6 restatement in code
+comments, as in Example 3).
 
 ### Error: Real human prose getting FLAGged in academic or non-native contexts
 
@@ -215,15 +249,18 @@ document-level findings" is a complete and correct result.
 weakly).
 
 **Solution:** When exactly 3 categories fire weakly, default to
-MEDIUM-confidence FLAG and let the caller (which has the edit/keep
-authority) decide. If only 2 fire, mark NO-FLAG. Never flag on 1.
+`FLAG` (`MEDIUM` confidence) and let the caller (which has the edit/keep
+authority) decide. If only 1 or 2 categories fire, report `NO-FLAG (LOW)`
+(never `clean`, which is reserved for 0 categories). Never flag on 1.
 
 ### Error: References file not loaded
 
-**Cause:** `references/categories.md` is not visible to the caller.
+**Cause:** Scorer skipped reading `references/categories.md` or could not
+locate it relative to the skill directory.
 
-**Solution:** Read it explicitly on the first iteration that needs the
-catalog. The cluster-scoring rule in SKILL.md can be applied without
-it for obvious cases, but Tier 2/3 vocabulary and threshold numbers
-(em-dashes per 500 words, transition density, CV of sentence length)
-live in the reference file.
+**Solution:** Always Read `references/categories.md` (in this skill's
+directory) before scoring your first unit — vocabulary tiers,
+code-comment sub-patterns, model-specific openers, and numeric
+thresholds live there. Only score from `SKILL.md` alone if the file
+genuinely cannot be read in the caller's environment, and note that in
+your report.
