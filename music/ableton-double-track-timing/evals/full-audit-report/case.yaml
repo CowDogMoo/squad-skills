@@ -1,6 +1,0 @@
-schema_version: "1.1"
-name: full-audit-report
-context:
-  scaffold_script: place-files.sh
-expected_outcome: |
-  Covers Rhythm L/R, Clean L/R, Audio L/R and explicit Scratch A/B. Flags Rhythm R 19.96 as 0.04 beat (20 ms) early and suggests 20 if approved. Explains the six half-beat slice flags on Scratch A/B at 36.5, 40.5, 44.5 as intentional and synchronized. Detects Audio R trailing L about 20-22 ms despite clean placement; reports that as DI-only, unconfirmed without independent render or listening. Clean L/R and the clean control remain clean. Provides measured evidence and controls, accounts for every placement flag, and treats G3 as manual/unconfirmed and G4 as not applicable. No Live or input writes.

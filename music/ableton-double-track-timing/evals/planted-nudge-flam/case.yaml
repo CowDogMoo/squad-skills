@@ -1,6 +1,0 @@
-schema_version: "1.1"
-name: planted-nudge-flam
-context:
-  scaffold_script: place-files.sh
-expected_outcome: |
-  Finds Scratch A at 20.0625 and 28.0625 late by 0.0625 beat (31.25 ms at 120 BPM), with reference copies at 4 and 12. Placement and pair checks identify A; section audio comparison confirms approximately +31 ms on A and zero on B. Recommends starts 20 and 28, leaves B alone. Clean control has no placement or audio slips. Runs a positive control without modifying inputs. No Live connection.
