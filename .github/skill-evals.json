@@ -99,7 +99,10 @@
         "Write"
       ],
       "python_requirements": "scripts/requirements.txt",
-      "timeout_seconds": 900
+      "timeout_seconds": 900,
+      "skip_cases": {
+        "case-1": "needs a live Ableton set and the ableton-mcp tools"
+      }
     },
     "detect-dinner-freezer-protein": {},
     "ansible-collection-release": {

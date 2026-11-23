@@ -112,7 +112,16 @@ FENCED_DIRS = {
 FENCED_FILES = {"aggregate-result.json", "report.html"}
 # An `evals/...` path in a prompt, which staging moves to INPUTS_DIR.
 EVALS_REF = re.compile(r"(?<![\w/.-])(?:\./)?" + EVALS_DIR + "/")
-INPUT_LIST_HEADER = "Input files (read-only; copy one into your working directory before changing it):"
+# claude plugin eval runs `claude -p` under `--permission-mode dontAsk` with
+# `Edit(//<staged-skill>/**)` disallowed and only the per-run scratch cwd in
+# workingDirectories, and Claude Code's Bash filter checks `cp`/`mv` source
+# paths against those write rules, denying `cp` from staged inputs into cwd.
+INPUT_LIST_HEADER = (
+    "Input files (read-only; read them in place and write outputs to your "
+    "working directory, or use Read + Write or Python shutil if you need a "
+    "writable copy there; never `cp` or `mv`, which the sandbox permission "
+    "filter denies on read-only input paths):"
+)
 # Only these reach `claude plugin eval`; the step's other variables stay out.
 CHILD_ENV = [
     "CLAUDE_CODE_OAUTH_TOKEN",
@@ -445,6 +454,30 @@ def cmd_validate(_args) -> int:
                 error(where, f"ci_runnable.{name}.{key} must be a positive integer")
         if opts.get("suite", "skills") not in SKILL_SUITES:
             error(where, f"ci_runnable.{name}.suite must be one of {list(SKILL_SUITES)}")
+        case_skips = opts.get("skip_cases", {})
+        if not isinstance(case_skips, dict):
+            error(where, f"ci_runnable.{name}.skip_cases must be an object")
+        else:
+            evals_file = skills[name] / EVALS_DIR / "evals.json" if name in skills else None
+            known = set()
+            if evals_file and evals_file.is_file() and not check_evals(skills[name]):
+                known = {
+                    f"case-{c['id']}"
+                    for c in json.loads(evals_file.read_text(encoding="utf-8"))["evals"]
+                }
+            for cname, reason in case_skips.items():
+                if not nonempty_str(cname) or (known and cname not in known):
+                    error(
+                        where,
+                        f"ci_runnable.{name}.skip_cases.{cname} is not a case in {name}/evals/evals.json",
+                    )
+                if not nonempty_str(reason):
+                    error(where, f"ci_runnable.{name}.skip_cases.{cname} needs a reason")
+            if known and known <= set(case_skips):
+                error(
+                    where,
+                    f"ci_runnable.{name}.skip_cases skips every case; move {name} to ci_skipped",
+                )
 
     for name, skill in sorted(skills.items()):
         if not (skill / "evals" / "evals.json").is_file():
@@ -463,6 +496,10 @@ def cmd_validate(_args) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp) / "staged"
         for name in sorted(set(runnable) & set(skills)):
+            if not isinstance(runnable[name], dict) or not isinstance(
+                runnable[name].get("skip_cases", {}), dict
+            ):
+                continue
             evals = skills[name] / EVALS_DIR / "evals.json"
             if not evals.is_file() or check_evals(skills[name]):
                 continue
@@ -545,6 +582,8 @@ def cmd_plan(args) -> int:
                 other = runnable[name].get("suite", "skills")
                 print(f"::notice::Skipping {name}: it runs only with --suite {other}")
             else:
+                for cname, reason in sorted(runnable[name].get("skip_cases", {}).items()):
+                    print(f"::notice::Skipping {name} {cname}: {reason}")
                 selected.append(name)
     if suite in ("triggers", "all"):
         if args.skill and suite == "triggers":
@@ -716,12 +755,21 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
     if problems:
         return problems
     opts = allowlist()[name]
+    raw_skips = opts.get("skip_cases", {})
+    skip_cases = raw_skips if isinstance(raw_skips, dict) else {}
     data = json.loads((src / EVALS_DIR / "evals.json").read_text(encoding="utf-8"))
-    problems = stage_inputs(src, staged, data["evals"])
+    cases = []
+    for case in data["evals"]:
+        cname = f"case-{case['id']}"
+        if cname in skip_cases:
+            print(f"::notice::Skipping {name} {cname}: {skip_cases[cname]}")
+            continue
+        cases.append(case)
+    problems = stage_inputs(src, staged, cases)
     if problems:
         return problems
     tools = BASE_TOOLS + [t for t in opts.get("allow_tools", []) if t not in BASE_TOOLS]
-    for case in data["evals"]:
+    for case in cases:
         prompt = EVALS_REF.sub(f"{staged / INPUTS_DIR}/", case["prompt"])
         if case.get("files"):
             listed = "\n".join(f"- {staged / input_path(f)}" for f in case["files"])
@@ -1264,7 +1312,12 @@ def run_problems(run: dict, types: dict) -> list[str]:
     return problems
 
 
-def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
+def judge(
+    name: str,
+    result_json: Path,
+    threshold: float,
+    skip_cases: dict[str, str] | None = None,
+) -> tuple[int, str]:
     """Score each case on the mean of its runs; return (exit code, summary)."""
     try:
         data = json.loads(result_json.read_text(encoding="utf-8"))
@@ -1272,7 +1325,9 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         print(f"::error::{name}: claude plugin eval wrote no readable result ({exc})")
         return 1, f"### {name}\n\nclaude plugin eval wrote no readable result; see plugin-eval.log in the artifact.\n"
 
+    skipped_cases = skip_cases or {}
     broken, low, deltas = [], [], []
+    ran = 0
     lines = [
         f"### {name}",
         "",
@@ -1281,8 +1336,15 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         "| Case | Mean | Runs | Result | Failed graders or error |",
         "| --- | --- | --- | --- | --- |",
     ]
+    for cname, reason in sorted(skipped_cases.items()):
+        print(f"::notice::Skipping {name} {cname}: {reason}")
+        clean_reason = " ".join(reason.split()).replace("|", "/")
+        lines.append(f"| {cname} | - | - | skipped | {clean_reason} |")
     for case in data.get("cases", []):
         cname = case.get("name", "?")
+        if cname in skipped_cases:
+            continue
+        ran += 1
         arms = case.get("arms", {})
         runs = arms.get("with", [])
         types = {
@@ -1342,9 +1404,12 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         total_base = sum(d[2] for d in deltas) / len(deltas)
         lines.append(f"| **mean** | {total_with:.2f} | {total_base:.2f} | {total_with - total_base:+.2f} |")
     if is_trigger(name):
-        total = len(data.get("cases", []))
-        routed = total - len(broken) - len(low)
-        lines.append(f"\nRouting: {routed} of {total} queries met the threshold.")
+        routed = ran - len(broken) - len(low)
+        lines.append(f"\nRouting: {routed} of {ran} queries met the threshold.")
+
+    if skipped_cases and not ran and not broken and not partial:
+        broken.append("(no runnable cases)")
+        print(f"::error::{name}: no non-skipped cases ran")
 
     if broken:
         lines.append(f"\n**Failed:** {len(broken)} case(s) did not run.")
@@ -1352,6 +1417,10 @@ def judge(name: str, result_json: Path, threshold: float) -> tuple[int, str]:
         lines.append("\n**Failed:** the run stopped before every case ran.")
     elif low:
         lines.append(f"\n**Failed:** {len(low)} case(s) scored below the threshold.")
+    elif skipped_cases:
+        lines.append(
+            f"\nAll {ran} runnable case(s) met the threshold ({len(skipped_cases)} skipped)."
+        )
     else:
         lines.append("\nAll cases met the threshold.")
     return (1 if broken or low or partial else 0), "\n".join(lines) + "\n"
@@ -1375,10 +1444,13 @@ def cmd_judge(args) -> int:
     for name in names:
         if is_trigger(name):
             default = config["trigger_threshold"]
+            case_skips = {}
         else:
-            default = config["ci_runnable"][name].get("threshold", config["threshold"])
+            opts = config["ci_runnable"][name]
+            default = opts.get("threshold", config["threshold"])
+            case_skips = opts.get("skip_cases", {})
         threshold = args.threshold if args.threshold is not None else float(default)
-        code, text = judge(name, out / f"{name}.json", threshold)
+        code, text = judge(name, out / f"{name}.json", threshold, skip_cases=case_skips)
         summary(text)
         status |= code
     return status
