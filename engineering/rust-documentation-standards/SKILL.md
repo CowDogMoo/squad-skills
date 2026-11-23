@@ -21,7 +21,16 @@ Comprehensive reference for writing idiomatic Rust documentation.
 - **The first line is the summary.** Rustdoc uses the first paragraph as the
   short description in module listings and search results. Make it count.
 - **Complete sentences.** Every doc comment must be grammatically correct
-  with proper punctuation.
+  with proper punctuation. Every summary is capitalized, ends with a period,
+  and adds information beyond the item's name; a lowercase label such as
+  "the retry policy" is never acceptable. Function and method summaries are
+  full sentences in the third person (`Returns…`, `Parses…`, `Loads…`).
+  Struct, enum, trait, type alias, and module summaries may be either an
+  informative std-style noun phrase (`A UTF-8–encoded, growable string.`) or
+  a verb sentence (`Holds the backoff schedule and attempt limit for
+  retrying failed requests.`); only an uninformative fragment is wrong.
+  Field, variant, and constant docs may be a short noun phrase (`The task's
+  output.`) or a sentence (`The task failed with an error.`).
 
 ## Doc Comment Syntax
 
@@ -328,11 +337,21 @@ use `#![deny(missing_docs)]`.
 ### Mistake 1: Fragment Instead of Sentence
 
 ```rust
-// BAD
-/// the configuration
+// BAD — lowercase label that adds nothing
+/// the retry policy
+pub struct RetryPolicy { /* ... */ }
 
-// GOOD
-/// Application configuration loaded from disk.
+// GOOD — complete sentence that says what the type holds
+/// Holds the backoff schedule and attempt limit for retrying failed requests.
+pub struct RetryPolicy { /* ... */ }
+
+// BAD — function summary with no verb
+/// Word counting.
+pub fn word_count(text: &str) -> usize
+
+// GOOD — third-person verb sentence
+/// Returns the number of whitespace-separated words in `text`.
+pub fn word_count(text: &str) -> usize
 ```
 
 ### Mistake 2: Restating the Name
@@ -439,8 +458,17 @@ Before finishing, verify:
 - [ ] Every `Result`-returning public function has `# Errors`
 - [ ] Every panicking function has `# Panics`
 - [ ] Complex public functions have `# Examples`
-- [ ] No fragments — all comments are complete sentences
+- [ ] No fragments — function and method summaries are third-person verb sentences; type, trait, alias, and module summaries are informative noun phrases or verb sentences; no lowercase or uninformative labels
 - [ ] No redundant comments — every comment adds value
 - [ ] Intra-doc links used for cross-references
 - [ ] Comments are directly adjacent to declarations (no blank lines)
 - [ ] All comment lines within 80 characters
+
+## Reporting
+
+When you deliver changed docs as a copy (the original is read-only, or you
+write into a working directory), the user sees only your reply. Give the
+copy's path and quote the summary line of each doc comment you added or
+rewrote, plus the sections you added (`# Errors`, `# Safety`, `# Panics`), so
+the result can be checked without opening the file. If a calling agent
+defines the report format, follow that format instead.
