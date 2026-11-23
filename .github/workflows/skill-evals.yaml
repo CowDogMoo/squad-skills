@@ -41,12 +41,12 @@ name: Skill Evals
 #
 # How the token is kept away from skill content:
 #   prepare (no secret) checks out main, stages each skill as data into a
-#     plugin the harness builds itself (no hooks, MCP servers, or monitors;
-#     the only symlink is the `inputs` link a case directory gets when its
-#     case has input files, pointing at the staged inputs in the same plugin;
-#     the only plugin.json is the bare name-only manifest a trigger suite
-#     needs to load as a plugin), and downloads every tool the eval job needs:
-#     bubblewrap and socat .debs, a Python venv, and Claude Code.
+#     plugin the harness builds itself (no hooks, MCP servers, monitors, or
+#     symlinks; a case with input files gets plain copies of them in its
+#     `inputs` directory; the only plugin.json is the bare name-only
+#     manifest a trigger suite needs to load as a plugin), and downloads
+#     every tool the eval job needs: bubblewrap and socat .debs, a Python
+#     venv, and Claude Code.
 #   eval (token, after approval) blocks egress to everything but
 #     api.anthropic.com with harden-runner, installs that bundle offline,
 #     writes managed settings (sandboxed Bash with no network and the token
