@@ -25,13 +25,11 @@ Comprehensive reference for writing idiomatic Rust documentation.
   and adds information beyond the item's name; a lowercase label such as
   "the configuration" is never acceptable. Function and method summaries are
   full sentences in the third person (`Returns…`, `Parses…`, `Loads…`).
-  For struct, enum, trait, type alias, and module summaries, an audit accepts
-  either a std-style noun phrase (`A UTF-8–encoded, growable string.`) or a
-  verb-led sentence, so leave correct summaries of either form alone. When
-  you write a new type summary or replace a fragment, use a complete sentence
-  with a verb, such as `Holds the application settings loaded from
-  config.toml at startup.` Field, variant, and constant summaries use a
-  descriptive noun phrase, not a verb.
+  Struct, enum, trait, type alias, and module summaries may be either an
+  informative std-style noun phrase (`A UTF-8–encoded, growable string.`) or
+  a verb sentence (`Holds the application settings loaded from config.toml
+  at startup.`); only an uninformative fragment is wrong. Field, variant, and
+  constant summaries use a descriptive noun phrase, not a verb.
 
 ## Doc Comment Syntax
 
@@ -459,7 +457,7 @@ Before finishing, verify:
 - [ ] Every `Result`-returning public function has `# Errors`
 - [ ] Every panicking function has `# Panics`
 - [ ] Complex public functions have `# Examples`
-- [ ] No fragments — function and method summaries are third-person verb sentences; existing type, trait, alias, and module summaries may be noun phrases or verb-led sentences, but new or replaced ones are complete sentences with a verb; no lowercase labels
+- [ ] No fragments — function and method summaries are third-person verb sentences; type, trait, alias, and module summaries are informative noun phrases or verb sentences; no lowercase or uninformative labels
 - [ ] No redundant comments — every comment adds value
 - [ ] Intra-doc links used for cross-references
 - [ ] Comments are directly adjacent to declarations (no blank lines)
