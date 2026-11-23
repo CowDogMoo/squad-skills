@@ -61,14 +61,26 @@ times onto the recording's timeline, and scores.
 
 ## Answering before there are files
 
-When the user asks how to check a tab but has sent no files yet, give no
-verdict, and explain the method. Two points belong in every such reply:
+People often ask how to tell whether a tab is right before they have sent
+anything. With no tab and no recording there is nothing to measure, so any
+verdict would be a guess about a file you have not seen; the useful answer is
+the method, laid out so they can gather what it needs.
 
-- Name the `guitar-pro` skill (`gp_tab.py`) as the way to export a Guitar
-  Pro file to MIDI. Don't just say "export it to MIDI".
-- Say the score is a lower bound because the transcriber misses notes
-  itself, and recommend scoring a tab you know is right first, as the
-  calibration to judge this one against.
+Start with the step people get wrong on their own. A Guitar Pro file has to
+become MIDI before anything can score it, and that export goes through the
+`guitar-pro` skill's `gp_tab.py`, which reads the file's tuning and tracks
+directly. A generic "export to MIDI" from whatever editor is at hand can drop
+a track or flatten the tuning, and the comparison then scores the export, not
+the tab.
+
+Then set expectations for the number before they see one. The note-level
+score compares the tab against a transcription of the recording, and the
+transcriber misses notes on its own, so even a perfect tab scores below 1.0:
+the result is a lower bound on how faithful the tab is. That is why the first
+run should be on a tab they already trust, one they have played along with or
+an official transcription of a song with a similar sound. Its score shows
+where "right" lands for that kind of recording, and the suspect tab is judged
+against it rather than against an absolute line.
 
 ## Reporting the result
 
