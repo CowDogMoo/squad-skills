@@ -161,12 +161,15 @@ commands and measured results in GATES.md and the report.
   in a copy of the parsed data (the file isn't touched), requires the clip to
   be flagged with the injected offset, and requires the real state to be
   clean at that clip. It refuses whole-beat shifts, clips that are the only
-  copy of their take, and clips that are already flagged.
+  copy of their take, and clips that are already flagged. Choose a take with
+  no flagged copies so the injection does not flip a suspect reference majority.
 - **DI: `--inject`, the same way.** The clip's lag must move by about the
-  injected ms (capped at the window), within 6 ms, and land at 15 ms or
-  more. Choose the injection using the local tempo and baseline lag so its
-  expected result lies within `--window-ms` (default ±25 ms); an out-of-window
-  plant cannot establish sensitivity. Run per reported region, including the
+  injected ms within 6 ms. The injection magnitude must be at least half
+  `--min-ms` (default 7.5 ms), and the absolute baseline-plus-injection lag
+  must be strictly below `--window-ms - 1` (default 24 ms). Convert the beat
+  delta at the clip midpoint tempo, as the script does. A shift cancelling
+  an existing lag is valid; the final lag need not exceed the flag threshold.
+  An out-of-window plant cannot establish sensitivity. Run per reported region, including the
   clean reference. A MISSED result means the DI method can't resolve that region.
 - **Render: `--control-shift-ms`.** The script shifts the second side's stems
   and requires at least 80% of clips to follow. It lists the clips that don't

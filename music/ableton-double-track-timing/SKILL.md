@@ -111,7 +111,8 @@ available, record the limitation and leave affected verdicts unconfirmed.
 This checks false alarms; the positive controls below check missed slips.
 
 **Placement positive control (gate G1):** inject a fractional shift on a clean
-clip whose take is reused, and require `CONTROL OK`. The real state must stay
+clip whose take is reused and has no flagged copies, and require `CONTROL OK`.
+This avoids changing the reference majority of an already suspect take. The real state must stay
 clean at that clip. The control refuses whole-beat shifts and clips that are
 the only copy of their take, because the detector is blind to both by design.
 
@@ -152,8 +153,11 @@ and is unreliable.
   DI, or audio that isn't DI). Re-run that pair with `--gate-db -40`.
 - **DI positive control (G1):** execute `--inject` per region you report on,
   including a clean reference region. Choose the beat delta from the local
-  tempo so the expected lag is measurable (at least 15 ms) and stays inside
-  `--window-ms` (default ±25 ms), accounting for the baseline lag. Require
+  tempo so the injection is at least `--min-ms / 2` (default 7.5 ms) and
+  `abs(baseline lag + injected ms) < --window-ms - 1` (default <24 ms).
+  The measured lag must follow the expected lag within 6 ms; it need not
+  finish above the flag threshold. A shift cancelling an existing lag is
+  valid. Require
   `CONTROL OK`; record MISSED as a measurement limit. Placement success or
   section self-comparison does not replace this DI control.
 - Leave the guitar-vs-kick comparison out. It was too noisy to use.

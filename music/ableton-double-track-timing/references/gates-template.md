@@ -30,14 +30,14 @@ when its placement and DI checks are clean.
   EXPECT: no placement or pair-alignment flags; measurable audio lags consistent with the clean reference, without flags
   EVIDENCE: pending (record flags, lags, settings and why this reference is known clean)
 
-- [ ] G1b: the placement detector catches an injected fractional nudge on a clean, reused clip, and the real state stays clean there
+- [ ] G1b: the placement detector catches an injected fractional nudge on a clean, reused clip from a take with no flagged copies, and the real state stays clean there
   CHECK: python scripts/placement_check.py "SET.als" --pair "A=B" --inject "A@<start>+0.0625"
   EXPECT: CONTROL OK
   EVIDENCE: pending
 
 - [ ] G1c: DI detects an injected slip in each reported region, including the clean reference
   CHECK: python scripts/attack_audit.py "SET.als" --pair "A=B" --no-auto --inject "A@<start>+<delta>"
-  EXPECT: CONTROL OK (choose delta from local tempo so baseline plus injection is >= 15 ms in magnitude and within --window-ms)
+  EXPECT: CONTROL OK (injected ms magnitude >= --min-ms / 2; abs(baseline lag + injected ms) < --window-ms - 1; measured lag within 6 ms of expected)
   EVIDENCE: pending (record each region, baseline, expected shift and measured shift; MISSED leaves the region unconfirmed)
 
 - [ ] G2: every placement flag on the checked tracks is fixed or explained in HANDOFF.md
