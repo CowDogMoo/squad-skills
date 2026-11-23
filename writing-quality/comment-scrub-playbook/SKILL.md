@@ -199,10 +199,11 @@ decision itself. Use this shape unless the caller dictates another:
    - Every row has exactly one decision (`DELETE`, `TRIM`, `KEEP`, or
      `FIX_GAP`) and a category number 1-5. For `DELETE`/`TRIM` it is
      the category that fired. List every category that fired,
-     primary first: numbered step labels are Category 5 and also a
-     strong Category 2 tell in `detect-llm-tells`, so cite `5, 2`;
-     a numbered step label whose text also restates the next line is
-     `5, 1`. Plain narration that restates the next line, with no
+     primary first, and never drop one because a narrower rule also
+     applies. Numbered step labels always cite Category 5 and
+     Category 2 (a strong tell in `detect-llm-tells`): `5, 2`. Add
+     Category 1 when the label's text also restates the next line:
+     `5, 2, 1`. Plain narration that restates the next line, with no
      step label, is Category 1 only: cite `1`.
    - For `KEEP`, the category is the one you tested and why it did not
      win, for example `1, overridden by exported-doc protection` or
@@ -327,7 +328,8 @@ execute(validated)
 Decision: `DELETE` all three comment lines. Category 5 visual noise
 (numbered step labels in source comments are always deletions). The
 code is already three statements — the numbered prose is redundant.
-Format strings showing step numbers to end users are exempt; these are
+Each label also restates its statement and is a Category 2 tell, so
+the category cell reads `5, 2, 1`. Format strings showing step numbers to end users are exempt; these are
 comments, not strings.
 
 ## Troubleshooting
