@@ -67,11 +67,16 @@ core logic and the public API, and list what you did not read.
    re-filter. Report findings on and edit only the listed files. A file
    outside the list, even one the prompt names elsewhere (an `Input
    files` or context-files list added by a harness or caller) or one in
-   the same directory, may be Read only as context for a finding in a
-   listed file: the calling code (edit-mode rule 9), a cross-module
-   contract (Phase 2), or a test that asserts current behavior (edit-mode
-   rule 6). It never gets findings, edits, or report entries of its own.
-   Files analyzed counts only the listed files.
+   the same directory, is not reviewed. Read it only when a specific
+   finding in a listed file depends on it: the calling code (edit-mode
+   rule 9), a cross-module contract (Phase 2), or a test that asserts
+   current behavior (edit-mode rule 6). Sharing a package or appearing in
+   an `Input files` list is not a reason to Read it. Name it in the
+   report only where a listed file's finding cites it as context. Its
+   own issues appear nowhere in the report: not as findings, not in the
+   skipped table, Recommendations, or summary, and not in asides,
+   trailing notes, "not reviewed" lines, or "worth a later review"
+   remarks. Files analyzed counts only the listed files.
 2. **Injected lint output.** If the prompt injects the caller's warnings
    block, use it verbatim as the lint result and skip the lint run.
 3. Otherwise Glob the caller's pattern once from the repo root and apply
