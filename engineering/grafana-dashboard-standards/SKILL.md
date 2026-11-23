@@ -17,6 +17,8 @@ A comprehensive guide to creating effective, maintainable, and scalable Grafana 
 7. [Management and Maintenance](#management-and-maintenance)
 8. [Performance Optimization](#performance-optimization)
 9. [Maturity Model](#maturity-model)
+10. [Quick Reference Checklist](#quick-reference-checklist)
+11. [Dashboard Review and Pre-Provisioning Audit](#dashboard-review-and-pre-provisioning-audit)
 
 ---
 
@@ -59,21 +61,21 @@ Before creating dashboards, adopt one of these established monitoring strategies
 
 ### USE Method (Infrastructure-Focused)
 
-Best for monitoring infrastructure and resource health:
+Best for resource-level dashboards monitoring hardware and infrastructure health (hosts, CPUs, memory, disks, network interfaces, worker pools), rather than request-driven application traffic:
 
-- **Utilization**: Percentage of time the resource is busy
-- **Saturation**: Work queue length or system load
-- **Errors**: Count of error events
+- **Utilization**: Percentage of time or capacity the resource is busy
+- **Saturation**: Work queue length, wait time, or system load beyond capacity
+- **Errors**: Count of resource error events
 
 *"The USE method tells you how happy your machines are"*
 
 ### RED Method (Service-Focused)
 
-Best for monitoring services and user-facing applications:
+Best for request-driven services and stateless HTTP/gRPC APIs:
 
-- **Rate**: Requests per second
-- **Errors**: Number of failing requests
-- **Duration**: Latency measurements and distribution
+- **Rate**: Requests per second (overall and split by bounded labels such as route template or method)
+- **Errors**: Failing request rate or **error ratio** (failing requests as a share of total traffic, so thresholds stay meaningful as load changes)
+- **Duration**: Latency **distribution** over time (percentiles such as p50, p95, p99 and/or a histogram heatmap — never a single average, which hides tail latency)
 
 *"The RED method tells you how happy your users are"*
 
@@ -101,12 +103,12 @@ Choose the methodology that best fits your use case, document it, and maintain c
 
 ### Naming and Documentation
 
-**Dashboard Names:**
+**Dashboard and Panel Titles:**
 
-- Use meaningful, descriptive names
-- Prefix experimental dashboards with "TEST" or "TMP"
-- Include your name or initials for ownership clarity
-- Add relevant tags for easy discovery
+- Give both the dashboard and every panel a specific, self-explanatory title (e.g., `Acme Order API — RED`, `Request Rate by Route`), never Grafana's untouched defaults (`New dashboard`, `Panel Title`) or bare single-word labels (`latency`, `errors`) that omit what is measured
+- Treat clone suffixes in titles (`copy`, `copy 1`, `v2`, `backup`, `- old`, or per-environment copies) as a direct **symptom of dashboard sprawl** — someone duplicated a dashboard in the UI instead of parameterizing a single dashboard with template variables or URL links
+- Prefix experimental dashboards with `TEST` or `TMP` and delete them once the experiment ends
+- Include team or owner metadata and relevant tags for discovery
 
 **Documentation:**
 
@@ -140,10 +142,11 @@ Choose the methodology that best fits your use case, document it, and maintain c
 - Use stat panels for single value snapshots
 - Use gauges to show values relative to min/max thresholds
 
-**Data Presentation:**
+**Data Presentation and Units:**
 
+- Configure an explicit semantic `unit` (`fieldConfig.defaults.unit`) on every numeric panel (`reqps` or `ops` for request and error rates, `percentunit` or `percent` for error ratios and utilization, `s` or `ms` for latency/duration, `bytes` or `Bps` for memory and throughput) — never leave `unit` unset or left at generic `"short"` on rates, ratios, durations, or byte counts
 - Show data at appropriate granularity for the time range
-- Use appropriate aggregation functions (avg, max, p95, etc.)
+- Use appropriate aggregation functions (`p50`/`p95`/`p99` for latency, ratios for errors, `sum(rate(...))` for throughput)
 - Include sparklines in stat panels to show trends at a glance
 
 ---
@@ -243,6 +246,19 @@ Useful for:
 - Progress visualization
 - Displaying multiple series compactly (unlike standard gauge)
 
+### Heatmap Panels
+
+Best for:
+
+- Visualizing latency or size **distributions over time** from histogram buckets
+- Surfacing bimodal behavior, shifting modes, and tail outliers that single summary lines hide
+- Pairing with p50/p95/p99 time series on RED Duration rows
+
+### Pie Charts (Use Sparingly)
+
+- Reserve pie charts strictly for static part-to-whole categorical breakdowns that sum to 100% at a single snapshot
+- **Never** use a pie chart for temporal data, latency, percentiles, or request/error rates — use a **time series** or **heatmap** for latency and rates over time
+
 ---
 
 ## Organization and Navigation
@@ -251,10 +267,10 @@ Useful for:
 
 **Use template variables to:**
 
-- Eliminate dashboard duplication (no need for per-node dashboards)
-- Make data sources configurable
-- Enable filtering by environment, service, instance, etc.
-- Create reusable dashboards across clusters
+- Eliminate dashboard duplication across environments, clusters, services, and nodes
+- Parameterize data sources (`type: "datasource"`, referenced as `${datasource}`) instead of hardcoding instance-specific datasource UIDs in panels, which break when provisioned into other Grafana instances
+- Enable filtering by `environment`, `cluster`, `namespace`, `service`, and `instance`
+- Create reusable master dashboards across environments
 
 **Benefits:**
 
@@ -344,18 +360,16 @@ Use scripting libraries for standardized dashboards:
 
 ### Refresh Rates
 
-- Set refresh rates matching data change frequency
-- Avoid unnecessary refreshing to reduce network and backend load
-- Consider different refresh rates for different panels
-- Use manual refresh for historical analysis dashboards
+- Match auto-refresh intervals to both data scrape frequency and the dashboard's default time range
+- Reserve sub-minute auto-refresh (`5s`–`15s`) for live incident views over short windows (`15m`–`1h`); pairing a fast refresh (such as `5s`) with a multi-day or multi-month window (`7d`, `30d`, `90d`) creates a severe **query-cost problem** by re-scanning massive history every few seconds
+- Default operational dashboards to modest windows (`1h`–`24h`) with `30s`–`5m` refresh, and use manual refresh (`""`) for long-range historical analysis
 
 ### Query Optimization
 
-- Use appropriate time ranges and intervals
-- Leverage recording rules for expensive queries
-- Cache query results when possible
-- Use query variables to reduce duplication
-- Avoid overly complex or unoptimized queries
+- **Bound label cardinality**: Never group (`by (...)`) overview panels by unbounded or high-churn labels (user, customer, session, or request IDs, raw URL paths) or by per-instance/per-pod labels across a large fleet; aggregate by bounded dimensions (`service`, `route`, `status`) and filter individual instances behind template variables or drill-down views
+- **Wrap counters and histograms in `rate()` with an interval**: Counter and `*_bucket` series are cumulative, so `histogram_quantile` must wrap `sum by (le) (rate(<metric>_bucket[$__rate_interval]))` — running `histogram_quantile` on raw bucket counters without `rate()` and a range interval produces meaningless all-time quantiles
+- Use `$__rate_interval` rather than hardcoded windows so rate queries adapt cleanly to scrape intervals and zoom levels
+- Leverage recording rules for expensive high-fanout or long-range aggregations
 
 ### Dashboard Complexity
 
@@ -372,29 +386,36 @@ Organizations typically evolve through these stages:
 
 ### Low Maturity: Dashboard Sprawl
 
-- Uncontrolled dashboard creation
-- Duplicated dashboards for different environments
-- No naming conventions or organization
-- Difficult to find relevant dashboards
-- High maintenance burden
+- Uncontrolled, ad-hoc dashboard creation and casual UI cloning (titles ending in `copy`, `v2`, or environment suffixes)
+- Duplicated dashboards per environment, cluster, or instance instead of parameterized views
+- Absent naming conventions, folder structure, and ownership metadata
+- Difficult to find or trust relevant dashboards during incidents, with high maintenance drift across copies
 
 ### Medium Maturity: Methodical Approach
 
-- Adoption of RED/USE/Golden Signals methodology
-- Template variables to prevent duplication
-- Hierarchical organization with drill-downs
-- Documented dashboard purposes
-- Regular cleanup and maintenance
+- Adoption of a standard observability methodology (**RED**, **USE**, or **Four Golden Signals**) across service and resource dashboards
+- Enforced **naming conventions**, folder hierarchy, and ownership tags
+- **Template variables** (`environment`, `datasource`, `cluster`, `service`) collapsing per-environment and per-instance duplicates into single reusable dashboards
+- Hierarchical organization (overview → service → detail) with drill-down links and documented dashboard purposes
+- **Regular cleanup** and scheduled lifecycle audits to retire unused, outdated, or `TEST`/`TMP` dashboards
 
 ### High Maturity: Optimized Ecosystem
 
-- Scripted dashboard generation (infrastructure-as-code)
-- Comprehensive version control
-- Automated testing and validation
-- Deliberate curation and governance
-- Strong observability culture
-- Consistent patterns across all dashboards
-- Observability-as-code practices
+- Scripted dashboard generation (infrastructure-as-code with Grafonnet, Grafanalib, or Terraform)
+- Comprehensive version control and peer review in Git
+- Automated linting, testing, and schema validation in CI
+- Deliberate curation, governance, and observability-as-code practices across all teams
+
+### Advancing from Low to Medium Maturity
+
+When an organization is in **Low maturity** (hundreds of dashboards, per-environment copies, no naming standard), do **not** jump straight to High-maturity code generation — scripting inconsistent copies only cements dashboard sprawl. Move to **Medium maturity** first through four coordinated steps:
+
+1. **Collapse duplicates with template variables**: Parameterize `environment`, `datasource`, `cluster`, and `service` so per-environment and per-instance copies merge into one master dashboard per service or resource, and share filtered views via URL parameters (`?var-environment=prod`) instead of cloning.
+2. **Establish a naming convention**: Adopt and enforce a consistent title and folder scheme (such as `<Team> / <Service> — <Methodology or Purpose>`), ownership tags, and `TEST`/`TMP` prefixes as dashboards are consolidated.
+3. **Adopt RED, USE, or the Four Golden Signals**: Standardize service dashboards around **RED** or **Four Golden Signals** and resource dashboards around **USE**, with purpose text panels and overview-to-detail drill-down links.
+4. **Institute regular cleanup**: Audit dashboard views/access logs on a recurring cadence, archive or delete dead and experimental dashboards, and prohibit casual UI copying.
+
+Once Medium-maturity conventions are stable, advance to **High maturity** by managing dashboard definitions in Git and generating shared patterns as code.
 
 ### Continuous Improvement
 
@@ -427,6 +448,19 @@ When creating a new dashboard, ask yourself:
 - [ ] Are drill-down links to related dashboards included?
 - [ ] Is the dashboard version controlled?
 - [ ] Have I verified accessibility (colorblind-friendly)?
+
+## Dashboard Review and Pre-Provisioning Audit
+
+When auditing an existing dashboard JSON or reviewing one before provisioning, check both structural hygiene and query/visualization correctness, and tie each finding to the section above that explains it:
+
+- [ ] **Titles**: Dashboard and panel titles state what is measured; Grafana defaults and clone suffixes are flagged ([Naming and Documentation](#naming-and-documentation))
+- [ ] **Template variables**: Datasources and environment/service dimensions are parameterized rather than hardcoded ([Template Variables](#template-variables))
+- [ ] **Methodology**: Request-driven services follow RED or the Four Golden Signals; resources follow USE ([Observability Methodologies](#observability-methodologies))
+- [ ] **Queries**: Groupings use bounded labels, and counters and histogram buckets are wrapped in `rate()` over an interval ([Query Optimization](#query-optimization))
+- [ ] **Visualization types**: Each panel type fits its data, with time series or heatmaps for values over time ([Panel Selection and Visualization Types](#panel-selection-and-visualization-types))
+- [ ] **Units**: Every numeric panel sets a semantic unit ([Graph and Visualization Best Practices](#graph-and-visualization-best-practices))
+- [ ] **Refresh and time range**: The auto-refresh interval is proportionate to the default time window ([Refresh Rates](#refresh-rates))
+- [ ] **Documentation and accessibility**: Purpose text, panel descriptions, drill-down links, and colorblind-safe colors are in place
 
 ---
 

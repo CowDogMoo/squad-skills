@@ -8,8 +8,7 @@ A comprehensive guide to creating production-quality Ansible collections, roles,
 playbooks, and testing with Molecule. This document serves as the knowledge base
 for the ansible-review agent.
 
-**Companion document**: See [references/review-criteria.md](references/review-criteria.md) for
-detailed coverage of conditionals, loops, handlers, error handling, and Jinja2 templates.
+**When reviewing or auditing Ansible code**: Read [references/review-criteria.md](references/review-criteria.md) for the review checklist, severity scale, false-positive calibrations, and a read-when index to the topic files (`variables-precedence.md`, `control-flow.md`, `error-handling.md`, `roles.md`, `jinja-and-registers.md`, `inventory-performance.md`).
 
 ---
 
@@ -84,7 +83,7 @@ my_namespace/my_collection/
 
 ### galaxy.yml Requirements
 
-The `galaxy.yml` file is required at the collection root:
+The `galaxy.yml` file is required at the collection root and must define five required fields: `namespace`, `name`, `version`, `readme`, and `authors`:
 
 ```yaml
 ---
@@ -393,6 +392,29 @@ Roles must produce the same result on repeated runs:
     creates: /opt/app/.db_initialized
 ```
 
+**Use declarative file modules instead of shell redirects:**
+
+Replace `echo ... >>`, `sed -i`, or heredoc shell appends with `ansible.builtin.lineinfile` (single line), `ansible.builtin.blockinfile` (delimited multi-line block), or `ansible.builtin.template` / `ansible.builtin.copy` (whole managed file). For kernel parameters use `ansible.posix.sysctl`, which also applies the value at runtime:
+
+```yaml
+# Bad: appends a duplicate line and reports changed on every run
+- name: Set app connection limit
+  ansible.builtin.shell: echo "max_connections=200" >> /etc/myapp/app.conf
+
+# Good: idempotent key=value management with regexp + line
+- name: Ensure max_connections=200 is set in app.conf
+  ansible.builtin.lineinfile:
+    path: /etc/myapp/app.conf
+    regexp: "^max_connections="
+    line: "max_connections=200"
+
+# Good: ensures a fixed literal line exists
+- name: Ensure app.conf includes conf.d/*.conf
+  ansible.builtin.lineinfile:
+    path: /etc/myapp/app.conf
+    line: "include /etc/myapp/conf.d/*.conf"
+```
+
 **Report changes accurately:**
 
 ```yaml
@@ -492,12 +514,28 @@ Always use Fully Qualified Collection Names:
 
 ### Conditional Logic
 
+`when`, `changed_when`, `failed_when`, and `assert.that` already evaluate in a Jinja2 expression context — **never** wrap them in `{{ }}` delimiters (`no-jinja-when`). Use `| bool` when coercing variables that may arrive as strings:
+
 ```yaml
-# Good - simple conditionals
+# Good - bare expression, no {{ }} braces
 - name: Install packages on Debian
   ansible.builtin.apt:
     name: nginx
+    state: present
   when: ansible_facts['os_family'] == 'Debian'
+
+# Good - coerce boolean variables safely without {{ }}
+- name: Ensure httpd.conf includes conf.d/ssl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    line: "IncludeOptional conf.d/ssl.conf"
+  when: httpd_enable_ssl | bool
+
+# Bad - Jinja2 delimiters inside when
+- name: Report that SSL is enabled
+  ansible.builtin.debug:
+    msg: "SSL enabled"
+  when: "{{ httpd_enable_ssl }}"
 
 # Good - combine related conditions
 - name: Configure firewall
@@ -737,14 +775,15 @@ offline: false
 
 ### Common Rules
 
-| Rule                | Description                         |
-| ------------------- | ----------------------------------- |
-| `yaml[line-length]` | Lines should be <=160 chars         |
-| `name[casing]`      | Task names should be capitalized    |
-| `fqcn[action-core]` | Use FQCN for builtin modules        |
-| `no-changed-when`   | Commands should have `changed_when` |
-| `risky-shell-pipe`  | Shell pipes can hide failures       |
-| `package-latest`    | Avoid `state: latest`               |
+| Rule                | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `yaml[line-length]` | Lines should be <=160 chars                 |
+| `name[casing]`      | Task names should be capitalized            |
+| `fqcn[action-core]` | Use FQCN for builtin modules                |
+| `no-changed-when`   | Commands should have `changed_when`         |
+| `no-jinja-when`     | Never wrap `when`/`changed_when` in `{{ }}` |
+| `risky-shell-pipe`  | Shell pipes can hide failures               |
+| `package-latest`    | Avoid `state: latest`                       |
 
 ### YAML Style
 
@@ -851,13 +890,15 @@ ansible-playbook site.yml --ask-vault-pass
 
 ### Task Anti-Patterns
 
-| Anti-Pattern                     | Problem           | Solution                 |
-| -------------------------------- | ----------------- | ------------------------ |
-| `command`/`shell` without guards | Not idempotent    | Use `creates`/`removes`  |
-| Missing `changed_when`           | False positives   | Set explicit conditions  |
-| `state: latest`                  | Non-deterministic | Pin versions             |
-| Unnamed tasks                    | Hard to debug     | Descriptive names        |
-| Complex Jinja2 in playbooks      | Hard to read      | Use filters or variables |
+| Anti-Pattern                      | Problem                     | Solution                                                |
+| --------------------------------- | --------------------------- | ------------------------------------------------------- |
+| `command`/`shell` over a module   | Not idempotent              | Use `package`/`apt`, `lineinfile`, `file`, or `service` |
+| `command`/`shell` without guards  | Always reports `changed`    | Use `creates`/`removes` or `changed_when: false`        |
+| Missing `changed_when` on reads   | False-positive changes      | Set `changed_when: false` on read-only checks           |
+| `{{ }}` in `when`/`changed_when`  | Double templating           | Bare expression: `when: enable_feature \| bool`         |
+| `state: latest`                   | Non-deterministic           | Use `state: present` or pin a version                   |
+| Unnamed tasks                     | Hard to debug               | Descriptive verb-first names                            |
+| Complex Jinja2 in playbooks       | Hard to read                | Use filters or variables                                |
 
 ### Testing Anti-Patterns
 
@@ -935,16 +976,7 @@ ansible-playbook site.yml --ask-vault-pass
 
 ### Companion Document
 
-See also: [references/review-criteria.md](references/review-criteria.md) for detailed coverage of:
-
-- Variable precedence (18 levels)
-- Conditionals and boolean handling
-- Loops (`loop` vs `with_items`)
-- Handlers and `listen` keyword
-- Error handling with `block`/`rescue`/`always`
-- `include_tasks` vs `import_tasks`
-- Jinja2 filters reference
-- Registered variables and return values
+See [references/review-criteria.md](references/review-criteria.md) for the review checklist and its read-when index to the topic files.
 
 ### Official Documentation
 
