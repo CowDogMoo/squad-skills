@@ -49,8 +49,6 @@ def resolve_ref(ref: str, skill_dir: str, repo_root: str) -> str:
     (transcribe-guitar-riff sends the reader to tab-vs-recording), so a bare
     join against the local scripts directory reports a false miss.
     """
-    if ref.startswith("../"):
-        return os.path.normpath(os.path.join(skill_dir, ref))
     ref = ref.lstrip("./").lstrip("/")
     if ref.startswith("scripts/"):
         return os.path.join(skill_dir, ref)
@@ -407,10 +405,10 @@ def main() -> int:
     if not forced or forced[0].split("; ")[1].startswith("0 of"):
         raise SystemExit(f"FAIL: the undrawable-span control did not fire:\n{naive}")
 
-    # tab_build --tremolo on the fixture's dyad spec, written to .gp5 by the
-    # guitar-pro skill's gp_tab.py riff, reloaded and exported to MIDI, must play
-    # exactly what the cleaned MIDI plays, slot by slot (positive control) ...
-    gp_tab = os.path.join(os.path.dirname(SKILL), "guitar-pro", "scripts", "gp_tab.py")
+    # tab_build --tremolo on the fixture's dyad spec, written to .gp5 by
+    # gp_tab.py riff, reloaded and exported to MIDI, must play exactly what the
+    # cleaned MIDI plays, slot by slot (positive control) ...
+    gp_tab = os.path.join(HERE, "gp_tab.py")
     clean_mid = os.path.join(tmp, "dyad_clean.mid")
     run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", clean_mid)
 
@@ -520,6 +518,17 @@ def main() -> int:
         raise SystemExit(f"FAIL: these scripts are referenced by no document: {orphans}")
     print(f"skill docs: {len(named)} referenced script(s) all present, "
           f"{len(on_disk)} script(s) all referenced")
+    # scripts/gp_tab.py is a byte-identical copy of the guitar-pro skill's, so
+    # this skill runs on its own; a copy that drifts from the original fails.
+    upstream = os.path.join(repo, "music", "guitar-pro", "scripts", "gp_tab.py")
+    if os.path.exists(upstream):
+        with open(upstream, "rb") as a, open(os.path.join(HERE, "gp_tab.py"), "rb") as b:
+            if a.read() != b.read():
+                raise SystemExit("FAIL: scripts/gp_tab.py differs from music/guitar-pro/scripts/gp_tab.py; "
+                                 "copy the guitar-pro file over this one")
+        print("gp_tab.py: identical to the guitar-pro skill's copy")
+    else:
+        print(f"gp_tab.py: {upstream} not present (standalone install); copy check skipped")
     print("TGR SKILL DOCS PASSED")
 
     print("SELFTEST PASSED")
