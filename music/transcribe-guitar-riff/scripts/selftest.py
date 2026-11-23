@@ -9,7 +9,8 @@
    riff_read.py must then read the fixture exactly as riff.spec, in tune and
    40 cents sharp and cut exactly on the barlines, read a re-render with
    every boundary moved exactly as rendered, keep a pedal an upper voice
-   anticipates or hands over mid-bar, end a pedal where the next stretch
+   anticipates or hands over mid-bar, end each note of a single line at the
+   next attack whatever its --lowest role, end a pedal where the next stretch
    starts, see a last chord
    fade in a one-beat tail and flag it without one, read octave jumps over
    the --lowest note, read a pedal change with --lowest given per stretch,
@@ -207,6 +208,16 @@ def main() -> int:
     got = read_spec(render_wav("midbar_handover", midbar), "--lowest", "A#3@1,D4@2")
     if got != midbar:
         raise SystemExit(f"FAIL: riff_read.py on the mid-bar pedal handover read {got}, it was rendered from {midbar}")
+    #     A single line moving on and off the --lowest note: each new attack
+    #     ends the ringing note before it, whatever their roles, so no dyad
+    #     that was never played is read.
+    for label, line, lowest in (
+            ("E3 line", [(1, 1.0, 3.0, ("E3",)), (1, 3.0, 5.0, ("G3",)), (2, 1.0, 2.0, ("E3",)), (2, 2.0, 3.0, ("A3",)),
+                         (2, 3.0, 4.0, ("G3",)), (2, 4.0, 5.0, ("E3",))], "E3"),
+            ("A3 line", [(1, 1.0, 2.0, ("A3",)), (1, 2.0, 3.0, ("C4",)), (1, 3.0, 4.0, ("A3",)), (1, 4.0, 5.0, ("D4",))], "A3")):
+        got = read_spec(render_wav(label.replace(" ", "_"), line), "--lowest", lowest)
+        if got != line:
+            raise SystemExit(f"FAIL: riff_read.py on the single {label} read {got}, it was rendered from {line}")
 
     #     A last chord picked to beat 4.5 and then let ring: cut with the
     #     one-beat tail Step 1 asks for, the reader sees it fade before the
@@ -256,7 +267,7 @@ def main() -> int:
     run(os.path.join(HERE, "riff_read.py"), pedal_wav, "--bpm", "120", "--tuning", "E2,A2,D3,G3,B3,E4",
         "--lowest", "D4@1-2", expect_rc=2)
     print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune, +40 cents and cut on the barlines, "
-          "a moved-boundary render, an anticipated pedal change and handover, a last chord with and without a ring tail, "
+          "a moved-boundary render, an anticipated pedal change and handovers, single lines, a last chord with and without a ring tail, "
           "octave jumps over the --lowest note, and a pedal change with --lowest per stretch")
 
     #     Robustness report, not a gate: the case-2 score under other pick-jitter

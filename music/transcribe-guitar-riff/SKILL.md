@@ -362,7 +362,10 @@ lists the rules; in short:
   5.9 dB at the least) and the harmonic of a dipping note (5.2 dB); it is not
   measured on real guitars.
 - **Edges.** A one-slot dip is held; a one-slot flicker is dropped. A note
-  that a new note in the same line attacks over ends at that attack. A note
+  that a new note in the same line attacks over ends at that attack, in a
+  single line whatever the notes' `--lowest` roles. Only while it is still
+  picked at that attack (two voices sounding together) does a new note in
+  the other role (the upper voice over a pedal) leave it sounding. A note
   that ends on its own is cut 0.25 s before its fade: that sound is taken as
   its last pick ringing on, so a held or let-ring note may be written up to
   0.25 s short. A note still sounding at the last barline ends there; the

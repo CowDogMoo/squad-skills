@@ -46,12 +46,20 @@ table prints). Every candidate that is not a voice is listed with its reason:
 Notes, per pitch: a one-slot gap inside a run is held (a dip, not a rest); a
 run of one slot is a flicker and is dropped. A note that a new note in the
 same line (nearer its pitch than any other voice) attacks over, while it still
-sounds, ends at that attack. When the new note is the only other voice and
-carries on past it, it ends it only in the same role (a --lowest note in its
-run and the new one at its attack, a pedal change, or neither); otherwise it
-is the dyad's other line and never ends it. A note that fades out on its own has its last
-RING_S seconds cut: that sound is the last pick ringing on (measured on
-re-picked notes). A held or let-ring note's tail is cut the same way, so it
+sounds, ends at that attack, whatever their --lowest roles: in a single line
+the next note always takes over. The one exception is two simultaneous
+voices: the new note is the only other voice and carries on past this one,
+and this one is still picked at the attack (RING_S later it has fallen less
+than PICKED_DROP_DB from its level just before; a note only ringing from an
+earlier pick falls further). Then the new note ends it only in the same role
+(a --lowest note in its run and the new one at its attack, a pedal change, or
+neither); otherwise it is the dyad's other line and never ends it.
+PICKED_DROP_DB is 11 dB because on the fixture's synth a pedal re-picked at
+the attack fell 4.6-12.1 dB and a single-line note ringing from its last pick
+12.0-25.7 dB; it is fitted to that synth.
+
+A note that fades out on its own has its last RING_S seconds cut: that sound
+is the last pick ringing on (measured on re-picked notes). A held or let-ring note's tail is cut the same way, so it
 may be written up to RING_S short; "check by ear" lists each one. A note
 whose sound, less that ring, carries past the last whole bar ends at that
 barline: the ring-out after the final chord is its sustain, not another
@@ -84,6 +92,7 @@ FILTER_SCALE = 0.7  # CQT filter length relative to riff_salience.py's table
 OCTAVE_WINDOW = 4  # slots each side used to decide which member of an octave pair sounds
 ABSENT_DB = rs.PEAK_FLOOR_DB  # level a slot without the peak contributes to that decision
 OCTAVE_LEAD_DB = 5.5  # margin by which the octave above a --lowest note must beat it to count as leading
+PICKED_DROP_DB = 11.0  # most a note still picked at another's attack falls by RING_S later (one only ringing falls further)
 
 
 def midi_of(note: str) -> int:
@@ -235,13 +244,17 @@ def read(rows, slots, n_read, slot_len):
         else:
             # a new note in the same line (nearer this pitch than any other voice sounding
             # at its attack or once this one has stopped) attacking while this one still
-            # rings: end at that attack. The only other voice, sounding on past this one,
-            # replaces it only in the same role: this one a --lowest note in its run and
-            # the new one at its attack (a pedal change), or neither; otherwise it is the
-            # dyad's other line
+            # rings: end at that attack. Two simultaneous voices are the exception: the only
+            # other voice sounding on past this one while this one is still picked at its
+            # attack replaces it only in the same role (this one a --lowest note in its run
+            # and the new one at its attack, a pedal change, or neither); otherwise it is
+            # the dyad's other line
+            def level(j):
+                return slots[j]["cands"][m]["db"] if 0 <= j < len(slots) and m in slots[j]["cands"] else ABSENT_DB
+
             def same_line(o, t):
                 others = [x for x in {*slots[t]["voices"], *slots[s1]["voices"]} if x not in (m, o)]
-                if not others and run_end[o, t] > s1:
+                if not others and run_end[o, t] > s1 and level(t - 1) - level(t + ring_max) < PICKED_DROP_DB:
                     return any(m in slots[j]["lowest"] for j in range(s0, s1)) == (o in slots[t]["lowest"])
                 return all(abs(o - m) < abs(x - m) for x in others)
 
