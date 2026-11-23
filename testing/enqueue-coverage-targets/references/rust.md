@@ -7,8 +7,12 @@ Queue unit: source file. `/tmp/squad-uncovered.out` lines are
 ## Pick targets for a queued file
 
 ```bash
-grep -F '<file>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
+awk -F'\t' -v u='<file>' '$1 == u' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
 ```
+
+These are the rows `enqueue.sh` printed per unit in Step 1. If
+`/tmp/squad-uncovered.out` is gone by now (a fresh `/tmp` per command), use
+that output instead of re-measuring.
 
 Take the 3–5 lowest-hit entries.
 

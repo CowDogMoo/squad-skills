@@ -8,7 +8,7 @@
 // passed; otherwise prints the failing case and exits 1.
 
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -743,6 +743,87 @@ test('exec-seat: exit 126/127 never ran -> abstain under either polarity', () =>
   }
 });
 
+test('exec-seat: multiple checks on one seat accumulate without clobbering vetoes or abstains', () => {
+  const gatesPanel = [{ jurisdiction: 'execution', required: true, requires_artifacts: true, seat_id: 'gates' }];
+
+  // Two passing checks -> complete with both commands recorded.
+  const passBoth = mkRun('exec-multi-pass', gatesPanel);
+  assert.equal(runNode([EXEC_SEAT, passBoth, 'gates', '--criterion', 'unit tests pass', '--',
+    process.execPath, '-e', 'console.log("test ok"); process.exit(0)']).status, 0);
+  assert.equal(runNode([EXEC_SEAT, passBoth, 'gates', '--criterion', 'lint passes', '--',
+    process.execPath, '-e', 'console.log("lint ok"); process.exit(0)']).status, 0);
+  const bothBallot = JSON.parse(readFileSync(join(passBoth, 'ballots', 'gates.json'), 'utf8'));
+  assert.equal(bothBallot.verdict, 'complete');
+  assert.equal(bothBallot.evidence.length, 2);
+  assert.equal(bothBallot.artifacts.checks_run, 2);
+  assert.equal(validateBallot(bothBallot, 'gates').valid, true);
+  assert.equal(judgeRun(passBoth).verdict, 'COMPLETE');
+  const rawCombined = readFileSync(join(passBoth, 'raw', 'gates.out'), 'utf8');
+  assert.ok(rawCombined.includes('test ok') && rawCombined.includes('lint ok'), rawCombined);
+
+  // Regression: a failing check followed by a passing check MUST stay incomplete.
+  const failThenPass = mkRun('exec-multi-fail-pass', gatesPanel);
+  assert.equal(runNode([EXEC_SEAT, failThenPass, 'gates', '--criterion', 'unit tests pass', '--',
+    process.execPath, '-e', 'console.error("assertion failed"); process.exit(1)']).status, 0);
+  assert.equal(runNode([EXEC_SEAT, failThenPass, 'gates', '--criterion', 'lint passes', '--',
+    process.execPath, '-e', 'process.exit(0)']).status, 0);
+  const failVerdict = judgeRun(failThenPass);
+  assert.equal(failVerdict.verdict, 'NOT_COMPLETE');
+  assert.equal(seatState(failVerdict, 'gates').state, 'veto');
+  assert.equal(failVerdict.work_queue.length, 1);
+  assert.equal(failVerdict.work_queue[0].criterion, 'unit tests pass');
+
+  // An unstartable check followed by a passing check MUST stay abstain.
+  const abstainThenPass = mkRun('exec-multi-abstain-pass', gatesPanel);
+  assert.equal(runNode([EXEC_SEAT, abstainThenPass, 'gates', '--',
+    process.execPath, '-e', 'process.exit(127)']).status, 0);
+  assert.equal(runNode([EXEC_SEAT, abstainThenPass, 'gates', '--',
+    process.execPath, '-e', 'process.exit(0)']).status, 0);
+  assert.equal(seatState(judgeRun(abstainThenPass), 'gates').state, 'abstain');
+
+  // Concurrent calls on one seat serialize: a slow passing check cannot overwrite a fast failing one.
+  if (process.platform !== 'win32') {
+    const raced = mkRun('exec-multi-race', gatesPanel);
+    const raceRes = spawnSync('/bin/sh', ['-c',
+      '"$NODE" "$EXEC" "$RUN" gates --criterion "unit tests pass" -- "$NODE" -e "process.exit(1)" & '
+      + '"$NODE" "$EXEC" "$RUN" gates --criterion "lint passes" -- "$NODE" -e "setTimeout(() => process.exit(0), 700)" & wait'],
+    { encoding: 'utf8', env: { ...process.env, NODE: process.execPath, EXEC: EXEC_SEAT, RUN: raced } });
+    assert.equal(raceRes.status, 0, raceRes.stderr);
+    const raceBallot = JSON.parse(readFileSync(join(raced, 'ballots', 'gates.json'), 'utf8'));
+    assert.equal(raceBallot.artifacts.checks_run, 2);
+    assert.equal(raceBallot.verdict, 'incomplete');
+    assert.equal(judgeRun(raced).verdict, 'NOT_COMPLETE');
+    const staleLock = join(raced, 'ballots', '.gates.json.lock');
+    assert.equal(existsSync(staleLock), false);
+    writeFileSync(staleLock, '');
+    assert.equal(judgeRun(raced).verdict, 'NOT_COMPLETE');
+  }
+
+  // A hand-written prior ballot without execution artifacts is never laundered into a grounded result.
+  const handWritten = mkRun('exec-multi-handwritten', gatesPanel);
+  const handBallot = canonicalJson({
+    evidence: ['build ok'], jurisdiction: 'execution', seat_id: 'gates', unmet: [], verdict: 'complete',
+  });
+  writeFileSync(join(handWritten, 'ballots', 'gates.json'), handBallot);
+  const handRes = runNode([EXEC_SEAT, handWritten, 'gates', '--', process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(handRes.status, 1);
+  assert.ok(handRes.stderr.includes('not written by exec-seat'), handRes.stderr);
+  assert.equal(readFileSync(join(handWritten, 'ballots', 'gates.json'), 'utf8'), handBallot);
+  assert.equal(seatState(judgeRun(handWritten), 'gates').state, 'abstain');
+
+  // No flag can discard a recorded veto, and a corrupt prior ballot fails closed.
+  const resetRes = runNode([EXEC_SEAT, failThenPass, 'gates', '--reset', '--',
+    process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(resetRes.status, 1);
+  assert.equal(judgeRun(failThenPass).verdict, 'NOT_COMPLETE');
+  writeFileSync(join(failThenPass, 'ballots', 'gates.json'), 'not json');
+  const corruptRes = runNode([EXEC_SEAT, failThenPass, 'gates', '--',
+    process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(corruptRes.status, 1);
+  assert.ok(corruptRes.stderr.includes('fresh run directory'), corruptRes.stderr);
+  assert.equal(readFileSync(join(failThenPass, 'ballots', 'gates.json'), 'utf8'), 'not json');
+});
+
 test('rendered prompt carries the untrusted-content boundary, independence intact', () => {
   const seats = JSON.parse(readFileSync(join(TESTDATA, 'seats-mini.json'), 'utf8'));
   const prompt = renderPrompt(seats[0], '/tmp/none');
@@ -771,6 +852,53 @@ test('log-verdict: appends a verdict line then an append-only label line', () =>
   assert.equal(lines[1].kind, 'label');
   assert.equal(lines[1].label, 'incorrect');
   assert.equal(lines[1].run_id, lines[0].run_id);
+});
+
+test('log-verdict: falls back to a private TMPDIR dir when HOME is read-only, but fails on explicit unwritable QUORUM_STATE_DIR', () => {
+  if (typeof process.getuid !== 'function' || process.getuid() === 0) return;
+  const dir = copyRun('run-veto');
+  assert.equal(runNode([JUDGE, dir]).status, 0);
+  const roHome = join(scratch, 'ro-home');
+  const fakeTmp = join(scratch, 'fallback-tmp');
+  mkdirSync(roHome, { recursive: true });
+  mkdirSync(fakeTmp, { recursive: true });
+  chmodSync(roHome, 0o500);
+  try {
+    const fallbackRes = runNode([LOG_VERDICT, dir, '--project', 'sandboxed'], {
+      HOME: roHome,
+      QUORUM_STATE_DIR: '',
+      TMPDIR: fakeTmp,
+    });
+    assert.equal(fallbackRes.status, 0, fallbackRes.stderr);
+    assert.match(fallbackRes.stdout, /fallback:/);
+    const fallbackLog = join(fakeTmp, `quorum-state-${process.getuid()}`, 'verdicts.jsonl');
+    assert.ok(existsSync(fallbackLog), 'fallback verdicts.jsonl missing');
+    const rec = JSON.parse(readFileSync(fallbackLog, 'utf8').trim());
+    assert.equal(rec.project, 'sandboxed');
+
+    const plantedTmp = join(scratch, 'planted-tmp');
+    const victim = join(scratch, 'victim-dir');
+    mkdirSync(plantedTmp, { recursive: true });
+    mkdirSync(victim, { recursive: true });
+    symlinkSync(victim, join(plantedTmp, `quorum-state-${process.getuid()}`), 'dir');
+    const plantedRes = runNode([LOG_VERDICT, dir, '--project', 'sandboxed'], {
+      HOME: roHome,
+      QUORUM_STATE_DIR: '',
+      TMPDIR: plantedTmp,
+    });
+    assert.equal(plantedRes.status, 1);
+    assert.match(plantedRes.stderr, /not a private directory/);
+    assert.equal(existsSync(join(victim, 'verdicts.jsonl')), false);
+
+    const explicitRes = runNode([LOG_VERDICT, dir, '--project', 'sandboxed'], {
+      QUORUM_STATE_DIR: join(roHome, 'denied-state'),
+      TMPDIR: fakeTmp,
+    });
+    assert.equal(explicitRes.status, 1);
+    assert.match(explicitRes.stderr, /log-verdict: cannot write to/);
+  } finally {
+    chmodSync(roHome, 0o700);
+  }
 });
 
 test('CLI entry guard survives a symlinked install path', () => {
