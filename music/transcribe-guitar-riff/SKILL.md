@@ -348,7 +348,8 @@ above the lowest one. Copy intervals from that column rather than naming them
 by hand; hand-named intervals are where readings pick up errors.
 
 Quantize to the grid the table shows (sixteenths). A note that flickers for
-one slot is usually an attack transient of the next note, not a note.
+one slot is usually an attack transient of the next note, not a note; write
+it only under the one-slot exception below.
 
 **Decide which candidates are voices before drawing any boundary.** A peak the
 long-term block tags as a distortion difference tone is never a voice, however
@@ -365,9 +366,9 @@ means that, with difference tones and those sub-octave images set aside, the
 per-sixteenth table shows it in the top two for at least two consecutive slots
 where the voice an octave below is out of the top two, or a beat's per-beat
 summary lists it without that lower voice. A single slot where it edges past
-the lower voice is a flicker, not a note, unless that slot shows its own
-attack (the one-slot exception below). Leave every other octave candidate
-out of the reading; what the reply says about them is governed by Step 8,
+the lower voice is a flicker, not a note; the one-slot exception below never
+applies to the octave above a sounding voice. Leave every other octave
+candidate out of the reading; what the reply says about them is governed by Step 8,
 including both of its exceptions. The candidates left are the voices, and
 "top two" from here on means the top two of those voices in a slot, with
 every excluded candidate set aside first, so an excluded candidate never
@@ -380,14 +381,13 @@ edges: start a note at the first of two consecutive slots where it is in the
 top two, and end it after its last top-two slot once it is out of the top two
 for at least two consecutive slots. A voice that leaves the top two for a
 single sixteenth (behind a set-aside candidate, or a flicker) keeps sounding
-through that slot. The one exception is a slot with its own attack: the
-pitch's dB rises in that slot over the slot before, or the slot holds a pitch
-that the neighbouring notes and their ring-over do not explain. A pitch in
-the top two for only one slot that shows its own attack is a one-slot note.
-A voice out of the top two for one slot is a one-slot rest when the slot
-after it shows that voice's own attack. Without such an attack, never write
-a one-slot note or a one-slot gap. The single-slot hold covers dips inside a
-note still being played, never a note another note has replaced. A note seen in
+through that slot. The one-slot exception: write a one-slot note only when
+the slot holds a pitch that the neighbouring notes and their ring-over do not
+explain, and a one-slot rest only when the slot shows a gap they do not
+explain. The octave above a sounding voice never qualifies, and neither does
+a pitch co-timed with that voice's attack. Otherwise never write a one-slot
+note or a one-slot gap. The single-slot hold covers dips inside a note
+still being played, never a note another note has replaced. A note seen in
 the top two only in the first slots after another note attacks, at falling
 level and with no attack of its own, is the previous note ringing over that
 attack: end it at the new attack and leave those slots out of the spec,
@@ -615,9 +615,9 @@ the folder. Put these in it, each copied from a script's output:
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
   two slots or more you would rather hold through; move the boundary. A
-  single-slot dip is held through, not a gap, unless it is a one-slot rest
-  with its own attack after it (Step 5's one-slot exception). A note your
-  reply would call probable ring-over, decay or doubtful is not in the reading:
+  single-slot dip is held through, not a gap, unless Step 5's one-slot
+  exception makes it a one-slot rest. A note your reply would call probable
+  ring-over, decay or doubtful is not in the reading:
   settle it from the slots and leave it out (Step 5).
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
