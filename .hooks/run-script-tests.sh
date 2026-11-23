@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the bundled script suites: gp_tab, transcription, timing fixtures, and
 # the quorum harness tests. Used by pre-commit and by CI (Script Tests job).
-# Needs node and uv. The two Python suites install their own requirements
+# Needs node and uv. The Python suites install their own requirements
 # into uv's cache, so nothing is written into the repo.
 set -euo pipefail
 

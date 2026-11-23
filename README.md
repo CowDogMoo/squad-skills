@@ -488,7 +488,8 @@ CI runs the same checks:
 - `claude plugin validate --strict` passes for the main plugin, the
   music plugin, and the marketplace.
 - The bundled script suites pass: `music/guitar-pro/scripts/test_gp_tab.py`,
-  `music/transcribe-guitar-riff/scripts/selftest.py`, and
+  `music/transcribe-guitar-riff/scripts/selftest.py`,
+  `music/ableton-double-track-timing/evals/test_fixtures.py`, and
   `testing/quorum/scripts/test.mjs`. Pre-commit runs them through
   `.hooks/run-script-tests.sh` when their files change.
 

@@ -82,9 +82,9 @@ repos:
         files: '(^|/)(SKILL\.md|plugin\.json)$|^\.github/scripts/check_skills\.py$'
         pass_filenames: false
 
-  # The bundled script suites (gp_tab, transcription selftest, quorum
-  # harness). Slow (about a minute), so it only runs when one of those
-  # skills' files changes. CI runs the same script in the Script Tests job
+  # The bundled script suites listed in .hooks/run-script-tests.sh. Slow
+  # (about a minute), so it only runs when one of those skills' files
+  # changes. CI runs the same script in the Script Tests job
   # of validate-skills.yaml, so the Pre-Commit workflow skips this hook.
   - repo: local
     hooks:
