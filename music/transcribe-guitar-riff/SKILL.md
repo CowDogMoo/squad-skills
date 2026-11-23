@@ -375,7 +375,14 @@ note at the first of two consecutive slots where it is in the top two, and
 end it after its last top-two slot once it is out of the top two for at
 least two consecutive slots. A voice that leaves the top two for a single
 sixteenth (behind a set-aside candidate, or a flicker) keeps sounding through
-that slot; never write a one-slot gap. A voice that is missing from a beat's
+that slot; never write a one-slot gap. That hold covers dips inside a note
+still being played, never a note another note has replaced. A note seen in
+the top two only in the first slots after another note attacks, at falling
+level and with no attack of its own, is the previous note ringing over that
+attack: end it at the new attack and leave those slots out of the spec,
+MIDI, tab and reading. Settle every such note from the slot evidence; never
+write a note in while calling it probable ring-over or doubtful, and leave
+it out when it is only decay. A voice that is missing from a beat's
 summary, or listed there only under "also seen", is not sounding on that
 beat, except in edge slots where the table shows it in the top two
 continuing a run from the slot before or into the slot after. The summary
@@ -593,7 +600,9 @@ the folder. Put these in it, each copied from a script's output:
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
   two slots or more you would rather hold through; move the boundary. A
-  single-slot dip is held through (Step 5), not a gap.
+  single-slot dip is held through (Step 5), not a gap. A note your reply
+  would call probable ring-over, decay or doubtful is not in the reading:
+  settle it from the slots and leave it out (Step 5).
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
