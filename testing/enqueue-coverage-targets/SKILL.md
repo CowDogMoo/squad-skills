@@ -88,8 +88,7 @@ Edit the project in place by default. Only make a working copy when the
 project directory is read-only, sits outside your writable working
 directories, or the request asks to leave the original untouched.
 
-Build the copy outside the original tree with `Read` and `Write`, the
-method such environments provide for changing read-only inputs:
+Build the copy outside the original tree, choosing the copy method up front:
 
 1. Set `$work` to `<absolute path of your working directory>/<project
    directory name>` (for example `/scratch/run/cov-go`). If your working
@@ -97,17 +96,29 @@ method such environments provide for changing read-only inputs:
    `${TMPDIR:-/tmp}/<project directory name>-work` instead, so the copy never
    lands inside the original tree. Use that absolute path in every later tool
    call.
-2. Copy the whole project, not just the queued units: `Read` every source,
-   test, manifest, config, and fixture file (`go.mod`, `pyproject.toml`,
-   `conftest.py`, `setup.cfg`, `.coveragerc`, `package.json`,
-   `tsconfig.json`, `vitest.config.*`, `Cargo.toml`, `build.rs`, `testdata/`,
-   lockfiles, and the like) at its original path and `Write` its content
-   verbatim to the same relative path under `"$work"`. Change nothing while
-   copying. Skip `.git` and build output (`target`, `dist`, `__pycache__`).
-   Link dependency directories instead of copying them, so the copy uses the
-   same installed tools without installing anything:
-   `ln -s /path/to/project/node_modules "$work/node_modules"` (likewise
-   `vendor` and `.venv`).
+2. Copy the whole project, not just the queued units, with one method:
+   - **Inputs declared read-only, or not writable by you** (the project is
+     read-only or sits outside your writable working directories): `Read`
+     every source, test, manifest, config, and fixture file (`go.mod`,
+     `pyproject.toml`, `conftest.py`, `setup.cfg`, `.coveragerc`,
+     `package.json`, `tsconfig.json`, `vitest.config.*`, `Cargo.toml`,
+     `build.rs`, `testdata/`, lockfiles, and the like) at its original path
+     and `Write` its content verbatim to the same relative path under
+     `"$work"`, the method such environments provide for changing read-only
+     inputs. Change nothing while copying. Skip `.git` and build output
+     (`target`, `dist`, `__pycache__`). Link dependency directories instead
+     of copying them, so the copy uses the same installed tools without
+     installing anything: `ln -s /path/to/project/node_modules
+     "$work/node_modules"` (likewise `vendor` and `.venv`). If the tests need
+     a binary fixture (`*.gz`, `*.png`, `*.pkl`, and the like), `Read` and
+     `Write` can't copy it verbatim: stop instead of copying it.
+   - **Otherwise** (the project is writable and the request asks to leave the
+     original untouched): copy it in one command, skipping `.git`:
+
+     ```bash
+     mkdir -p "$work" && cp -R /path/to/project/. "$work/" && rm -rf "$work/.git"
+     ```
+
 3. Stage that verbatim baseline before adding any test, so `git diff` shows
    exactly what this run changed and that every original test survived:
 
@@ -126,11 +137,13 @@ Make this copy **before** Step 2. From here on, `"$work"` is the project:
 - Run Step 3 build, test, coverage re-measurement, and `git diff` from inside
   `"$work"`. The queue from Step 1 stays valid because the code is identical.
 
-If any step of this method is refused, stop and send the report below in its
-early-stop form (`Files Touched: none`, `Tests Added: none`, `After: not
-measured`), naming the refused action under `Skipped`. Don't retry a refused
-action with another tool (`cp`, `cat >`, `tee`, a script) or look for another
-way around the refusal.
+If any step of the chosen method is refused, or a needed binary fixture
+can't be copied, stop and send the report below in its early-stop form
+(`Files Touched: none`, `Tests Added: none`, `After: not measured`), naming
+the refused action or fixture under `Skipped`. Never retry a refused action
+with another tool (`Read`+`Write` after a refused `cp`, or `cp`, `cat >`,
+`tee`, or a script after a refused `Write`) or look for another way around
+the refusal.
 
 ## Step 1b — Pick targets mechanically
 
@@ -203,7 +216,7 @@ always emit this fenced `text` block:
 ```text
 Coverage Report
   Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
-  Working Copy: <in place | <$work path> (verbatim Read+Write baseline of read-only <source>, staged in git; originals untouched)>
+  Working Copy: <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
 Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
 Diff Summary: <none, or `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
 Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
