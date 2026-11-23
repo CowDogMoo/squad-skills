@@ -1,6 +1,6 @@
 ---
 name: enqueue-coverage-targets
-description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and queues every package or file below target into /tmp/squad-targets.txt, then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
+description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and prints a queue of every package or file below target (also saved to /tmp/squad-targets.txt), then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
 metadata:
   author: Jayson Grace
   version: 2.1.0
@@ -52,18 +52,19 @@ builder, and the run then drifts into judging targets by hand. The script only
 reads the project (coverage data and caches go to `/tmp`), so it runs fine on a
 read-only checkout. Make any working copy (Step 1a) **after** it, not before.
 
-It builds two files that every later step depends on:
+It also saves the same data to two files, for shells that keep `/tmp` between
+commands:
 
 - `/tmp/squad-targets.txt` — the worker queue, one unit per line,
   tab-separated `<unit>\t<pct>%\t(target N%)`, sorted worst-first.
 - `/tmp/squad-uncovered.out` — per-function or per-line hit data used to
   choose which functions to test inside each unit (format varies by
-  language; the reference file shows the `grep` to use).
+  language; the reference file shows the command to use).
 
 **Its stdout is the authoritative copy of both.** It prints the overall
 percentage, the whole queue, and the lowest-hit rows for each queued unit
 (the first 15 units). Sandboxed shells can give
-every command a fresh `/tmp`, so a later `grep /tmp/squad-uncovered.out` may
+every command a fresh `/tmp`, so a later read of `/tmp/squad-uncovered.out` may
 find nothing. When that happens, work from the Step 1 output. Don't re-run the
 script or any coverage command to get the data back; that is the re-measuring
 this skill forbids.
@@ -72,9 +73,10 @@ Extra knobs: `SQUAD_CMD_COVERAGE_TARGET` (Go, separate target for
 `*/cmd/*`), `SQUAD_PYTHON_PKG` (Python, the package passed to `--cov`; set it
 to the top-level package when sources aren't at the repo root).
 
-If the script reports `UNKNOWN_PROJECT`, `NOT_A_<LANG>_PROJECT`, or
-`NO_COVERAGE_TOOL`, the queue is empty on purpose. Stop, and send the report
-below in its early-stop form (`Files Touched: none`, `After: not measured`).
+If the script reports `UNKNOWN_PROJECT`, `NOT_A_<LANG>_PROJECT`,
+`NO_COVERAGE_TOOL`, or `NO_COVERAGE_DATA`, the queue is empty on purpose.
+Stop, and send the report below in its early-stop form (`Files Touched:
+none`, `After: not measured`).
 Don't install packages on the user's system, don't create source files to
 test, and don't pivot to a different language. A run that silently changes
 scope is worse than one that reports it can't proceed.
@@ -96,15 +98,16 @@ survive. The queue from Step 1 stays valid because the code is the same.
 Read the reference file for the project's language (`references/<lang>.md`;
 naming, idiom, and the verify commands come from it). Then, for each queued
 unit, take the 3–5 lowest-hit functions or lines from the hit rows Step 1
-printed (the same rows as the `grep` in the reference file). Test only those.
+printed (the same rows as the command in the reference file). Test only those.
 Prior runs that chose targets by judgment wrote many tests against
 already-covered code and moved the number 0% — the hit data is what makes a
 test count.
 
 ## Step 2 — Work the queue (every iteration after Step 1)
 
-Read `/tmp/squad-targets.txt` once. Drain it in batches of 3–5 units until it
-is empty or you've used 80% of your cost or iteration budget.
+Drain the queue Step 1 printed (`/tmp/squad-targets.txt` is only a
+convenience copy and may be gone) in batches of 3–5 units until it is empty
+or you've used 80% of your cost or iteration budget.
 
 For each batch:
 

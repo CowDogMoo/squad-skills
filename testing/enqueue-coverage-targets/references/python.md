@@ -6,7 +6,7 @@ Queue unit: module (source file). `/tmp/squad-uncovered.out` lines are
 ## Pick targets for a queued module
 
 ```bash
-grep -F '<file>:' /tmp/squad-uncovered.out | head -15
+awk -v u='<file>:' 'index($0, u) == 1' /tmp/squad-uncovered.out | head -15
 ```
 
 These are the rows `enqueue.sh` printed per unit in Step 1. If

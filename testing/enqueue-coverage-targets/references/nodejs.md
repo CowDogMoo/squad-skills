@@ -8,7 +8,7 @@ from `package.json`.
 ## Pick targets for a queued file
 
 ```bash
-grep -F '<file>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
+awk -F'\t' -v u='<file>' '$1 == u' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
 ```
 
 These are the rows `enqueue.sh` printed per unit in Step 1. If

@@ -87,10 +87,10 @@ if [ -s /tmp/squad-targets.txt ] && [ -s /tmp/squad-uncovered.out ]; then
 				/tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -n 8 || true
 			;;
 		python)
-			grep -F "$unit:" /tmp/squad-uncovered.out | head -n 15 || true
+			awk -v u="$unit:" 'index($0, u) == 1' /tmp/squad-uncovered.out | head -n 15 || true
 			;;
 		*)
-			grep -F "$unit" /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -n 8 || true
+			awk -F'\t' -v u="$unit" '$1 == u' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -n 8 || true
 			;;
 		esac
 	done

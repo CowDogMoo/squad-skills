@@ -85,6 +85,50 @@ class EnqueueTests(unittest.TestCase):
         self.assertIn("mypkg/testing/fixtures.py\t", queue)
         self.assertNotIn("tests/test_fixtures.py", queue)
 
+    def test_python_hit_rows_belong_only_to_their_unit(self):
+        proj = self.tmp / "same-basename"
+        (proj / "pkg").mkdir(parents=True)
+        (proj / "tests").mkdir()
+        (proj / "pkg" / "__init__.py").write_text("")
+        body = "def f(n):\n    if n > 0:\n        return n\n    return -n\n"
+        (proj / "utils.py").write_text(body)
+        (proj / "pkg" / "utils.py").write_text(body)
+        (proj / "tests" / "test_utils.py").write_text(
+            "import utils\nimport pkg.utils\n\n"
+            "def test_f():\n    assert utils.f(1) == 1\n    assert pkg.utils.f(1) == 1\n"
+        )
+        make_read_only(proj)
+        res = self.enqueue("python", str(proj), target="90")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        hits = res.stdout.split("=== lowest-hit data")[1]
+        sections = {}
+        for block in hits.split("\n--- ")[1:]:
+            unit, _, rows = block.partition("\n")
+            sections[unit] = rows.splitlines()
+        self.assertEqual(sections["utils.py"], ["utils.py:4"])
+        self.assertEqual(sections["pkg/utils.py"], ["pkg/utils.py:4"])
+
+    def test_rust_missing_report_is_flagged_not_an_empty_queue(self):
+        proj = self.tmp / "rust-crate"
+        proj.mkdir()
+        (proj / "Cargo.toml").write_text('[package]\nname = "x"\nversion = "0.1.0"\n')
+        make_read_only(proj)
+        bindir = self.tmp / "bin"
+        bindir.mkdir()
+        for tool in ("cargo", "cargo-llvm-cov"):
+            stub = bindir / tool
+            stub.write_text("#!/bin/sh\nexit 1\n")
+            stub.chmod(0o755)
+        env_path = f"{bindir}{os.pathsep}{os.environ['PATH']}"
+        res = subprocess.run(
+            ["bash", str(SCRIPT), "rust", str(proj)],
+            capture_output=True, text=True, check=False, cwd=self.tmp,
+            env={**os.environ, "PATH": env_path, "SQUAD_COVERAGE_TARGET": "80"},
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("NO_COVERAGE_DATA", res.stderr)
+        self.assertRegex(res.stdout, r"=== queue size ===\n\s*0\n")
+
     def test_language_and_directory_arguments_work_in_either_order(self):
         proj = self.project("cov-py")
         res = self.enqueue(str(proj), "python", target="90")
