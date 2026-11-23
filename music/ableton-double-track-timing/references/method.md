@@ -8,7 +8,7 @@
 3b. Section self-comparison
 4. DI attack-envelope audit
 5. Amp-render cross-check
-6. Positive controls
+6. Controls
 7. Numbers from the reference song
 8. Things tried and dropped
 
@@ -143,10 +143,19 @@ give at least 15 ms, in the same direction, within 10 ms of each other.
 **contradict**: both give at least 15 ms with opposite signs. This means
 aliasing in at least one method, so listen.
 
-## 6. Positive controls
+## 6. Controls
 
-Every detector proves it can see a known slip before its silence counts as
-evidence.
+Controls test two different failure modes: a known-clean negative control
+checks false alarms, while injected positive controls check sensitivity. A
+timing audit without both cannot distinguish a tight double from a detector
+that cannot measure it. Execute controls with the audit's settings and retain
+commands and measured results in GATES.md and the report.
+
+- **Negative:** run placement and DI checks on a supplied known-clean set or
+  independently established clean pair/region. Report flags and lags. Do not
+  declare the reference clean merely because placement is silent: placement
+  cannot see every audio slip. If a clean reference cannot be established,
+  mark affected conclusions unconfirmed rather than manufacture a pass.
 
 - **Placement: `--inject "TRACK@START+DELTA"`.** The script shifts that clip
   in a copy of the parsed data (the file isn't touched), requires the clip to
@@ -155,7 +164,10 @@ evidence.
   copy of their take, and clips that are already flagged.
 - **DI: `--inject`, the same way.** The clip's lag must move by about the
   injected ms (capped at the window), within 6 ms, and land at 15 ms or
-  more. A MISSED result means the DI method can't resolve that region.
+  more. Choose the injection using the local tempo and baseline lag so its
+  expected result lies within `--window-ms` (default ±25 ms); an out-of-window
+  plant cannot establish sensitivity. Run per reported region, including the
+  clean reference. A MISSED result means the DI method can't resolve that region.
 - **Render: `--control-shift-ms`.** The script shifts the second side's stems
   and requires at least 80% of clips to follow. It lists the clips that don't
   follow as unresolvable.

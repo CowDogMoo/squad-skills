@@ -6,6 +6,7 @@
   "max_cost_usd": 10,
   "ci_runnable": {
     "ableton-double-track-timing": {
+      "threshold": 0.85,
       "allow_tools": [
         "Bash",
         "Write"
