@@ -246,6 +246,8 @@ When you write tests into a copy (the original is read-only, or you write
 into a working directory), the user sees only your reply. Give the file's path
 and list the test function names, grouped by what they cover, so the names,
 the cases, and the asserted error variants can be checked without opening the
-file. Also name any `[dev-dependencies]` the tests need (such as `rstest`),
+file. Say how the test module reaches the code under test (for example,
+`#[cfg(test)] mod tests` with `use super::*;`). Also name any
+`[dev-dependencies]` the tests need (such as `rstest`),
 and say plainly if you could not run them. If a calling agent defines the
 report format, follow that format instead.
