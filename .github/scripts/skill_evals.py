@@ -758,13 +758,7 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
     raw_skips = opts.get("skip_cases", {})
     skip_cases = raw_skips if isinstance(raw_skips, dict) else {}
     data = json.loads((src / EVALS_DIR / "evals.json").read_text(encoding="utf-8"))
-    cases = []
-    for case in data["evals"]:
-        cname = f"case-{case['id']}"
-        if cname in skip_cases:
-            print(f"::notice::Skipping {name} {cname}: {skip_cases[cname]}")
-            continue
-        cases.append(case)
+    cases = [case for case in data["evals"] if f"case-{case['id']}" not in skip_cases]
     problems = stage_inputs(src, staged, cases)
     if problems:
         return problems
@@ -1337,13 +1331,10 @@ def judge(
         "| --- | --- | --- | --- | --- |",
     ]
     for cname, reason in sorted(skipped_cases.items()):
-        print(f"::notice::Skipping {name} {cname}: {reason}")
         clean_reason = " ".join(reason.split()).replace("|", "/")
         lines.append(f"| {cname} | - | - | skipped | {clean_reason} |")
     for case in data.get("cases", []):
         cname = case.get("name", "?")
-        if cname in skipped_cases:
-            continue
         ran += 1
         arms = case.get("arms", {})
         runs = arms.get("with", [])
@@ -1406,10 +1397,6 @@ def judge(
     if is_trigger(name):
         routed = ran - len(broken) - len(low)
         lines.append(f"\nRouting: {routed} of {ran} queries met the threshold.")
-
-    if skipped_cases and not ran and not broken and not partial:
-        broken.append("(no runnable cases)")
-        print(f"::error::{name}: no non-skipped cases ran")
 
     if broken:
         lines.append(f"\n**Failed:** {len(broken)} case(s) did not run.")

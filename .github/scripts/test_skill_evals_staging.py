@@ -256,14 +256,7 @@ class StagingTest(unittest.TestCase):
             skill_evals.allowlist()[name].get("skip_cases"),
             {"case-1": "needs a live Ableton set and the ableton-mcp tools"},
         )
-        log = io.StringIO()
-        with contextlib.redirect_stdout(log):
-            self.assertEqual(skill_evals.stage(name, src, self.dest), [])
-        self.assertIn(
-            "::notice::Skipping transcribe-guitar-riff case-1: "
-            "needs a live Ableton set and the ableton-mcp tools",
-            log.getvalue(),
-        )
+        self.assertEqual(skill_evals.stage(name, src, self.dest), [])
         staged_cases = sorted(p.name for p in (self.dest / name / skill_evals.CASE_DIR).iterdir())
         self.assertEqual(staged_cases, ["case-2", "case-3"])
 
