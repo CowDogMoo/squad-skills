@@ -6,9 +6,10 @@ description: Find timing slips between doubled guitar tracks in an Ableton Live 
 # Double-track timing in Ableton Live
 
 Doubled guitars only sound huge when the two takes hit together. A copy nudged
-by 1/64 of a beat (31 ms at 120 BPM) turns a tight double into a smeared flam
-that the user hears as "noise". This skill finds those slips from the saved
-set, says which clip moved and by how much, and fixes them only on request.
+by a 64th note, 0.0625 beat or 1/16 of a beat (31 ms at 120 BPM), turns a
+tight double into a smeared flam that the user hears as "noise". This skill
+finds those slips from the saved set, says which clip moved and by how much,
+and fixes them only on request.
 
 The method came from a real session. The first detector below found the bar-91
 flam that ears and spectrograms had blamed on string noise. The audio
@@ -31,7 +32,12 @@ Paths are relative to this skill's directory (`${CLAUDE_SKILL_DIR}` or
 - **Read-only by default.** Finding and reporting never touches Live: every
   detector reads the saved `.als` and the audio files on disk. Connect to the
   Live socket only for a fix the user has explicitly asked for. An audit
-  request is not a fix request; when in doubt, report and ask.
+  request is not a fix request; when in doubt, report and ask. The `--inject`
+  controls shift clips in memory only; no script writes the set or its
+  samples. When the user asks for a read-only audit, hash the `.als` and its
+  samples (`shasum -a 256`) before the first script and again at the end, and
+  say in the reply that they match and that nothing touched Live (no socket,
+  no AbletonMCP call, no screen control).
 - **Save first.** Warp markers and MIDI notes exist only in the saved `.als`,
   because the Live API doesn't expose them, so an unsaved session gives stale
   data. Ask the user to save (Cmd+S), then check the file's modification
@@ -144,7 +150,12 @@ input gate hears nothing there). The two sides' pick-attack curves are then
 cross-correlated in a narrow window (±25 ms) over each clip. The lag is how
 far the clip trails its double: + is late, - is early. A slip shows on both
 sides with opposite signs. "edge" means the result sits at the window limit
-and is unreliable.
+and is unreliable: the real lag may lie past the window (a 31 ms slip at
+120 BPM does). To size it, re-run that pair with a wider `--window-ms`, kept
+under half the riff's shortest attack period (under 31 ms for 32nds, 62 ms
+for 16ths at 120 BPM). Trust the wider reading only at corr near 1 and with
+a passing `--inject` control at the same window; otherwise report the size
+as beyond the window.
 
 - Dense 16th/32nd riffs and low notes alias: attack periods of 125 or 62.5 ms,
   and pitch-period ripple near 20 ms on 7- and 8-strings. Run the `--inject`
@@ -206,7 +217,18 @@ For each flag, decide from the evidence:
 | Single audio method only, or the methods contradict                                                                                     | Report as unconfirmed and suggest listening, solo-paired at that bar  |
 | Repeated pattern, 16th-grid offset, or already tight by audio                                                                           | Leave it alone and say why                                            |
 
-Report in this shape:
+A pair is **flagged** only when two independent methods agree (placement plus
+audio, or DI plus render). A lag from one audio method alone, however large
+and steady, makes the pair **unconfirmed**: say so in those words, name the
+single method, and say what would confirm it (a render or a solo-paired
+listen at those bars).
+
+Report in this shape. The reply to the user is the report: they read the
+reply, not your working files. A `REPORT.md` copy is fine, but the reply
+itself must carry every section below with the actual numbers, including
+each control's command target and printed result (OK and MISSED alike). A
+summary that points to a file drops exactly the evidence that makes the
+verdicts trustworthy.
 
 ```markdown
 ## Double-track timing: <set> (saved <time>)
@@ -235,14 +257,23 @@ manual/unconfirmed for that pair; a clean DI result does not complete G3.
 G1: <control evidence>; G2: <flag accounting>; G3: <per-pair evidence or manual
 reason>; G4: <collateral evidence, or not applicable for an audit>.
 
+Write all four gates by name, even when one is manual or not applicable.
+
 ### Likely slips: recommended moves
 
 | Bar | Track / clip (start beat) | Evidence | Move |
 | --- | --- | --- | --- |
 
+Evidence names the reference copies the placement check measured against
+(for example "+0.0625 beat late vs its copies at 4.0 and 12.0") and, for
+`section_compare.py`, the reference beat, each test beat and the length,
+with each test section's shift and corr per track.
+
 ### Flags left alone, and why
 
 ### Unconfirmed audio flags (listen at these bars)
+
+### Read-only check (audits)
 
 ### Next step (fixing happens only if you ask)
 ```
