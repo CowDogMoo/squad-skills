@@ -33,7 +33,9 @@ Paths below are relative to this skill's directory (`${CLAUDE_SKILL_DIR}` or
 People often settle the register from one spectrum peak that lands near an
 open string's frequency, and conclude the riff sits in that string's octave. Do
 not agree on that evidence alone, even when no audio is attached. Walk them
-through the tests that decide it, using their numbers:
+through the tests that decide it, using their numbers, and answer about the
+octave or peak they named directly, by name, even when the measurement rules
+it out (Step 8's ban on naming set-aside candidates does not cover it):
 
 1. **Cents offset.** A played note sits within a few cents of where the guitar
    is tuned. Compute the offset, cents = 1200 x log2(peak / tuned frequency),
@@ -583,14 +585,18 @@ the folder. Put these in it, each copied from a script's output:
   independent-play test (cite the consecutive slot ids or the per-beat entry
   that pass it) or the user's named voicing.
 - Name only the voices written into the spec, MIDI and tab. In your own
-  words, never name a set-aside candidate (a difference tone, a sub-octave
-  image, an octave that was not independently played, the octave the octave
-  check rejected) as a pitch anywhere in the reply, not even to say it was
-  left out or is unresolved. In their place write one sentence: octave
-  doublings cannot be told from harmonics in this analysis, so any the user
-  played should be added after an ear check. For the octave check, give the
-  chosen octave and its confidence from the `verdict:` line, without naming
-  the octave it beat.
+  words, never name a set-aside candidate the user did not raise (a
+  difference tone, a sub-octave image, an octave that was not independently
+  played, the octave the octave check rejected) as a pitch anywhere in the
+  transcription reply, not even to say it was left out or is unresolved. In
+  their place write one sentence: octave doublings cannot be told from
+  harmonics in this analysis, so any the user played should be added after an
+  ear check. For the octave check, give the chosen octave and its confidence
+  from the `verdict:` line, without naming the octave it beat. This gives way
+  in two places: when the user names an octave or peak, answer about it
+  directly with the measured numbers ("When the question is about the
+  octave"); and a `?` beat may show its candidates, labelled as unresolved
+  candidates, not as played notes (Guardrails).
 - The printed lines that evidence rests on, pasted verbatim in one code block:
   `riff_salience.py`'s per-beat summary block and long-term peaks block, each
   `verdict:` line from `octave_check.py`, and the per-sixteenth row of every
@@ -623,7 +629,8 @@ fix the spec and regenerate MIDI, tab, and README together.
 ## Guardrails
 
 - Never present a pitch the table does not support; if the summary says
-  `?`, say the beat is unresolved and show the candidates.
+  `?`, say the beat is unresolved and show the candidates, labelled as
+  unresolved candidates, not as played notes.
 - Never drop a clip from a section as noise, FX or a riser without running a
   pitch pass on it first.
 - Never copy notes from the player's written tab into a transcription the
