@@ -40,11 +40,11 @@ When you write, restructure, or fix a Taskfile for a user, the reply is what
 they review. A file path or a prose summary alone cannot be checked, and "I
 added descriptions" is not the same as "every task has one".
 
-- **Show the result.** If you edited an existing Taskfile in place, or the
-  Taskfile is too large to show whole, put the changed or new tasks themselves
-  in the reply in a `yaml` fence, plus the top-level `version`, `vars`, and
-  `includes`, and name the file that holds the rest. Otherwise put the
-  resulting Taskfile in a `yaml` fence, even when you also saved it to a file.
+- **Show the result.** If you edited an existing Taskfile in place, put the
+  changed or new tasks themselves in the reply in a `yaml` fence, plus the
+  top-level `version`, `vars`, and `includes`, and name the file that holds
+  the rest. Otherwise put the resulting Taskfile in a `yaml` fence, even when
+  you also saved it to a file.
   Either way, pair the YAML with the per-standard evidence below; a prose
   summary of the diff is never enough on its own.
 - **State the outcome against the standards, not just the edits.** List what
