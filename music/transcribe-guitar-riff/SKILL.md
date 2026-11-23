@@ -575,8 +575,16 @@ the folder. Put these in it, each copied from a script's output:
   octave to check by ear, not called a harmonic. Any other candidate neither
   of those settles stays out of the reading and is listed as unresolved, not
   argued away with your own arithmetic.
+- The printed lines that evidence rests on, pasted verbatim in one code block:
+  `riff_salience.py`'s per-beat summary block and long-term peaks block, each
+  `verdict:` line from `octave_check.py`, and the per-sixteenth row of every
+  slot id the reply cites. The reader checks your reading against the output
+  only through your message, so an entry, slot id or dB value cited without
+  its printed line cannot be checked, and a pitch nobody can check reads as
+  unsupported.
 - Keep the reply consistent with itself. Do not write a note over a stretch
-  your own evidence column or doubts call absent or weak; move the boundary.
+  your own evidence column or doubts call absent or weak, including a gap of
+  a slot or two you would rather hold through; move the boundary.
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
