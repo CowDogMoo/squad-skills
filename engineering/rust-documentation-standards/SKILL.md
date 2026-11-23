@@ -23,14 +23,14 @@ Comprehensive reference for writing idiomatic Rust documentation.
 - **Complete sentences.** Every doc comment must be grammatically correct
   with proper punctuation. Every summary is capitalized, ends with a period,
   and adds information beyond the item's name; a lowercase label such as
-  "the configuration" is never acceptable. Function and method summaries are
+  "the retry policy" is never acceptable. Function and method summaries are
   full sentences in the third person (`Returns…`, `Parses…`, `Loads…`).
   Struct, enum, trait, type alias, and module summaries may be either an
   informative std-style noun phrase (`A UTF-8–encoded, growable string.`) or
-  a verb sentence (`Holds the application settings loaded from config.toml
-  at startup.`); only an uninformative fragment is wrong. Field, variant, and
-  constant docs may be a short noun phrase (`When the task started.`) or a
-  sentence (`The task failed with an error.`).
+  a verb sentence (`Holds the backoff schedule and attempt limit for
+  retrying failed requests.`); only an uninformative fragment is wrong.
+  Field, variant, and constant docs may be a short noun phrase (`When the
+  task started.`) or a sentence (`The task failed with an error.`).
 
 ## Doc Comment Syntax
 
@@ -338,20 +338,20 @@ use `#![deny(missing_docs)]`.
 
 ```rust
 // BAD — lowercase label that adds nothing
-/// the configuration
-pub struct Config { /* ... */ }
+/// the retry policy
+pub struct RetryPolicy { /* ... */ }
 
 // GOOD — complete sentence that says what the type holds
-/// Holds the application settings loaded from `config.toml` at startup.
-pub struct Config { /* ... */ }
+/// Holds the backoff schedule and attempt limit for retrying failed requests.
+pub struct RetryPolicy { /* ... */ }
 
 // BAD — function summary with no verb
-/// Configuration loading.
-pub fn load(path: &Path) -> Result<Config, ConfigError>
+/// Word counting.
+pub fn word_count(text: &str) -> usize
 
 // GOOD — third-person verb sentence
-/// Loads the application settings from the TOML file at `path`.
-pub fn load(path: &Path) -> Result<Config, ConfigError>
+/// Returns the number of whitespace-separated words in `text`.
+pub fn word_count(text: &str) -> usize
 ```
 
 ### Mistake 2: Restating the Name
