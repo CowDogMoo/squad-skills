@@ -7,11 +7,12 @@
 // Append: node log-verdict.mjs <run-dir> [--project <name>]
 // Label:  node log-verdict.mjs --label <run_id> correct|incorrect|unsure [--note "<text>"]
 // Log file: $QUORUM_STATE_DIR/verdicts.jsonl (default ~/.claude/quorum-state/,
-// falling back to $TMPDIR/quorum-state/ when $HOME is read-only in a sandbox).
+// falling back to a private per-user $TMPDIR/quorum-state-<uid>/ when $HOME is
+// read-only in a sandbox).
 // The default deliberately lives OUTSIDE the skill directory: the skill is a
 // symlink into a git repo, and run history is local state, not source.
 
-import { mkdirSync, readFileSync, appendFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, appendFileSync, lstatSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve, basename } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -33,9 +34,14 @@ function appendRecord(record) {
     if (explicitDir || !SANDBOX_UNWRITABLE_CODES.has(err?.code)) {
       die(`cannot write to ${primaryDir}: ${err.message}`);
     }
-    const fallbackDir = join(tmpdir(), 'quorum-state');
+    const uid = typeof process.getuid === 'function' ? process.getuid() : null;
+    const fallbackDir = join(tmpdir(), uid === null ? 'quorum-state' : `quorum-state-${uid}`);
     try {
-      mkdirSync(fallbackDir, { recursive: true });
+      mkdirSync(fallbackDir, { recursive: true, mode: 0o700 });
+      const st = lstatSync(fallbackDir);
+      if (!st.isDirectory() || (uid !== null && (st.uid !== uid || (st.mode & 0o022) !== 0))) {
+        throw new Error('not a private directory owned by the current user');
+      }
       const logPath = join(fallbackDir, 'verdicts.jsonl');
       appendFileSync(logPath, line);
       return { logPath, fallback: true };

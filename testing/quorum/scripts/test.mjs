@@ -781,6 +781,33 @@ test('exec-seat: multiple checks on one seat accumulate without clobbering vetoe
     process.execPath, '-e', 'process.exit(0)']).status, 0);
   assert.equal(seatState(judgeRun(abstainThenPass), 'gates').state, 'abstain');
 
+  // Concurrent calls on one seat serialize: a slow passing check cannot overwrite a fast failing one.
+  if (process.platform !== 'win32') {
+    const raced = mkRun('exec-multi-race', gatesPanel);
+    const raceRes = spawnSync('/bin/sh', ['-c',
+      '"$NODE" "$EXEC" "$RUN" gates --criterion "unit tests pass" -- "$NODE" -e "process.exit(1)" & '
+      + '"$NODE" "$EXEC" "$RUN" gates --criterion "lint passes" -- "$NODE" -e "setTimeout(() => process.exit(0), 700)" & wait'],
+    { encoding: 'utf8', env: { ...process.env, NODE: process.execPath, EXEC: EXEC_SEAT, RUN: raced } });
+    assert.equal(raceRes.status, 0, raceRes.stderr);
+    const raceBallot = JSON.parse(readFileSync(join(raced, 'ballots', 'gates.json'), 'utf8'));
+    assert.equal(raceBallot.artifacts.checks_run, 2);
+    assert.equal(raceBallot.verdict, 'incomplete');
+    assert.equal(judgeRun(raced).verdict, 'NOT_COMPLETE');
+    assert.equal(existsSync(join(raced, 'ballots', 'gates.json.lock')), false);
+  }
+
+  // A hand-written prior ballot without execution artifacts is never laundered into a grounded result.
+  const handWritten = mkRun('exec-multi-handwritten', gatesPanel);
+  const handBallot = canonicalJson({
+    evidence: ['build ok'], jurisdiction: 'execution', seat_id: 'gates', unmet: [], verdict: 'complete',
+  });
+  writeFileSync(join(handWritten, 'ballots', 'gates.json'), handBallot);
+  const handRes = runNode([EXEC_SEAT, handWritten, 'gates', '--', process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(handRes.status, 1);
+  assert.ok(handRes.stderr.includes('not written by exec-seat'), handRes.stderr);
+  assert.equal(readFileSync(join(handWritten, 'ballots', 'gates.json'), 'utf8'), handBallot);
+  assert.equal(seatState(judgeRun(handWritten), 'gates').state, 'abstain');
+
   // No flag can discard a recorded veto, and a corrupt prior ballot fails closed.
   const resetRes = runNode([EXEC_SEAT, failThenPass, 'gates', '--reset', '--',
     process.execPath, '-e', 'process.exit(0)']);
@@ -824,8 +851,8 @@ test('log-verdict: appends a verdict line then an append-only label line', () =>
   assert.equal(lines[1].run_id, lines[0].run_id);
 });
 
-test('log-verdict: falls back to TMPDIR when HOME is read-only, but fails on explicit unwritable QUORUM_STATE_DIR', () => {
-  if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+test('log-verdict: falls back to a private TMPDIR dir when HOME is read-only, but fails on explicit unwritable QUORUM_STATE_DIR', () => {
+  if (typeof process.getuid !== 'function' || process.getuid() === 0) return;
   const dir = copyRun('run-veto');
   assert.equal(runNode([JUDGE, dir]).status, 0);
   const roHome = join(scratch, 'ro-home');
@@ -841,10 +868,24 @@ test('log-verdict: falls back to TMPDIR when HOME is read-only, but fails on exp
     });
     assert.equal(fallbackRes.status, 0, fallbackRes.stderr);
     assert.match(fallbackRes.stdout, /fallback:/);
-    const fallbackLog = join(fakeTmp, 'quorum-state', 'verdicts.jsonl');
+    const fallbackLog = join(fakeTmp, `quorum-state-${process.getuid()}`, 'verdicts.jsonl');
     assert.ok(existsSync(fallbackLog), 'fallback verdicts.jsonl missing');
     const rec = JSON.parse(readFileSync(fallbackLog, 'utf8').trim());
     assert.equal(rec.project, 'sandboxed');
+
+    const plantedTmp = join(scratch, 'planted-tmp');
+    const victim = join(scratch, 'victim-dir');
+    mkdirSync(plantedTmp, { recursive: true });
+    mkdirSync(victim, { recursive: true });
+    symlinkSync(victim, join(plantedTmp, `quorum-state-${process.getuid()}`), 'dir');
+    const plantedRes = runNode([LOG_VERDICT, dir, '--project', 'sandboxed'], {
+      HOME: roHome,
+      QUORUM_STATE_DIR: '',
+      TMPDIR: plantedTmp,
+    });
+    assert.equal(plantedRes.status, 1);
+    assert.match(plantedRes.stderr, /not a private directory/);
+    assert.equal(existsSync(join(victim, 'verdicts.jsonl')), false);
 
     const explicitRes = runNode([LOG_VERDICT, dir, '--project', 'sandboxed'], {
       QUORUM_STATE_DIR: join(roHome, 'denied-state'),

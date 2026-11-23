@@ -26,11 +26,14 @@
 // combined output to <run-dir>/raw/<seat_id>.out. Multiple calls on the same
 // <run-dir> and <seat_id> accumulate checks into a single ballot (any
 // "incomplete" check keeps the seat "incomplete" with all failing criteria
-// preserved; else any "abstain" keeps it "abstain"; else "complete"). Exits 0
-// whenever a ballot was written (any verdict), 1 on usage or corrupt-prior-ballot
-// error.
+// preserved; else any "abstain" keeps it "abstain"; else "complete"). The merge
+// runs under a per-seat lock after the command finishes, so concurrent calls
+// on one seat serialize instead of clobbering each other. Only a prior ballot
+// written by exec-seat (one carrying a `command` artifact) is merged into.
+// Exits 0 whenever a ballot was written (any verdict), 1 on usage, lock, or
+// unmergeable-prior-ballot error.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -67,23 +70,6 @@ for (let i = 2; i < head.length; i += 2) {
 if (!['zero', 'nonzero'].includes(expect)) usage('--expect must be zero or nonzero');
 if (!Number.isFinite(timeout) || timeout <= 0) usage('--timeout must be a positive number of ms');
 
-const ballotPath = join(runDir, 'ballots', `${seatId}.json`);
-const rawOutPath = join(runDir, 'raw', `${seatId}.out`);
-let prior = null;
-if (existsSync(ballotPath)) {
-  let parsed;
-  try {
-    parsed = JSON.parse(readFileSync(ballotPath, 'utf8'));
-  } catch (err) {
-    usage(`existing ballot ${ballotPath} is unparsable (${err.message}); start a fresh run directory`);
-  }
-  const check = validateBallot(parsed, seatId);
-  if (!check.valid) {
-    usage(`existing ballot ${ballotPath} is schema-invalid (${check.errors.join('; ')}); start a fresh run directory`);
-  }
-  prior = parsed;
-}
-
 const started = Date.now();
 const res = spawnSync(command[0], command.slice(1), {
   cwd,
@@ -98,16 +84,7 @@ const spawnFailed = Boolean(res.error) && !timedOut;
 const exitCode = typeof res.status === 'number' ? res.status : -1;
 const notExecutable = exitCode === 126 || exitCode === 127;
 
-mkdirSync(join(runDir, 'ballots'), { recursive: true });
-mkdirSync(join(runDir, 'raw'), { recursive: true });
-
-const priorOutput = prior !== null && existsSync(rawOutPath) ? readFileSync(rawOutPath, 'utf8') : '';
-const combinedOutput =
-  prior !== null && priorOutput.length > 0
-    ? `${priorOutput}${priorOutput.endsWith('\n') ? '' : '\n'}--- exec-seat check ---\n${output}`
-    : output;
-writeFileSync(rawOutPath, combinedOutput);
-
+const firstLine = (output.split('\n').find((l) => l.trim().length > 0) ?? '').trim().slice(0, 200);
 const singleArtifacts = {
   command: command.join(' '),
   duration_ms: durationMs,
@@ -116,7 +93,6 @@ const singleArtifacts = {
   output_sha256: createHash('sha256').update(output).digest('hex'),
   timed_out: timedOut,
 };
-const firstLine = (output.split('\n').find((l) => l.trim().length > 0) ?? '').trim().slice(0, 200);
 
 let singleBallot;
 if (timedOut || spawnFailed || notExecutable) {
@@ -158,16 +134,33 @@ if (timedOut || spawnFailed || notExecutable) {
       };
 }
 
-let ballot = singleBallot;
-if (prior !== null) {
-  const priorArt = prior.artifacts && typeof prior.artifacts === 'object' ? prior.artifacts : {};
+function readPrior(ballotPath) {
+  if (!existsSync(ballotPath)) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(ballotPath, 'utf8'));
+  } catch (err) {
+    throw new Error(`existing ballot ${ballotPath} is unparsable (${err.message}); start a fresh run directory`);
+  }
+  const check = validateBallot(parsed, seatId);
+  if (!check.valid) {
+    throw new Error(`existing ballot ${ballotPath} is schema-invalid (${check.errors.join('; ')}); start a fresh run directory`);
+  }
+  if (typeof parsed.artifacts?.command !== 'string') {
+    throw new Error(`existing ballot ${ballotPath} was not written by exec-seat (no command artifact); use a separate seat id or start a fresh run directory`);
+  }
+  return parsed;
+}
+
+function mergeBallot(prior, combinedOutput) {
+  const priorArt = prior.artifacts;
   const prevChecks = typeof priorArt.checks_run === 'number' && priorArt.checks_run >= 1 ? priorArt.checks_run : 1;
   const checksRun = prevChecks + 1;
   const perCheck = {};
   for (const [key, val] of Object.entries(priorArt)) {
     if (key.startsWith('check_')) perCheck[key] = val;
   }
-  if (prevChecks === 1 && typeof priorArt.command === 'string') {
+  if (prevChecks === 1) {
     perCheck.check_1_command = priorArt.command;
     if (typeof priorArt.exit_code === 'number') perCheck.check_1_exit_code = priorArt.exit_code;
     if (typeof priorArt.timed_out === 'boolean') perCheck.check_1_timed_out = priorArt.timed_out;
@@ -183,17 +176,6 @@ if (prior !== null) {
         ? priorArt.exit_code
         : exitCode;
 
-  const mergedArtifacts = {
-    ...perCheck,
-    checks_run: checksRun,
-    command: typeof priorArt.command === 'string' ? `${priorArt.command} && ${command.join(' ')}` : command.join(' '),
-    duration_ms: (typeof priorArt.duration_ms === 'number' ? priorArt.duration_ms : 0) + durationMs,
-    exit_code: mergedExitCode,
-    output_bytes: Buffer.byteLength(combinedOutput),
-    output_sha256: createHash('sha256').update(combinedOutput).digest('hex'),
-    timed_out: Boolean(priorArt.timed_out) || timedOut,
-  };
-
   let mergedVerdict = 'complete';
   if (prior.verdict === 'incomplete' || singleBallot.verdict === 'incomplete') {
     mergedVerdict = 'incomplete';
@@ -201,15 +183,65 @@ if (prior !== null) {
     mergedVerdict = 'abstain';
   }
 
-  ballot = {
+  return {
     seat_id: seatId,
     jurisdiction: prior.jurisdiction || 'execution',
     verdict: mergedVerdict,
     unmet: mergedVerdict === 'incomplete' ? [...(prior.unmet ?? []), ...singleBallot.unmet] : [],
     evidence: [...(prior.evidence ?? []), ...singleBallot.evidence],
-    artifacts: mergedArtifacts,
+    artifacts: {
+      ...perCheck,
+      checks_run: checksRun,
+      command: `${priorArt.command} && ${command.join(' ')}`,
+      duration_ms: (typeof priorArt.duration_ms === 'number' ? priorArt.duration_ms : 0) + durationMs,
+      exit_code: mergedExitCode,
+      output_bytes: Buffer.byteLength(combinedOutput),
+      output_sha256: createHash('sha256').update(combinedOutput).digest('hex'),
+      timed_out: Boolean(priorArt.timed_out) || timedOut,
+    },
   };
 }
 
-writeFileSync(ballotPath, canonicalJson(ballot));
+function acquireLock(lockPath) {
+  const deadline = Date.now() + 10000;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try {
+      closeSync(openSync(lockPath, 'wx'));
+      return;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      if (Date.now() > deadline) {
+        throw new Error(`timed out waiting for lock ${lockPath}; if no exec-seat call is running, start a fresh run directory`);
+      }
+      Atomics.wait(pause, 0, 0, 25);
+    }
+  }
+}
+
+const ballotPath = join(runDir, 'ballots', `${seatId}.json`);
+const rawOutPath = join(runDir, 'raw', `${seatId}.out`);
+const lockPath = `${ballotPath}.lock`;
+mkdirSync(join(runDir, 'ballots'), { recursive: true });
+mkdirSync(join(runDir, 'raw'), { recursive: true });
+
+let ballot;
+try {
+  acquireLock(lockPath);
+  try {
+    const prior = readPrior(ballotPath);
+    const priorOutput = prior !== null && existsSync(rawOutPath) ? readFileSync(rawOutPath, 'utf8') : '';
+    const combinedOutput =
+      priorOutput.length > 0
+        ? `${priorOutput}${priorOutput.endsWith('\n') ? '' : '\n'}--- exec-seat check ---\n${output}`
+        : output;
+    ballot = prior === null ? singleBallot : mergeBallot(prior, combinedOutput);
+    writeFileSync(rawOutPath, combinedOutput);
+    writeFileSync(ballotPath, canonicalJson(ballot));
+  } finally {
+    rmSync(lockPath, { force: true });
+  }
+} catch (err) {
+  usage(err.message);
+}
 console.log(`exec-seat ${seatId}: ${ballot.verdict}`);

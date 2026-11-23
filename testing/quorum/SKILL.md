@@ -357,7 +357,8 @@ node <skill-dir>/scripts/log-verdict.mjs --label <run_id> correct|incorrect|unsu
 
 The log lives at `~/.claude/quorum-state/verdicts.jsonl`
 (`$QUORUM_STATE_DIR` overrides; falls back automatically to
-`$TMPDIR/quorum-state/verdicts.jsonl` when `$HOME` is read-only in a sandbox) —
+a private per-user `$TMPDIR/quorum-state-<uid>/verdicts.jsonl` when `$HOME` is
+read-only in a sandbox) —
 outside the skill directory, because the skill is a symlink into the
 squad-skills repo and run history is local state, not source. Labeled outcomes
 are the only honest basis for ever re-tuning seats, thresholds, or panels —
