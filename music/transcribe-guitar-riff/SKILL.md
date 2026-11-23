@@ -355,10 +355,17 @@ continuing a run from the slot before or into the slot after.
 
 Count only candidates that survived the octave tests in Step 4. A peak the
 long-term block tags as a distortion difference tone is never a voice, however
-high it ranks in a slot. Neither is the octave above a note that is already
-sounding: a candidate an octave over any voice that enters and drops out in
-the same per-sixteenth slots as that voice is its harmonic. Note those slot
-ids; they are the evidence for dropping it.
+high it ranks in a slot. The octave above a voice that is already sounding
+may be that voice's harmonic or a played octave (an octave shape, a
+root-fifth-octave chord, an octave over a pedal), and both start and stop on
+the same sixteenths as the voice, so matching slots prove nothing; never cite
+slot ids as proof of a harmonic. Decide such a candidate by its level and the
+stated voicing. Compare its dB in the slot table with the expected 2f level,
+the gap the other voices in the clip show to their own octave above: at or
+below that level, with no octave in the voicing the user described, it is the
+harmonic; clearly above it, or named in the voicing, it is a played note.
+When neither settles it, keep the note in the reading, mark it uncertain, and
+ask the user to check it by ear.
 
 When a voice fades rather than stops, end it where the evidence ends and say
 it may ring on, so the user checks that by ear. The table in the reply, the
@@ -548,14 +555,18 @@ the folder. Put these in it, each copied from a script's output:
   When you mention a candidate you rejected (an octave ghost, a difference
   tone), say which output line shows it and why it is not a played note. A
   rejection rests on printed evidence: the long-term block's difference-tone
-  tag; the octave check's `verdict:` for the register, which is what rules
-  out the octave above and below the lowest voice; or, for the octave above
-  any voice, the per-sixteenth slot ids where it enters and drops out with
-  that voice (Step 5). A candidate none of those settles stays out of the
-  reading and is listed as unresolved, not argued away with your own
-  arithmetic.
+  tag; the octave check's `verdict:` for the lowest voice's register, which
+  rules out reading that voice an octave high or low; or, for a second note
+  an octave above any voice, its slot-table dB at or below the expected 2f
+  level with no octave in the stated voicing (Step 5). Matching slot ids are
+  never that evidence. An octave candidate none of those settles stays in the
+  reading marked uncertain; any other candidate none of those settles stays
+  out of the reading and is listed as unresolved, not argued away with your
+  own arithmetic.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak; move the boundary.
+  An octave kept as uncertain under Step 5 is the one exception, marked as
+  uncertain in the table.
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
