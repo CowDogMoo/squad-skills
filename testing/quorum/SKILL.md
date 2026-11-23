@@ -252,8 +252,11 @@ seat returns prose, schema-invalid JSON, or no output:
    disk (a staged run dir with only `panel.json` and `ballots/`). Never skip it
    or decline it for that reason. Regenerate the identical prompt with
    `render-prompts.mjs` from the run's `stage/` and `seats.json` (rendering is
-   deterministic). If those inputs are gone too, the decision is still exactly
-   one re-ask of that seat with its original rendered prompt, then step 3:
+   deterministic). The re-ask runs only with the original or that regenerated
+   identical prompt: if neither can be produced, never write a substitute
+   prompt and never report a re-ask that did not happen — state that the one
+   re-ask could not be run, leave the seat absent, and go to step 3.
+   Otherwise:
    - Subagent mode: spawn one fresh read-only subagent for `<seat_id>` alone
      (same isolation rules as step 2), recompute the fingerprint once it returns
      (a change voids the run as in step 4 and counts toward its one-retry cap),
@@ -266,7 +269,8 @@ seat returns prose, schema-invalid JSON, or no output:
    Never re-run seats that already have valid ballots, never retry a second
    time, and never re-ask because you dislike a valid vote.
 3. **Fail closed if the single re-ask also fails:** if the retry still produces
-   prose, schema-invalid JSON, or no output, stop retrying. Leave
+   prose, schema-invalid JSON, or no output, or the re-ask could not be run,
+   stop retrying. Leave
    `<run>/ballots/<seat_id>.json` absent (never write a placeholder or
    `"abstain"` ballot for it), keep `<seat_id>` in `<run>/panel.json` with
    `"required": true` (never drop or mark optional a rendered seat), and let
@@ -298,7 +302,8 @@ node <skill-dir>/scripts/judge.mjs <run>
 Deterministic, canonical output. COMPLETE only if every required seat cast a
 schema-valid `"complete"` ballot. Any veto, abstain, absent, or malformed seat ->
 `NOT_COMPLETE`. A veto without a cited criterion is demoted to abstain with a
-seat fault. A seat that stayed absent after the re-ask stays in `panel.json`:
+seat fault. A seat that stayed absent after the re-ask (or because it could
+not be run) stays in `panel.json`:
 when `<run>/prompts/` exists, the judge refuses a panel that omits a rendered
 seat or marks one `"required": false`. Exit 2 means protocol corruption — fix
 the run dir, don't hand-edit ballots.
