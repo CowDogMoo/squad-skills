@@ -245,24 +245,30 @@ seat returns prose, schema-invalid JSON, or no output:
    `run-seats.mjs` may write `<run>/ballots/<seat_id>.json` (if unparsable prose
    or invalid JSON was mistakenly placed in `ballots/<seat_id>.json`, remove it
    before re-asking rather than editing it into JSON).
-2. **Re-ask only that missing or malformed seat, at most ONCE, with the exact
+2. **Re-ask only that missing or malformed seat, exactly ONCE, with the exact
    same rendered prompt** (`<run>/prompts/<seat_id>.prompt.md` — never rewrite
    the prompt or append ad-hoc formatting instructions, which changes what the
    seat was asked and bypasses `render-prompts.mjs` independence checks).
-   The one re-ask is always the next step, even when no rendered prompt is on
-   disk (a staged run dir with only `panel.json` and `ballots/`). Never skip it
-   or decline it for that reason. Regenerate the identical prompt with
-   `render-prompts.mjs` from the run's `stage/` and `seats.json` (rendering is
-   deterministic). The decision is always exactly one re-ask of that seat with
-   its same rendered prompt; while it is pending or cannot be run, lead the
-   report with that decision and the exact command below that performs it,
-   then the fail-closed `NOT_COMPLETE` (Report step 1). It runs only with the original or that
-   regenerated identical prompt. If neither can be produced, that one re-ask
-   stays the pending next step, not a skipped one, and is not used up: say it
-   could not be run here and why, never write a substitute prompt, never
-   report a re-ask that did not happen, leave the seat absent, and go to
-   step 3. A later pass may run that single re-ask once the identical prompt
-   exists. Otherwise:
+   That is the decision every time, whatever the prose said and whatever you
+   expected the seat to vote. Never skip it and never retry more than once.
+   State it plainly as the next step, with both of its outcomes:
+   - The re-ask returns a schema-valid ballot: it counts like any other
+     ballot; re-run `judge.mjs`.
+   - The re-ask returns prose, schema-invalid JSON, or nothing: stop. There is
+     no second retry; the seat stays absent and the judge fails closed to
+     `NOT_COMPLETE` (step 3).
+
+   A missing `<run>/prompts/` (a staged run dir with only `panel.json` and
+   `ballots/`) changes neither the decision nor the prompt: rendering is
+   deterministic, so `render-prompts.mjs` re-renders the identical prompt from
+   the run's `stage/` and `seats.json`. Never write a substitute prompt. When
+   the re-ask cannot run in this pass (no way to reproduce the identical
+   prompt, or you were asked what happens next rather than asked to run it),
+   the decision above is still the answer. Add one line saying the re-ask has
+   not run yet — never report a re-ask that did not happen — but do not make
+   the missing files the headline or turn the answer into instructions for
+   regenerating the prompt. Until it runs, the seat is absent and this pass is
+   `NOT_COMPLETE` (step 3). To run it:
    - Subagent mode: spawn one fresh read-only subagent for `<seat_id>` alone
      (same isolation rules as step 2), recompute the fingerprint once it returns
      (a change voids the run as in step 4 and counts toward its one-retry cap),
@@ -275,16 +281,15 @@ seat returns prose, schema-invalid JSON, or no output:
    Never re-run seats that already have valid ballots, never retry a second
    time after a re-ask that ran, and never re-ask because you dislike a valid
    vote.
-3. **Fail closed if the single re-ask also fails or could not be run:** if the
-   retry still produces prose, schema-invalid JSON, or no output, stop
-   retrying; the one re-ask is spent. If the re-ask could not be run, it stays
-   unspent and pending for a later pass. Either way, in this pass leave
-   `<run>/ballots/<seat_id>.json` absent (never write a placeholder or
-   `"abstain"` ballot for it), keep `<seat_id>` in `<run>/panel.json` with
-   `"required": true` (never drop or mark optional a rendered seat), and let
-   `judge.mjs` record the seat as `absent` and fail closed to `NOT_COMPLETE` as
-   this pass's gate outcome — reported as a seat fault / infrastructure signal,
-   never softened into a tentative hold (`"NOT_COMPLETE for now"`).
+3. **Fail closed if the single re-ask also fails:** if the retry still
+   produces prose, schema-invalid JSON, or no output, stop retrying; the one
+   re-ask is spent. Leave `<run>/ballots/<seat_id>.json` absent (never write a
+   placeholder or `"abstain"` ballot for it), keep `<seat_id>` in
+   `<run>/panel.json` with `"required": true` (never drop or mark optional a
+   rendered seat), and let `judge.mjs` record the seat as `absent` and fail
+   closed to `NOT_COMPLETE` — reported as a seat fault / infrastructure signal,
+   never softened into a tentative hold (`"NOT_COMPLETE for now"`). A seat
+   whose re-ask has not run yet is handled the same way in this pass.
 
 ### 4. Judge
 
@@ -327,9 +332,11 @@ that did not run):
 
 1. **Verdict up front:** state `COMPLETE` or `NOT_COMPLETE` in exact caps. Never
    soften `NOT_COMPLETE` into "mostly complete", "done except...", or "NOT_COMPLETE
-   for now". Exception: when a seat's one re-ask is pending or could not be run
-   (re-ask rule step 2), open with that re-ask decision and its exact command,
-   then state the fail-closed `NOT_COMPLETE` immediately after.
+   for now". Exception: when a seat's one re-ask is the next step (re-ask rule
+   step 2), open with that decision and its two outcomes (re-ask once with the
+   same prompt; if that also fails, no second retry, the seat stays absent and
+   the verdict is `NOT_COMPLETE`), then state this pass's fail-closed
+   `NOT_COMPLETE` immediately after.
 2. **Numbered acceptance criteria** (when `TASK.md` is in scope): list the
    numbered (`1.`, `2.`, ...), falsifiable acceptance criteria from
    `<run>/stage/TASK.md` rather than unnumbered paraphrases.
