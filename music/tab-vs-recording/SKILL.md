@@ -59,6 +59,17 @@ times onto the recording's timeline, and scores.
   with clean quarters suggests octave errors rather than wrong notes; see
   the octave note in `references/alignment-and-scoring.md`.
 
+## Answering before there are files
+
+When the user asks how to check a tab but has sent no files yet, give no
+verdict, and explain the method. Two points belong in every such reply:
+
+- Name the `guitar-pro` skill (`gp_tab.py`) as the way to export a Guitar
+  Pro file to MIDI. Don't just say "export it to MIDI".
+- Say the score is a lower bound because the transcriber misses notes
+  itself, and recommend scoring a tab you know is right first, as the
+  calibration to judge this one against.
+
 ## Reporting the result
 
 The point of running a script is that the verdict rests on measurements, so

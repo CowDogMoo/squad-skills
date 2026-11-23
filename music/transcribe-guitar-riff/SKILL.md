@@ -54,7 +54,10 @@ through the tests that decide it, using their numbers:
    peaks** block: it prints every strong peak with its note and cents offset
    and tags the off-grid peaks that equal the difference of two others as
    distortion difference tones. Then confirm with `scripts/octave_check.py`
-   (Step 2). Offer to run both if they send the audio.
+   (Step 2). Offer to run both if they send the audio. When no audio is
+   attached, the reply still recommends running `riff_salience.py` and says
+   to read its long-term peaks block, by that name, before deciding the
+   octave.
 
 ## Inputs to collect first
 
