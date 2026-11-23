@@ -88,40 +88,43 @@ Edit the project in place by default. Only make a working copy when the
 project directory is read-only, sits outside your writable working
 directories, or the request asks to leave the original untouched.
 
-Copy the project byte-for-byte into a fresh scratch directory under
-`"${TMPDIR:-/tmp}"`, and stage a local git baseline when the copy is outside
-any git worktree so `git diff` tracks your test additions against the
-originals:
+Build the copy inside your writable working directory with `Read` and
+`Write`, the method such environments provide for changing read-only inputs:
 
-```bash
-work=$(mktemp -d "${TMPDIR:-/tmp}/work.XXXXXX") && cp -R /path/to/project/. "$work/" && echo "$work"
-git -C "$work" rev-parse --is-inside-work-tree >/dev/null 2>&1 || (git -C "$work" init -q && git -C "$work" add -A)
-```
+1. Set `$work` to `<absolute path of your working directory>/<project
+   directory name>` (for example `/scratch/run/cov-go`) and use that absolute
+   path in every later tool call.
+2. For each file the run needs — the manifests (`go.mod`, `go.sum`,
+   `pyproject.toml`, `package.json` and its lockfile, `Cargo.toml`,
+   `Cargo.lock`), the queued units' source files and whatever they import,
+   and **every existing test file** for those units — `Read` it at its
+   original path and `Write` its content verbatim to the same relative path
+   under `"$work"`. Change nothing while copying. Skip `.git`, build output,
+   and dependency directories (`node_modules`, `target`, `vendor`,
+   `__pycache__`).
+3. Stage that verbatim baseline before adding any test, so `git diff` shows
+   exactly what this run changed and that every original test survived:
 
-Why `"${TMPDIR:-/tmp}"` and `<project>/.`: sandboxed shells often reject `cp`
-into protected working directories while allowing scratch directories under
-`"${TMPDIR:-/tmp}"`, and trailing `/.` copies the project root's contents
-(`go.mod`, `package.json`, `Cargo.toml`, `tests/`) without nesting an extra
-directory level.
+   ```bash
+   git -C "$work" init -q && git -C "$work" add -A
+   ```
 
-Make this copy **before** Step 2's reads. From here on, `"$work"` is the
-project:
+Make this copy **before** Step 2. From here on, `"$work"` is the project:
 
 - Call `Read` on source and existing test files at their `"$work/..."` paths
-  (`Edit` requires `Read` on that exact destination path first).
-- Add tests to existing test files strictly with `Edit`, never `Write`, and
-  keep every original test unremoved and unrenamed. Never use `Write` to copy
-  or recreate an existing test file in another directory — re-emitting a file
-  synthesizes tokens instead of copying bytes and can drop or alter existing
-  tests. (If you create a brand-new test file with `Write`, run
-  `git -C "$work" add -N <new-file>` so `git diff` tracks it.)
+  before editing them.
+- Add tests to existing test files, including the baseline copies, strictly
+  with `Edit`, never a second `Write`, and keep every original test
+  unremoved and unrenamed. (If you create a brand-new test file with `Write`,
+  run `git -C "$work" add -N <new-file>` so `git diff` tracks it.)
 - Run Step 3 build, test, coverage re-measurement, and `git diff` from inside
   `"$work"`. The queue from Step 1 stays valid because the code is identical.
 
-Only if both editing in place and copying into `"${TMPDIR:-/tmp}"` fail with
-permission errors should you stop and report the unit under `Skipped` in the
+If any step of this method is refused, stop and send the report below in its
 early-stop form (`Files Touched: none`, `Tests Added: none`, `After: not
-measured`).
+measured`), naming the refused action under `Skipped`. Don't retry a refused
+action with another tool (`cp`, `cat >`, `tee`, a script) or look for another
+way around the refusal.
 
 ## Step 1b — Pick targets mechanically
 
@@ -194,7 +197,7 @@ always emit this fenced `text` block:
 ```text
 Coverage Report
   Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
-  Working Copy: <in place | <$work path> (copied from read-only <source>; originals untouched)>
+  Working Copy: <in place | <$work path> (verbatim Read+Write baseline of read-only <source>, staged in git; originals untouched)>
 Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
 Diff Summary: <none, or `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
 Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
@@ -209,8 +212,9 @@ Run Record:
 ```
 
 - **Files Touched** — only test files you `Edit`ed or `Write`d this run
-  (relative to the project or working copy; unmodified files copied during
-  Step 1a are not touched), or the literal `none`.
+  (relative to the project or working copy; baseline files written verbatim
+  in Step 1a are not touched unless you later `Edit` them), or the literal
+  `none`.
 - **Tests Added** — only new test functions added this run, each tied to the
   function or lines from `/tmp/squad-uncovered.out` it covers, or `none`.
 - **After** — from Step 3 re-measurement, or the literal `not measured`.
