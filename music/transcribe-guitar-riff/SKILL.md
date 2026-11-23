@@ -366,8 +366,9 @@ per-sixteenth table shows it in the top two for at least two consecutive slots
 where the voice an octave below is out of the top two, or a beat's per-beat
 summary lists it without that lower voice. A single slot where it edges past
 the lower voice is a flicker, not a note. Leave every other octave candidate
-out of the reading; the reply covers them in one sentence (Step 8) and never
-names them. The candidates left are the voices, and "top two" from here on
+out of the reading; the reply covers them in one sentence (Step 8) and does
+not name the ones the user did not raise, and answers directly, with the
+measured numbers, about any octave or pitch the user named. The candidates left are the voices, and "top two" from here on
 means the top two of those voices in a slot, with every excluded candidate
 set aside first, so an excluded candidate never moves a voice's boundary.
 
