@@ -3,7 +3,7 @@ name: comment-scrub-playbook
 description: Classify source-code comments into five delete-candidate categories (states-the-obvious, LLM-generated, no-info, non-idiomatic, visual noise) and decide delete vs. trim vs. keep. Use when scrubbing useless or LLM-slop comments from a codebase, auditing comment quality, or deciding whether one comment earns its place. Do NOT use to write or repair missing doc comments — that is doc-comments-discovery-and-fix-loop.
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Comment Scrub Playbook
@@ -147,7 +147,8 @@ Do **not** touch format strings showing step numbers to users
 | Block content | Action |
 |---|---|
 | Pure Category 1 / 3 / 5, or Category 4 violation that can't be fixed in place | **Delete** the whole block |
-| Category 2 (FLAG from detect-llm-tells) | **Delete** the whole block |
+| Docstring or doc comment on a public item (Python public module, class, or function docstring; doc on an exported or `pub` item), even when Category 2 fires | **Trim** to the factual fragment (summary line plus convention sections such as `Args:`/`Returns:`) or **Keep**; never delete |
+| Category 2 (FLAG from detect-llm-tells) on any other comment | **Delete** the whole block |
 | Mixed: part Category 1/3 + part useful "why" or cross-reference | **Trim** to the useful fragment |
 | Category 4 blank-line gap only | **Fix the gap**, keep the comment |
 | Exported-identifier doc comment, language has tooling enforcement, even if tautological | **Keep** (doc-comments agent handles rewrites) |
@@ -166,6 +167,11 @@ Do **not** touch format strings showing step numbers to users
 - **Doc comments on exported identifiers in tooling-enforced
   languages stay.** Even tautological ones. The doc-comments agent
   improves them.
+- **Public docs are TRIM or KEEP, never DELETE.** In every language,
+  including Python, a docstring or doc comment on a public module,
+  class, or function is never deleted outright, even when Category 2
+  fires. Trim it to the factual fragment; keep it if nothing is left
+  to cut.
 - **Code examples inside doc comments are code, not prose.** Do not
   touch the content of `/// ```` blocks, doctests,`>>>` examples,
   or `@example` blocks.
@@ -188,6 +194,61 @@ This skill produces, for each comment block the caller hands it:
 The caller assembles these into Edits and runs the language-specific
 build-verify command (`go build ./...`, `cargo check`,
 `python -m compileall`, `tsc --noEmit`, etc.) before reporting.
+
+### Report shape
+
+The reader sees only your final message, so it must carry every
+decision itself. Use this shape unless the caller dictates another,
+including for free-form requests that name no format:
+
+1. **Decision table.** One row per comment block, except the exempt
+   content in item 2, columns `Location | Comment | Decision |
+   Category | Also fired | Why`. Convention markers such as `TODO` or
+   `FIXME` get a row unless the caller named them exempt: `KEEP`,
+   category `3`, why "not fired: convention marker".
+   - Every row has exactly one decision (`DELETE`, `TRIM`, `KEEP`, or
+     `FIX_GAP`) and exactly one category number 1-5 in `Category`.
+     For `DELETE`/`TRIM` it is the primary category that fired. Put
+     every other category that fired in `Also fired` (or `-`), and
+     never drop one because a narrower rule also applies. Numbered
+     step labels always cite Category 2 (a strong tell in
+     `detect-llm-tells`) and Category 5: Category `2`, Also fired
+     `5`. Add Category 1 when the label's text also restates the next
+     line: Also fired `5, 1`. Plain narration that restates the next
+     line, with no step label, is Category `1` only.
+   - For `KEEP`, the category is the one you tested, and `Why` says
+     why it did not win, for example "overridden by exported-doc
+     protection" or "not fired: records why (incident reference)".
+     Never leave the category blank.
+2. **Exempt list.** A separate list of the caller's exempt
+   directives you found (such as `//go:generate`, `//nolint`,
+   `# noqa`, `# type:`), plus license headers and generated files,
+   each marked kept and exempt, not scored, so it does not get a
+   decision row or a category.
+3. **Trimmed text.** For every `TRIM`, show the before and after
+   text verbatim, not a description of the cut.
+4. **Counts and method.** How many blocks were deleted, trimmed, kept,
+   and exempt, plus one line on how the edits were applied. State
+   that only comment lines changed.
+5. **Verify.** The verify command and its result.
+
+### Applying the edits
+
+By default, Read each file and apply each decision as an Edit on the
+file itself: the user's real file is the deliverable. Copy only when
+the input is read-only or outside the working directory. Then `cp` it,
+with the build files verify needs (such as `go.mod`), into a new,
+empty subdirectory (for example `./scrub-pass/`), never over an
+existing path, and run verify there. Before the first Edit, commit
+only the copied paths (`git add <paths>`, then
+`git commit -m baseline -- <paths>`) so a `git checkout -- <file>`
+revert works; if committing there is unsafe, revert by re-copying the
+original or by Edit-to-undo. If the copy is denied, Write one copy
+there as set-up, byte-identical to what Read returned, then apply
+every decision to it with Edit. If you cannot write anywhere, still
+deliver the complete report above with the final text
+of each trim, and say that nothing was applied and why; never stop at
+a one-line refusal. Report the path of every edited file.
 
 ## Examples
 
@@ -262,7 +323,8 @@ Decision: `DELETE`. Run through `detect-llm-tells`:
   and returns a validated configuration") — fires.
 
 3 categories → FLAG MEDIUM → delete. The function name + types already
-say everything this comment says.
+say everything this comment says. `validateConfig` is not exported; on
+an exported function the same block would be trimmed, not deleted.
 
 ### Example 5 — Numbered step labels (Category 5) → DELETE
 
@@ -280,8 +342,9 @@ execute(validated)
 Decision: `DELETE` all three comment lines. Category 5 visual noise
 (numbered step labels in source comments are always deletions). The
 code is already three statements — the numbered prose is redundant.
-Format strings showing step numbers to end users are exempt; these are
-comments, not strings.
+Each label also restates its statement and is a Category 2 tell, so
+the row reads Category `2`, Also fired `5, 1`. Format strings showing
+step numbers to end users are exempt; these are comments, not strings.
 
 ## Troubleshooting
 
