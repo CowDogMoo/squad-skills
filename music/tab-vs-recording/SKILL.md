@@ -1,6 +1,6 @@
 ---
 name: tab-vs-recording
-description: Score how faithful a MIDI guitar tab is to a real recording with the bundled scripts/compare_tab.py (chroma DTW alignment, same-song confidence, and note-level F-measure with per-quarter scores). Trigger on "how accurate is this tab", "score my tab", "compare this MIDI to the recording". Get the MIDI from a Guitar Pro file with guitar-pro first. Do NOT use for writing or editing tabs (guitar-pro), or for comparing two recordings of one performance (quad-cortex-neural-capture).
+description: Score how faithful a MIDI guitar tab is to a real recording with the bundled scripts/compare_tab.py (chroma DTW alignment, same-song confidence, and note-level F-measure with per-quarter scores). Trigger on "how accurate is this tab", "is this tab right", "score my tab", "compare this MIDI to the recording", including before any files are sent. Get the MIDI from a Guitar Pro file with guitar-pro first. Do NOT use for writing or editing tabs (guitar-pro), or for comparing two recordings of one performance (quad-cortex-neural-capture).
 ---
 
 # Tab vs. recording
@@ -59,23 +59,50 @@ times onto the recording's timeline, and scores.
   with clean quarters suggests octave errors rather than wrong notes; see
   the octave note in `references/alignment-and-scoring.md`.
 
+## Answering before there are files
+
+When the user asks how to check a tab but has sent no files yet, give no
+verdict, and explain the method. Two points belong in every such reply:
+
+- Name the `guitar-pro` skill (`gp_tab.py`) as the way to export a Guitar
+  Pro file to MIDI. Don't just say "export it to MIDI".
+- Say the score is a lower bound because the transcriber misses notes
+  itself, and recommend scoring a tab you know is right first, as the
+  calibration to judge this one against.
+
 ## Reporting the result
 
 The point of running a script is that the verdict rests on measurements, so
 the report must not mix in numbers that were never measured. **Every number
 in the reply comes from this run's script output**, copied as printed:
 
-- Quote, per tab: DTW cost/step, chroma similarity, onset F1, onset+pitch F1,
-  the per-quarter scores, and the `rung:` word.
+- Paste the script's printed result lines for each tab (cost/step, chroma
+  similarity, alignment span, onset and onset+pitch F1, per-quarter scores,
+  `rung:`) verbatim in a code block, headed by the tab's name. The reader can
+  then check every number in the reply against the output it came from, and
+  so can you before sending. Say which command ran, including `--ref-midi`
+  when a reference transcription was used.
 - Say the verdict in words the output supports: the matching tab's `rung:`
   (for example "excellent"), and for a tab whose cost/step is far above the
   known-good one, that it is not the same music and its F1 is meaningless.
+- A number in the prose is one copied from that block. Do not hang a reading
+  on a single number that the output does not give ("the 0.22 is chance
+  overlap", "the 1.00 is a best case"), and do not count or total what the
+  script did not ("all four quarters"). Make such points about the run in
+  words instead ("the reference is the exact source MIDI, so this pair is a
+  best case").
 - Compare two runs in words ("far higher than the matching tab's"), not with
   a ratio or difference you computed yourself.
 - Explain the transcriber ceiling and calibration in words ("scores are a
   lower bound, because the transcriber itself misses notes"). Do not restate
   ranges or calibration values from this document, the references, or a
   fixture generator's docstring as if they were results.
+- What an input says about itself is not a measurement. A generator's
+  docstring, a filename or the user's description may say how the
+  performance was stretched or shifted, or what the wrong tab plays. Do not
+  use that to explain the output ("alignment absorbed the stretch and
+  shift"). The script printed an alignment span, not the cause of it, so
+  report what it printed.
 - If you want to state something the script did not print, run something
   that prints it, or leave the number out.
 
