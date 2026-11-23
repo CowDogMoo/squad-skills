@@ -17,7 +17,7 @@
    to be chosen. This one is exhaustive on purpose: the first version of that
    script scored 0 of 9 here while printing "100.0% of sampled attacks", and a
    gate that is confidently wrong is worse than no gate at all.
-6. tempo_fit.py, fundamental.py, riff_cycle.py, stamp_cycle.py, tab_build.py (with gp5_write.py)
+6. tempo_fit.py, fundamental.py, riff_cycle.py, stamp_cycle.py, tab_build.py
    and ss_convert.py each hit a ground truth we chose, and each has a negative
    control: a band holding another instrument must not answer for this one, a
    malformed spec must be rejected, an undrawable span must be reported, and a
@@ -49,6 +49,8 @@ def resolve_ref(ref: str, skill_dir: str, repo_root: str) -> str:
     (transcribe-guitar-riff sends the reader to tab-vs-recording), so a bare
     join against the local scripts directory reports a false miss.
     """
+    if ref.startswith("../"):
+        return os.path.normpath(os.path.join(skill_dir, ref))
     ref = ref.lstrip("./").lstrip("/")
     if ref.startswith("scripts/"):
         return os.path.join(skill_dir, ref)
@@ -405,18 +407,25 @@ def main() -> int:
     if not forced or forced[0].split("; ")[1].startswith("0 of"):
         raise SystemExit(f"FAIL: the undrawable-span control did not fire:\n{naive}")
 
-    # tab_build --tremolo --gp5 on the fixture's dyad spec: the .gp5 written
-    # through gp5_write.py, reloaded and exported to MIDI, must play exactly what
-    # the cleaned MIDI plays, slot by slot (positive control) ...
+    # tab_build --tremolo on the fixture's dyad spec, written to .gp5 by the
+    # guitar-pro skill's gp_tab.py riff, reloaded and exported to MIDI, must play
+    # exactly what the cleaned MIDI plays, slot by slot (positive control) ...
+    gp_tab = os.path.join(os.path.dirname(SKILL), "guitar-pro", "scripts", "gp_tab.py")
     clean_mid = os.path.join(tmp, "dyad_clean.mid")
     run(os.path.join(HERE, "riff_midi.py"), os.path.join(fx, "riff.spec"), "--bpm", "120", "--out", clean_mid)
-    gp5, tab_mid = os.path.join(tmp, "dyad.gp5"), os.path.join(tmp, "dyad_tab.mid")
-    out = run(os.path.join(HERE, "tab_build.py"), os.path.join(fx, "riff.spec"),
-              "--tuning", "E2,A2,D3,G3,B3,E4", "--tremolo", "16", "--bpm", "120",
-              "--gp5", gp5, "--midi", tab_mid)
+
+    def tab_to_midi(spec, name):
+        built = run(os.path.join(HERE, "tab_build.py"), spec,
+                    "--tuning", "E2,A2,D3,G3,B3,E4", "--tremolo", "16")
+        riff = [ln for ln in built.splitlines() if ln and not ln.startswith("#")][0]
+        mid = os.path.join(tmp, f"{name}.mid")
+        written = run(gp_tab, "riff", os.path.join(tmp, f"{name}.gp5"), "--tuning", "E2 A2 D3 G3 B3 E4",
+                      "--tempo", "120", "--notes", riff, "--midi", mid)
+        return riff, written, mid
+
+    riff_line, out, tab_mid = tab_to_midi(os.path.join(fx, "riff.spec"), "dyad")
     if "reloaded" not in out or "4 measures" not in out or "E2 A2 D3 G3 B3 E4" not in out:
-        raise SystemExit(f"FAIL: gp5_write did not report the reloaded file:\n{out}")
-    riff_line = [ln for ln in out.splitlines() if ln and not ln.startswith("#")][0]
+        raise SystemExit(f"FAIL: gp_tab.py riff did not report the reloaded file:\n{out}")
     if "+" not in riff_line or any(t.split(":")[0] != "16" for t in riff_line.replace("|", " ").split()):
         raise SystemExit(f"FAIL: --tremolo did not write straight sixteenth dyads:\n{riff_line}")
     if not riff_line.startswith("16:3.3 "):
@@ -428,15 +437,8 @@ def main() -> int:
     off_spec = os.path.join(tmp, "dyad_off.spec")
     with open(off_spec, "w") as fh:
         fh.write(open(os.path.join(fx, "riff.spec")).read().replace("A#3 F4", "A#3 E4"))
-    off_mid = os.path.join(tmp, "dyad_off.mid")
-    run(os.path.join(HERE, "tab_build.py"), off_spec, "--tuning", "E2,A2,D3,G3,B3,E4",
-        "--tremolo", "16", "--bpm", "120", "--gp5", os.path.join(tmp, "dyad_off.gp5"), "--midi", off_mid)
+    _, _, off_mid = tab_to_midi(off_spec, "dyad_off")
     run(os.path.join(HERE, "compare_rolls.py"), off_mid, clean_mid, "--expect", "mismatch")
-    # .gp5 holds at most seven strings: an 8-string tuning must be refused, not
-    # written as a corrupt file.
-    run(os.path.join(HERE, "tab_build.py"), os.path.join(fx, "riff.spec"),
-        "--tuning", "F#1,B1,E2,A2,D3,G3,B3,E4", "--tremolo", "16", "--bpm", "120",
-        "--gp5", os.path.join(tmp, "eight.gp5"), expect_rc=1)
     # A spec line with a non-note in the note field is rejected.
     junk = os.path.join(tmp, "junk.spec")
     with open(junk, "w") as fh:
@@ -447,8 +449,8 @@ def main() -> int:
         print(p.stdout[-3000:], p.stderr[-3000:])
         raise SystemExit(f"FAIL: tab_build.py junk spec exit {p.returncode}, expected 1 with "
                          "a 'malformed spec line' message")
-    print("tab_build: dyad tremolo .gp5 replays the cleaned MIDI; one-note-off, 8-string and "
-          "malformed controls all refused")
+    print("tab_build: dyad tremolo .gp5 (via gp_tab.py riff) replays the cleaned MIDI; "
+          "one-note-off and malformed controls refused")
 
     # ss_convert: a track whose durations we chose, and a bar that breaks them.
     track = {

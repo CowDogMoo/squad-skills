@@ -16,7 +16,7 @@ printed, and the report says plainly what has not been checked by ear.
 | Read the Live set's tracks and clips | `mcp__ableton-mcp__get_session_info`, `get_track_info`, `get_arrangement_info` | ableton-mcp equivalents, or parse the `.als` only |
 | Put a MIDI reference in Live | `create_midi_track`, `set_track_name`, `load_instrument_or_effect`, `create_clip`, `add_notes_to_clip`, `duplicate_clip_to_arrangement`, `set_arrangement_loop` | same names on ableton-mcp; skip the step and deliver the `.mid` if absent |
 | See Live's screen (verify a clip, read a meter) | `mcp__computer-use__*` after `request_access` for "Ableton Live 12 Suite" | any screen-control MCP; otherwise ask the user to look |
-| Write the tab | `scripts/tab_build.py --gp5` (up to 7 strings); `Skill("guitar-pro")` for a native `.gp` (8+ strings) | same scripts; load the guitar-pro SKILL.md for `.gp` |
+| Write the tab | `scripts/tab_build.py` for the riff string, then `music/guitar-pro/scripts/gp_tab.py riff` (`Skill("guitar-pro")`) | load the guitar-pro SKILL.md and run its `gp_tab.py` |
 | Hand files to the user | `SendUserFile` | attach or link the files |
 
 Scripts live in this skill's `scripts/` and run with
@@ -383,22 +383,26 @@ control and screenshot the note editor.
 
 ## Step 7 - tab, and score it with the real metric
 
-Write the tab from the same spec, in the user's tuning (low to high). Up to
-seven strings, one command writes the Guitar Pro file and its MIDI export:
+Build the riff string from the same spec, in the user's tuning (low to high),
+then hand it to the `guitar-pro` skill's `gp_tab.py riff`, which writes the
+Guitar Pro file and its MIDI export. Up to seven strings:
 
 ```bash
 python scripts/tab_build.py OUT/riff.spec --tuning E2,A2,D3,G3,B3,E4 --tremolo 16 \
-  --bpm 120 --gp5 "OUT/tab.gp5" --midi "OUT/tab.mid" --out OUT/riff.txt
+  --out OUT/riff.txt
+python ../guitar-pro/scripts/gp_tab.py riff "OUT/tab.gp5" --tuning "E2 A2 D3 G3 B3 E4" \
+  --tempo 120 --notes "$(tail -1 OUT/riff.txt)" --midi "OUT/tab.mid" --print-ascii
 ```
 
-`--gp5` goes through `scripts/gp5_write.py`, which writes the `.gp5`, reloads it
-from disk, and does the rest from the reload: a summary line (measures, tempo,
-tuning, note count), the MIDI export, and an ASCII tab with every string shown.
-Use `--single-note-durations` instead of `--tremolo 16` for a single-note line
-with held notes. The `.gp5` format stops at seven strings; for eight or more,
-hand the spec to the `guitar-pro` skill for a native `.gp` (it says why), and
-load that back with alphaTab to check string count, measure count, and tuning
-MIDI numbers.
+`gp_tab.py` is `music/guitar-pro/scripts/gp_tab.py` in this repository (the
+path above is relative to this skill's directory) and needs `pyguitarpro`,
+which this skill's `scripts/requirements.txt` already installs. It writes the
+`.gp5`, reloads it from disk, and does the rest from the reload: a summary line
+(measures, tempo, tuning, note count), the MIDI export, and the ASCII tab. Use
+`--single-note-durations` instead of `--tremolo 16` for a single-note line with
+held notes. The `.gp5` format stops at seven strings; for eight or more, write
+a native `.gp` through the `guitar-pro` skill (it says why), and load that back
+with alphaTab to check string count, measure count, and tuning MIDI numbers.
 
 Then verify the written file, not the writer:
 
@@ -490,8 +494,8 @@ the folder. Put these in it, each copied from a script's output:
   shows it and why it is not a played note.
 - The fretting in the user's tuning, with string and fret numbers, and the
   alternative position.
-- The ASCII tab, pasted verbatim from `gp5_write.py` (or the guitar-pro
-  helper) in a code block. Never draw a tab by hand: a hand-drawn grid is
+- The ASCII tab, pasted verbatim from `gp_tab.py riff --print-ascii` in a
+  code block. Never draw a tab by hand: a hand-drawn grid is
   where wrong frets and garbled rhythms creep in, and nothing checked it.
 - The tab file's name and format, and the `compare_rolls.py` result against
   the cleaned MIDI (`ROLLS MATCH`).

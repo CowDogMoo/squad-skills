@@ -31,11 +31,7 @@ every segment as straight sixteenths, re-picked, which is how a tremolo riff is
 tabbed, instead of solving held note values.
 
     python tab_build.py riff.spec --tuning E2,A2,D3,G3,B3,E4 --tremolo 16 \\
-        --bpm 120 --gp5 tab.gp5 --midi tab.mid
-
-`--gp5` hands the riff to gp5_write.py, which writes the Guitar Pro file,
-reloads it, exports `--midi` from the reload and prints its ASCII tab - the
-input compare_rolls.py needs to check the written file against cleaned.mid.
+        --out riff.txt
 
 Input lines are `BAR START_BEAT END_BEAT NOTE [NOTE ...]`, beats 1-based within
 the bar, as emitted by riff_cycle.py and stamp_cycle.py and read by
@@ -46,7 +42,6 @@ from __future__ import annotations
 
 import argparse
 import itertools
-import os
 import re
 import sys
 
@@ -279,17 +274,9 @@ def main() -> int:
                     help="write every segment as straight re-picked notes of this value "
                          "(16 = sixteenths), the way a tremolo riff is tabbed")
     ap.add_argument("--out", default="")
-    ap.add_argument("--gp5", help="also write this Guitar Pro 5 file (via gp5_write.py) and print "
-                                  "the reloaded file's summary and ASCII tab")
-    ap.add_argument("--midi", help="with --gp5: MIDI export of the reloaded .gp5")
-    ap.add_argument("--bpm", type=float, help="tempo for --gp5")
     args = ap.parse_args()
     if args.tremolo and args.single_note_durations:
         ap.error("--tremolo and --single-note-durations are alternatives; pick one")
-    if args.gp5 and not args.bpm:
-        ap.error("--gp5 needs --bpm")
-    if args.midi and not args.gp5:
-        ap.error("--midi is exported from the written file, so it needs --gp5")
 
     tuning_midi = [int(librosa.note_to_midi(t.strip())) for t in args.tuning.split(",")]
     if tuning_midi != sorted(tuning_midi):
@@ -381,10 +368,6 @@ def main() -> int:
         print(f"{summary}\nwrote {args.out}")
     else:
         sys.stdout.write(text)
-    if args.gp5:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from gp5_write import write_tab
-        write_tab(riff, args.tuning, args.bpm, args.gp5, args.midi, args.beats_per_bar)
     return 0
 
 
