@@ -22,6 +22,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -104,6 +105,77 @@ class JudgeTest(unittest.TestCase):
         code, _text, log = self.judge(data)
         self.assertEqual(code, 1)
         self.assertIn("undefined-grader could not be graded", log)
+
+    def test_skipped_case_is_reported_as_skipped_and_never_counted_as_passed(self) -> None:
+        skip = {"case-1": "needs a live Ableton set and the ableton-mcp tools"}
+        data = {
+            "partial": False,
+            "cases": [
+                {
+                    "name": "case-2",
+                    "graders": [],
+                    "arms": {
+                        "with": [{"score": 1.0, "error": None, "graders": []}],
+                        "without": [{"score": 0.4, "error": None, "graders": []}],
+                    },
+                },
+            ],
+        }
+        path = self.tmp / "skill.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            code, text = skill_evals.judge("transcribe-guitar-riff", path, 0.85, skip_cases=skip)
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "| case-1 | - | - | skipped | needs a live Ableton set and the ableton-mcp tools |",
+            text,
+        )
+        self.assertIn("| case-2 | 1.00 | 1.00 | pass |  |", text)
+        self.assertIn("| **mean** | 1.00 | 0.40 | +0.60 |", text)
+        self.assertIn("All 1 runnable case(s) met the threshold (1 skipped).", text)
+
+        data["cases"][0]["arms"]["with"][0]["score"] = 0.0
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            code, text = skill_evals.judge("transcribe-guitar-riff", path, 0.85, skip_cases=skip)
+        self.assertEqual(code, 1)
+        self.assertIn("**Failed:** 1 case(s) scored below the threshold.", text)
+
+    def test_cmd_judge_forwards_per_case_skips_from_bundled_config(self) -> None:
+        bundle, out = self.tmp / "bundle", self.tmp / "out"
+        (bundle / "harness").mkdir(parents=True)
+        (bundle / "harness" / skill_evals.CONFIG.name).write_text(
+            skill_evals.CONFIG.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        (bundle / "harness" / "skills.json").write_text(
+            json.dumps(["transcribe-guitar-riff"]), encoding="utf-8"
+        )
+        out.mkdir()
+        (out / f"{skill_evals.CANARY}.json").write_text(
+            RUN_41233408616.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        (out / "transcribe-guitar-riff.json").write_text(
+            json.dumps({
+                "partial": False,
+                "cases": [
+                    {"name": "case-2", "graders": [], "arms": {"with": [{"score": 1.0, "error": None, "graders": []}]}},
+                    {"name": "case-3", "graders": [], "arms": {"with": [{"score": 1.0, "error": None, "graders": []}]}},
+                ],
+            }),
+            encoding="utf-8",
+        )
+        step_summary = self.tmp / "summary.md"
+        args = type("Args", (), {"bundle": str(bundle), "out": str(out), "threshold": None})
+        with contextlib.redirect_stdout(io.StringIO()), mock.patch.dict(
+            "os.environ", {"GITHUB_STEP_SUMMARY": str(step_summary)}
+        ):
+            self.assertEqual(skill_evals.cmd_judge(args), 0)
+        written = step_summary.read_text(encoding="utf-8")
+        self.assertIn(
+            "| case-1 | - | - | skipped | needs a live Ableton set and the ableton-mcp tools |",
+            written,
+        )
+        self.assertIn("All 2 runnable case(s) met the threshold (1 skipped).", written)
 
 
 if __name__ == "__main__":

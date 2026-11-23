@@ -224,6 +224,74 @@ class StagingTest(unittest.TestCase):
         )
         self.assertEqual(self.stage("demo", skill), ["eval-inputs/ is reserved for staged eval inputs"])
 
+    def test_staged_input_header_avoids_blocked_cp_instruction(self) -> None:
+        # claude plugin eval runs `claude -p` under `--permission-mode dontAsk`
+        # with `Edit(//<staged-skill>/**)` disallowed and only the scratch cwd
+        # in workingDirectories, so Claude Code's Bash filter denies `cp` from
+        # staged inputs into cwd. The staged header must stay single-line for
+        # prompt_paths() and tell the model to read inputs in place and Read +
+        # Write changed versions into its working directory rather than telling
+        # it "copy one into your working directory" or teaching a denial bypass.
+        self.assertNotIn("\n", skill_evals.INPUT_LIST_HEADER)
+        skill = self.make_skill(
+            {"evals/files/in.txt": "x\n"},
+            [{"id": 1, "prompt": "Check evals/files/in.txt.", "expectations": [EXPECTATION],
+              "files": ["evals/files/in.txt"]}],
+        )
+        self.assertEqual(self.stage("demo", skill), [])
+        plugin = self.dest / "demo"
+        prompt, _criteria = skill_evals.read_case(plugin / skill_evals.CASE_DIR / "case-1")
+        listed, _named = skill_evals.prompt_paths(prompt, plugin)
+        self.assertEqual(listed, [plugin / "eval-inputs" / "files" / "in.txt"])
+        self.assertNotIn("copy one into your working directory", prompt)
+        for banned in ("shutil", "cp", "mv"):
+            self.assertNotIn(banned, skill_evals.INPUT_LIST_HEADER)
+        self.assertIn("read them in place", prompt)
+        self.assertIn("Read it and Write your changed version into your working directory", prompt)
+
+    def test_transcribe_guitar_riff_case_1_is_kept_locally_and_skipped_in_ci(self) -> None:
+        name = "transcribe-guitar-riff"
+        src = skill_evals.skill_dirs()[name]
+        raw = json.loads((src / "evals" / "evals.json").read_text(encoding="utf-8"))
+        self.assertEqual([c["id"] for c in raw["evals"]], [1, 2, 3])
+        self.assertEqual(
+            skill_evals.allowlist()[name].get("skip_cases"),
+            {"case-1": "needs a live Ableton set and the ableton-mcp tools"},
+        )
+        self.assertEqual(skill_evals.stage(name, src, self.dest), [])
+        staged_cases = sorted(p.name for p in (self.dest / name / skill_evals.CASE_DIR).iterdir())
+        self.assertEqual(staged_cases, ["case-2", "case-3"])
+
+        plan_log = io.StringIO()
+        args = type("Args", (), {"canary_only": False, "skill": name, "suite": "skills"})
+        with contextlib.redirect_stdout(plan_log), mock.patch.dict("os.environ", {"GITHUB_OUTPUT": ""}):
+            self.assertEqual(skill_evals.cmd_plan(args), 0)
+        self.assertIn(
+            "::notice::Skipping transcribe-guitar-riff case-1: "
+            "needs a live Ableton set and the ableton-mcp tools",
+            plan_log.getvalue(),
+        )
+
+    def test_skip_cases_validation_rejects_bad_entries(self) -> None:
+        base = skill_evals.load_config()
+        bad_configs = {
+            "skip_cases must be an object": ["case-1"],
+            "is not a case in transcribe-guitar-riff/evals/evals.json": {"case-99": "no such case"},
+            "needs a reason": {"case-1": "   "},
+            "skips every case; move transcribe-guitar-riff to ci_skipped": {
+                "case-1": "a", "case-2": "b", "case-3": "c",
+            },
+        }
+        for expected, skip_cases in bad_configs.items():
+            with self.subTest(expected=expected):
+                cfg = json.loads(json.dumps(base))
+                cfg["ci_runnable"]["transcribe-guitar-riff"]["skip_cases"] = skip_cases
+                log = io.StringIO()
+                with mock.patch.object(skill_evals, "load_config", return_value=cfg), \
+                        contextlib.redirect_stdout(log):
+                    self.assertEqual(skill_evals.cmd_validate(None), 1)
+                self.assertIn(expected, log.getvalue())
+
 
     def test_canary_runs_its_probes_from_one_staged_script(self) -> None:
         # Run 41350276820: the safety classifier stopped the inline /proc scan

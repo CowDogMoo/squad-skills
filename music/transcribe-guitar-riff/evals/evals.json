@@ -32,7 +32,7 @@
       "expected_output": "Does not agree by default. Explains that a played open string sits within a few cents of its tuned frequency while a distortion difference tone sits wherever the arithmetic of two other peaks puts it; asks for or computes the cents offset and checks whether 118 Hz equals the difference of two stronger peaks; explains that a real fundamental also lights up the octave above, so the octave is decided by which peak has independent harmonics.",
       "files": [],
       "expectations": [
-        "The response refuses to settle the octave from one peak and explains the cents-offset test (about 28 cents sharp is not a tuned open string)",
+        "The response refuses to settle the octave from one peak and explains the cents-offset test (about 22 cents sharp, over the roughly 20-cent tolerance, so not a tuned open string)",
         "It explains the difference-tone mechanism of distortion and how to test for it",
         "It recommends running riff_salience.py and reading the long-term peaks block rather than guessing"
       ]
