@@ -3,7 +3,7 @@ name: enqueue-coverage-targets
 description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and prints a queue of every package or file below target (also saved to /tmp/squad-targets.txt), then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
 metadata:
   author: Jayson Grace
-  version: 2.1.0
+  version: 2.1.1
 ---
 
 # Enqueue Coverage Targets
@@ -75,30 +75,84 @@ to the top-level package when sources aren't at the repo root).
 
 If the script reports `UNKNOWN_PROJECT`, `NOT_A_<LANG>_PROJECT`,
 `NO_COVERAGE_TOOL`, or `NO_COVERAGE_DATA`, the queue is empty on purpose.
-Stop, and send the report below in its early-stop form (`Files Touched:
-none`, `After: not measured`).
+Stop immediately and send the fenced report below in its early-stop form
+(`Before: not measured`, `After: not measured`, `Files Touched: none`,
+`Tests Added: none`).
 Don't install packages on the user's system, don't create source files to
 test, and don't pivot to a different language. A run that silently changes
 scope is worse than one that reports it can't proceed.
 
 ## Step 1a — Working copy (only if the project can't be edited in place)
 
-If the project directory is read-only, or the request says to copy it before
-changing it, make a writable copy now and do every later step in the copy.
-Use `cp -r`. If the shell denies the copy, stop and send the report below in
-its early-stop form, naming the denied copy under Skipped. Do not look for
-another way around a denial.
+Edit the project in place by default. Only make a working copy when the
+project directory is read-only, sits outside your writable working
+directories, or the request asks to leave the original untouched.
 
-After that the copy is the project. An existing test file in it still gets
-`Edit`, never a second `Write` with new contents, and its original tests must
-survive. The queue from Step 1 stays valid because the code is the same.
+Build the copy outside the original tree, choosing the copy method up front:
+
+1. Set `$work` to a new directory outside the project and outside any git
+   repository that contains it: `<absolute path of your working
+   directory>/<project directory name>-work` (for example
+   `/scratch/run/cov-go-work`) when your working directory is outside both,
+   otherwise `${TMPDIR:-/tmp}/<project directory name>-work`. If that path
+   already exists (an earlier run's copy may hold its only tests), never
+   write into it: append `-2`, `-3`, and so on until the path is new. Use
+   that absolute path in every later tool call.
+2. Copy the whole project, not just the queued units, with one method:
+   - **Inputs declared read-only, or not writable by you** (the project is
+     read-only or sits outside your writable working directories): `Read`
+     every source, test, manifest, config, and fixture file (`go.mod`,
+     `pyproject.toml`, `conftest.py`, `setup.cfg`, `.coveragerc`,
+     `package.json`, `tsconfig.json`, `vitest.config.*`, `Cargo.toml`,
+     `build.rs`, `testdata/`, lockfiles, and the like) at its original path
+     and `Write` its content verbatim to the same relative path under
+     `"$work"`, the method such environments provide for changing read-only
+     inputs. Change nothing while copying. Skip `.git` and build output
+     (`target`, `dist`, `__pycache__`). Link dependency directories instead
+     of copying them, so the copy uses the same installed tools without
+     installing anything: `ln -s /path/to/project/node_modules
+     "$work/node_modules"` (likewise `vendor` and `.venv`). If the tests need
+     a binary fixture (`*.gz`, `*.png`, `*.pkl`, and the like), `Read` and
+     `Write` can't copy it verbatim: stop instead of copying it.
+   - **Otherwise** (the project is writable and the request asks to leave the
+     original untouched): copy it in one command, skipping `.git`:
+
+     ```bash
+     mkdir -p "$work" && cp -R /path/to/project/. "$work/" && rm -rf "$work/.git"
+     ```
+
+3. Stage that verbatim baseline before adding any test, so `git diff` shows
+   exactly what this run changed and that every original test survived:
+
+   ```bash
+   git -C "$work" init -q && git -C "$work" add -A
+   ```
+
+Make this copy **before** Step 2. From here on, `"$work"` is the project:
+
+- Call `Read` on source and existing test files at their `"$work/..."` paths
+  before editing them.
+- Add tests to existing test files, including the baseline copies, strictly
+  with `Edit`, never a second `Write`, and keep every original test
+  unremoved and unrenamed.
+- Run Step 3 build, test, coverage re-measurement, and `git diff` from inside
+  `"$work"`. The queue from Step 1 stays valid because the code is identical.
+
+If any step of the chosen method is refused, or a needed binary fixture
+can't be copied, stop and send the report below in its early-stop form
+(`Files Touched: none`, `Tests Added: none`, `After: not measured`), naming
+the refused action or fixture under `Skipped`. Never retry a refused action
+with another tool (`Read`+`Write` after a refused `cp`, or `cp`, `cat >`,
+`tee`, or a script after a refused `Write`) or look for another way around
+the refusal.
 
 ## Step 1b — Pick targets mechanically
 
 Read the reference file for the project's language (`references/<lang>.md`;
 naming, idiom, and the verify commands come from it). Then, for each queued
-unit, take the 3–5 lowest-hit functions or lines from the hit rows Step 1
-printed (the same rows as the command in the reference file). Test only those.
+unit, take the 3–5 lowest-hit functions or uncovered line ranges from
+`/tmp/squad-uncovered.out` — already printed in Step 1's hit rows (use those
+printed rows directly if `/tmp/squad-uncovered.out` is gone). Test only those.
 Prior runs that chose targets by judgment wrote many tests against
 already-covered code and moved the number 0% — the hit data is what makes a
 test count.
@@ -125,7 +179,9 @@ For each batch:
      test file deletes every test in it — a prior run lost 2,524 lines
      across 7 files this way.
    - If no test file exists, `Write` a new one named per the language's
-     mirror rule (in the reference file).
+     mirror rule (in the reference file). In a git repository (always true
+     for `"$work"`), then run `git -C <project dir, or "$work"> add -N
+     <new-file>` so `git diff` tracks it.
    - Every symbol you reference must have appeared in source you read this
      iteration.
    - Each file must contain at least one real test with meaningful
@@ -145,45 +201,60 @@ point is exactly the truncation failure above.
 
 ## Step 3 — Verify and report (last 2–3 iterations)
 
-Run the language's build and test commands once (reference file). Fix only
-test code on failure.
+From inside the project directory (or `"$work"` when Step 1a created a working
+copy), run the language's build, test, and coverage re-measurement commands
+once (see `references/<lang>.md`). Then, limited to the files in Files
+Touched so other work in the tree stays out of the report, run
+`git -C <project dir, or "$work"> diff --stat -- <touched files>` and
+`git -C <project dir, or "$work"> diff -- <touched files>` to confirm zero
+existing test functions were removed or renamed. If an in-place project has
+no git baseline (`git -C <project dir> rev-parse --is-inside-work-tree`
+fails), don't create one; skip `git diff` and report
+`Diff Summary: not available (no git baseline)`. Fix only test code on
+failure.
 
-Then re-measure coverage with the command in the reference file and copy the
-real numbers into the report. If you skip re-measurement, the "After" column
-says "not measured" — a projected number is a fabrication, and the caller's
-report format treats it as one.
+Copy the real re-measured percentage into the report. If you skip
+re-measurement, the `After` field says `not measured` — a projected number is
+a fabrication, and the caller's report format treats it as one.
 
 Emit the caller's OUTPUT FORMAT report as a transcript of what happened, not
 a projection. The reader sees only this final message, so every claim about
-how the run went has to be in it. If the caller doesn't dictate a format, use:
+how the run went has to be in it. When the caller doesn't dictate a format,
+always emit this fenced `text` block:
 
 ```text
 Coverage Report
-  Target: <N>%   Before: <overall % from Step 1>   After: <re-measured % | not measured>
-Files Touched
-  <path> (Edit | Write)        or: none
-Tests Added
-  <test name> in <file> — covers <function or lines from the hit rows>      or: none
-Skipped
-  <unit or function> — <specific reason>      or: none
-Run Record
-  1. First command: <exact enqueue.sh command with target and language>; queue: <units and %>
-  2. Reference read: references/<lang>.md — applied: <naming / idiom>
-  3. Targets taken from the hit rows: <unit>: <functions or lines>
-  4. Per file: Read <source>; Read <existing test file> (its tests: <names>); then Edit | Write <file>
-  5. Existing tests kept: <names>
-  6. Coverage commands run: enqueue.sh (Step 1), <verify command> (Step 3); none in between
+  Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
+  Working Copy: <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
+Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
+Diff Summary: <none | not available (no git baseline) | `git diff --stat -- <touched files>` output plus confirmation that 0 existing test functions were removed or renamed>
+Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
+Skipped: <none, or newline-indented `<unit or function> — <specific reason>` lines>
+Run Record:
+  1. First command: <exact standalone enqueue.sh command with target and language>; queue: <units and %>
+  2. Reference read: <references/<lang>.md — applied: <naming and idiom> | none (no supported project)>
+  3. Targets from /tmp/squad-uncovered.out: <unit: functions or line ranges | none>
+  4. Per file: <Read <source>; Read <existing test file> (existing tests: <names>); then Edit | Write <file> | none>
+  5. Existing tests preserved in diff: <names (0 removed or renamed test functions in git diff) | not verified (no git baseline) | n/a>
+  6. Coverage commands run: <enqueue.sh (Step 1), <Step 3 command>; none in between | enqueue.sh (Step 1) only>
 ```
 
-- **Files Touched** — only files you `Write`d or `Edit`ed this run (a working
-  copy's files are not "touched"; say that you made a copy).
-- **Tests Added** — only test functions you appended this run.
-- **After** — from re-measurement, or the literal `not measured`.
-- **Run Record** — in the order it happened, naming the tool for each file.
-  Never write "edited in place" or "kept existing tests" without having read
-  the file first and saying so.
-- **Early stop** (nothing to queue): `Files Touched: none`, `Tests Added: none`,
-  `After: not measured`, plus the script's reason in one line.
+- **Files Touched** — only test files you `Edit`ed or `Write`d this run
+  (relative to the project or working copy; baseline files written verbatim
+  in Step 1a are not touched unless you later `Edit` them), or the literal
+  `none`.
+- **Tests Added** — only new test functions added this run, each tied to the
+  function or lines from `/tmp/squad-uncovered.out` it covers, or `none`.
+- **After** — from Step 3 re-measurement, or the literal `not measured`.
+- **Run Record** — in the order it happened, naming `Edit` vs `Write` for each
+  file and confirming existing test functions were preserved in `git diff`.
+  Never claim a file was edited or existing tests were kept without having
+  `Read` the file first and verified `git diff`; with no git baseline, say
+  the preservation was not verified.
+- **Early stop** (nothing to queue): keep the fenced block and write literal
+  `Before: not measured`, `After: not measured`, `Files Touched: none`,
+  `Diff Summary: none`, and `Tests Added: none`, with the script's reason
+  under `Skipped`.
 
 ## Constraints that override your judgment
 
