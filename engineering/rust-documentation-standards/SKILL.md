@@ -21,7 +21,11 @@ Comprehensive reference for writing idiomatic Rust documentation.
 - **The first line is the summary.** Rustdoc uses the first paragraph as the
   short description in module listings and search results. Make it count.
 - **Complete sentences.** Every doc comment must be grammatically correct
-  with proper punctuation.
+  with proper punctuation. A summary line is a full sentence with a verb
+  (`Returns…`, `Holds…`, `Configures…`), not a noun-phrase label such as
+  "the configuration" or "Application configuration." Short noun-phrase docs
+  on fields, enum variants, and constants are fine when they end with a
+  period.
 
 ## Doc Comment Syntax
 
@@ -94,7 +98,7 @@ pub fn parse_config(input: &str) -> Result<Config, ConfigError>
 ### Structs
 
 ```rust
-/// Configuration for the HTTP client.
+/// Holds the settings for the HTTP client.
 ///
 /// Use [`ClientConfig::builder`] for construction, or
 /// [`ClientConfig::default`] for sensible defaults.
@@ -117,7 +121,7 @@ pub struct ClientConfig {
 ### Enums
 
 ```rust
-/// The current state of a background task.
+/// Describes the current state of a background task.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TaskState {
@@ -144,7 +148,7 @@ pub enum TaskState {
 ### Traits
 
 ```rust
-/// A repository for storing and retrieving users.
+/// Defines a repository for storing and retrieving users.
 ///
 /// Implementations must be safe for concurrent access
 /// from multiple threads.
@@ -176,10 +180,10 @@ pub const MAX_CONNECTIONS: usize = 100;
 ### Type Aliases
 
 ```rust
-/// A thread-safe reference-counted string.
+/// Shares an immutable string across threads.
 pub type SharedString = Arc<str>;
 
-/// Result type for database operations.
+/// Reports the outcome of a database operation.
 pub type DbResult<T> = Result<T, DbError>;
 ```
 
@@ -328,11 +332,14 @@ use `#![deny(missing_docs)]`.
 ### Mistake 1: Fragment Instead of Sentence
 
 ```rust
-// BAD
+// BAD — lowercase fragment
 /// the configuration
 
+// BAD — capitalized, but still a noun phrase with no verb
+/// Application configuration.
+
 // GOOD
-/// Application configuration loaded from disk.
+/// Holds the application configuration loaded from disk.
 ```
 
 ### Mistake 2: Restating the Name
@@ -421,7 +428,7 @@ pub fn process(data: &[u8]) -> Vec<u8>
 Doc comments on conditional items should note the condition:
 
 ```rust
-/// Unix-specific file permission utilities.
+/// Provides Unix-specific file permission utilities.
 ///
 /// This module is only available on Unix platforms.
 #[cfg(unix)]
@@ -439,8 +446,17 @@ Before finishing, verify:
 - [ ] Every `Result`-returning public function has `# Errors`
 - [ ] Every panicking function has `# Panics`
 - [ ] Complex public functions have `# Examples`
-- [ ] No fragments — all comments are complete sentences
+- [ ] No fragments — every summary line is a complete sentence with a verb, not a noun-phrase label
 - [ ] No redundant comments — every comment adds value
 - [ ] Intra-doc links used for cross-references
 - [ ] Comments are directly adjacent to declarations (no blank lines)
 - [ ] All comment lines within 80 characters
+
+## Reporting
+
+When you deliver changed docs as a copy (the original is read-only, or you
+write into a working directory), the user sees only your reply. Give the
+copy's path and quote the summary line of each doc comment you added or
+rewrote, plus the sections you added (`# Errors`, `# Safety`, `# Panics`), so
+the result can be checked without opening the file. If a calling agent
+defines the report format, follow that format instead.
