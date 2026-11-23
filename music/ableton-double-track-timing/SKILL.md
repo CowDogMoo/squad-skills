@@ -65,6 +65,12 @@ as `--pair "A=B"`. Use `"#3"` for a track index when two tracks share a name.
 To see the clips around a reported problem, add `--list "A" "B" --range 336 368`.
 That prints start, end, bar, anchor, take file, and the mute and warp state.
 
+Start `GATES.md` from `references/gates-template.md` now, even for a targeted
+check. Inventory every pair in scope; each needs a final verdict. A timing
+audit without controls cannot be trusted: silence may mean a blind detector,
+and a flag may be an artefact. Run the following controls as part of the
+measurements, and retain their commands, settings and outputs.
+
 ### 2. Exact placement check (the most reliable detector)
 
 ```bash
@@ -96,10 +102,20 @@ Read the classification before recommending anything:
 | Off its own copies, yet the pair check and the audio say it already sits tight with its double                   | An earlier manual timing fix. Leave it alone.                                                                 |
 | Takes whose copies carry different warp markers                                                                  | Re-warped slices. They're compared only within their own warp set, so they aren't flagged against each other. |
 
-**Control (gate G1):** inject a fractional shift on a clean clip whose take is
-reused, and require `CONTROL OK`. The real state must stay clean at that
-clip. The control refuses whole-beat shifts and clips that are the only copy
-of their take, because the detector is blind to both by design.
+**Negative control:** run both `placement_check.py` and `attack_audit.py` on
+a known-clean set or pair, using the same settings as the audit. Use a supplied
+clean control when available; otherwise establish a clean reference pair or
+region from independent evidence. Record placement flags and measured audio
+lags, not just an assertion that it is clean. If no trustworthy reference is
+available, record the limitation and leave affected verdicts unconfirmed.
+This checks false alarms; the positive controls below check missed slips.
+
+**Placement positive control (gate G1):** inject a fractional shift on a clean
+clip whose take is reused and has no flagged copies, and require `CONTROL OK`.
+This avoids changing the reference majority of an already suspect take. The
+real state must stay clean at that clip. The control refuses whole-beat shifts
+and clips that are the only copy of their take, because the detector is blind
+to both by design.
 
 ### 3. Confirm with audio, alias-free, where a section repeats
 
@@ -136,8 +152,15 @@ and is unreliable.
   can't judge that region, so rely on placement and ears there.
 - A pair that prints "no clip measurable" is too quiet for the gate (a quiet
   DI, or audio that isn't DI). Re-run that pair with `--gate-db -40`.
-- A handful of controls is enough. Use one per region you'll report on, not
-  one per clip.
+- **DI positive control (G1):** execute `--inject` per region you report on,
+  including a clean reference region. Choose the beat delta from the local
+  tempo so the injection is at least `--min-ms / 2` (default 7.5 ms) and
+  `abs(baseline lag + injected ms) < --window-ms - 1` (default <24 ms).
+  The measured lag must follow the expected lag within 6 ms; it need not
+  finish above the flag threshold. A shift cancelling an existing lag is
+  valid. Require
+  `CONTROL OK`; record MISSED as a measurement limit. Placement success or
+  section self-comparison does not replace this DI control.
 - Leave the guitar-vs-kick comparison out. It was too noisy to use.
 
 ### 5. Amp-render cross-check (optional; only when DI flags matter)
@@ -167,6 +190,13 @@ same clip pair read tight, report it as unconfirmed and ask for a listen.
 
 ### 6. Decide, then report
 
+Before reporting, reconcile every single-track and pair-alignment placement
+flag and every audio flag with a disposition in the report or `HANDOFF.md`.
+Include track/clip keys so repeated slices cannot silently disappear behind a
+single example. Run G2's `--explained` check for the machine-readable ledger;
+also reconcile pair-alignment flags, which that check does not account for.
+A recommendation is still unresolved until fixed or explicitly handed off.
+
 For each flag, decide from the evidence:
 
 | Evidence                                                                                                                                | Call                                                                  |
@@ -183,15 +213,36 @@ Report in this shape:
 
 Pairs checked: <A = B, ...> (auto L/R) + <explicit pairs>
 
+### Controls and coverage
+
+| Control / pair / region | Command and settings | Observed result | Pass or limitation |
+| --- | --- | --- | --- |
+
+Include the known-clean negative control, placement injection on a clean
+reused clip, DI injection within its search window, and render control if used.
+
+### Verdict for every pair
+
+| Pair | Verdict: clean / flagged / unconfirmed | Placement and audio evidence | Fix or reason unconfirmed |
+| --- | --- | --- | --- |
+
+Clean requires executed placement and audio checks supported by controls.
+Include clean reference sets/pairs too. Missing independent renders leave G3
+manual/unconfirmed for that pair; a clean DI result does not complete G3.
+
+### Gate ledger
+
+G1: <control evidence>; G2: <flag accounting>; G3: <per-pair evidence or manual
+reason>; G4: <collateral evidence, or not applicable for an audit>.
+
 ### Likely slips: recommended moves
 
 | Bar | Track / clip (start beat) | Evidence | Move |
+| --- | --- | --- | --- |
 
 ### Flags left alone, and why
 
 ### Unconfirmed audio flags (listen at these bars)
-
-### Controls run
 
 ### Next step (fixing happens only if you ask)
 ```
@@ -220,17 +271,18 @@ When the user says to apply the fix, follow `references/fixing.md`:
 
 ### 8. Completion gates
 
-For a full audit or fix pass, keep the ledger in `references/gates-template.md`:
+Complete the ledger started at inventory (`references/gates-template.md`):
 
-- G1: detector control.
+- G1: known-clean negative control plus placement and regional DI positive controls.
 - G2: every placement flag fixed or explained.
 - G3: every dual-method problem fixed or explained.
 - G4: no collateral.
 
 Explanations go in a `HANDOFF.md`, one line per flag
 (`- placement track 3 start 346.3125: why`). `placement_check.py --explained`
-and `render_xcheck.py --explained` turn those lines into a pass or fail. An
-audit-only request stops after G3. Report G4 as not applicable, because
+and `render_xcheck.py --explained` turn those lines into a pass or fail. For
+pairs without independent renders, leave G3 manual/unconfirmed and say why.
+An audit-only request stops after G3. Report G4 as not applicable, because
 nothing moved.
 
 ## What this cannot decide
