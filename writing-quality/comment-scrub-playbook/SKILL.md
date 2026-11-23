@@ -147,7 +147,8 @@ Do **not** touch format strings showing step numbers to users
 | Block content | Action |
 |---|---|
 | Pure Category 1 / 3 / 5, or Category 4 violation that can't be fixed in place | **Delete** the whole block |
-| Category 2 (FLAG from detect-llm-tells) | **Delete** the whole block |
+| Docstring or doc comment on a public item (Python public module, class, or function docstring; doc on an exported or `pub` item), even when Category 2 fires | **Trim** to the factual fragment (summary line plus convention sections such as `Args:`/`Returns:`) or **Keep**; never delete |
+| Category 2 (FLAG from detect-llm-tells) on any other comment | **Delete** the whole block |
 | Mixed: part Category 1/3 + part useful "why" or cross-reference | **Trim** to the useful fragment |
 | Category 4 blank-line gap only | **Fix the gap**, keep the comment |
 | Exported-identifier doc comment, language has tooling enforcement, even if tautological | **Keep** (doc-comments agent handles rewrites) |
@@ -166,6 +167,11 @@ Do **not** touch format strings showing step numbers to users
 - **Doc comments on exported identifiers in tooling-enforced
   languages stay.** Even tautological ones. The doc-comments agent
   improves them.
+- **Public docs are TRIM or KEEP, never DELETE.** In every language,
+  including Python, a docstring or doc comment on a public module,
+  class, or function is never deleted outright, even when Category 2
+  fires. Trim it to the factual fragment; keep it if nothing is left
+  to cut.
 - **Code examples inside doc comments are code, not prose.** Do not
   touch the content of `/// ```` blocks, doctests,`>>>` examples,
   or `@example` blocks.
@@ -192,7 +198,8 @@ build-verify command (`go build ./...`, `cargo check`,
 ### Report shape
 
 The reader sees only your final message, so it must carry every
-decision itself. Use this shape unless the caller dictates another:
+decision itself. Use this shape unless the caller dictates another,
+including for free-form requests that name no format:
 
 1. **Decision table.** One row per comment block, except the exempt
    content in item 2, columns `Location | Comment | Decision |
@@ -236,8 +243,9 @@ existing path, and run verify there. Before the first Edit, commit
 only the copied paths (`git add <paths>`, then
 `git commit -m baseline -- <paths>`) so a `git checkout -- <file>`
 revert works; if committing there is unsafe, revert by re-copying the
-original or by Edit-to-undo. If the copy is denied, write one verbatim
-copy there with Write as set-up, then Edit it. If you cannot write
+original or by Edit-to-undo. If the copy is denied, Write one copy
+there as set-up, byte-identical to what Read returned, then apply every
+decision to it with Edit. If you cannot write
 anywhere, still deliver the complete report above with the final text
 of each trim, and say that nothing was applied and why; never stop at
 a one-line refusal. Report the path of every edited file.
@@ -315,7 +323,8 @@ Decision: `DELETE`. Run through `detect-llm-tells`:
   and returns a validated configuration") — fires.
 
 3 categories → FLAG MEDIUM → delete. The function name + types already
-say everything this comment says.
+say everything this comment says. `validateConfig` is not exported; on
+an exported function the same block would be trimmed, not deleted.
 
 ### Example 5 — Numbered step labels (Category 5) → DELETE
 

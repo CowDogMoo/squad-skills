@@ -110,10 +110,11 @@ themselves: the user's real files are the deliverable. Copy only when
 an input is read-only or outside the working directory. Then `cp` it,
 with the build files verify needs (such as `go.mod`), into a new,
 empty subdirectory (for example `./doc-pass/`), never over an
-existing path, and run verify there. If the copy is denied, write one
-verbatim copy there as set-up (not as a fix) and Read it back. Every
-doc-comment change is then an Edit on the copy, and the report says
-where it lives. Before the first Edit, commit only the copied paths
+existing path, and run verify there. If the copy is denied, Write one
+copy there as set-up (not as a fix): its content must be byte-identical
+to what Read returned, with zero added or changed comments. Read it
+back. Every doc comment is then added afterwards as an Edit on the
+copy, and the report says where it lives. Before the first Edit, commit only the copied paths
 (`git add <paths>`, then `git commit -m baseline -- <paths>`) so the
 `git checkout -- <file>` revert in step 6 works; if committing there
 is unsafe, revert by re-copying the original or by Edit-to-undo.
@@ -141,6 +142,9 @@ is unsafe, revert by re-copying the original or by Edit-to-undo.
    and move the finding to the skipped table. Do NOT proceed past a
    failing build.
 
+Steps 5 and 6 run on every pass, including free-form requests where
+the caller gives no verify list or output format.
+
 ## Phase 4 — Report
 
 Run verify AND output the report in the SAME response. Populate the
@@ -148,7 +152,8 @@ skipped table from Phase 2 notes — do not re-explore.
 
 The report is read on its own, without the tool calls that led to it,
 so it must carry the evidence itself. Whatever shape the caller's
-`OUTPUT FORMAT` dictates, include all of these:
+`OUTPUT FORMAT` dictates, and also when the caller gives no format,
+include all of these:
 
 1. **Discovery list.** Every public declaration found missing or
    deficient, one row each: name, what was wrong (missing /
