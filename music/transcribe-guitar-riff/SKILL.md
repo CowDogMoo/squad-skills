@@ -355,9 +355,12 @@ lists the rules; in short:
   `12th above X` or `two octaves above X` (a harmonic or image of a stronger
   note), `N dB under the lead`, or `weaker than 2 voices`. Of a `--lowest`
   note and its octave, the `--lowest` note wins unless the octave leads it
-  for two or more slots in a row (more than 6 dB stronger, or the slot's
+  for two or more slots in a row (more than 5.5 dB stronger, or the slot's
   strongest where the `--lowest` note has no peak): then the octave is
-  played and the `--lowest` note under it is its image.
+  played and the `--lowest` note under it is its image. That 5.5 dB margin
+  is fitted on the fixture's synth, between a played octave (it led by
+  5.9 dB at the least) and the harmonic of a dipping note (5.2 dB); it is not
+  measured on real guitars.
 - **Edges.** A one-slot dip is held; a one-slot flicker is dropped. A note
   that a new note in the same line attacks over ends at that attack. A note
   that ends on its own is cut 0.25 s before its fade: that sound is taken as
@@ -367,6 +370,13 @@ lists the rules; in short:
   next stretch's `--lowest` note puts it under the octave check's register.
   In a clip with no tail past the last barline, every note that reaches the
   clip's end is listed under `check by ear` as possibly ringing.
+- **Known limit: fading lower notes in octave pairs.** When the lower note of
+  an upper-voice octave pair fades or dips for several sixteenths (D4 going
+  weak under its own D5 harmonic), the reader can drop it and read the octave
+  above instead, or move the boundary. On the fixture's synth this happens
+  on some pick-jitter draws of the case-2 score; the selftest prints a
+  seeds 1-10 report. Ear-check upper voices where they fade or end, and
+  report such a doubt with its rows rather than editing the spec.
 
 It prints the reading as a spec (also written by `--spec`), a `note edges`
 block giving each note's first and last slot, why it stops there and its level

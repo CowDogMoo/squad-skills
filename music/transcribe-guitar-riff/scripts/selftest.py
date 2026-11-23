@@ -9,7 +9,8 @@
    riff_read.py must then read the fixture exactly as riff.spec, in tune and
    40 cents sharp and cut exactly on the barlines, read a re-render with
    every boundary moved exactly as rendered, keep a pedal an upper voice
-   anticipates, end a pedal where the next stretch starts, see a last chord
+   anticipates or hands over mid-bar, end a pedal where the next stretch
+   starts, see a last chord
    fade in a one-beat tail and flag it without one, read octave jumps over
    the --lowest note, read a pedal change with --lowest given per stretch,
    and give a different reading when --lowest is an octave low or covers
@@ -200,6 +201,12 @@ def main() -> int:
     got = read_spec(render_wav("handover", handover), "--lowest", "A#3@1,D4@2")
     if got != handover:
         raise SystemExit(f"FAIL: riff_read.py on the pedal handover read {got}, it was rendered from {handover}")
+    #     ... nor when the handover falls mid-bar, inside one --lowest stretch:
+    #     the upper voice's attack is the dyad's other line, not the pedal's end.
+    midbar = [(1, 1.0, 4.0, ("A#3",)), (1, 4.0, 4.25, ("A#3", "D4")), (1, 4.25, 5.0, ("D4",)), (2, 1.0, 5.0, ("D4",))]
+    got = read_spec(render_wav("midbar_handover", midbar), "--lowest", "A#3@1,D4@2")
+    if got != midbar:
+        raise SystemExit(f"FAIL: riff_read.py on the mid-bar pedal handover read {got}, it was rendered from {midbar}")
 
     #     A last chord picked to beat 4.5 and then let ring: cut with the
     #     one-beat tail Step 1 asks for, the reader sees it fade before the
@@ -227,7 +234,7 @@ def main() -> int:
     #     note, and nothing else is read.
     alt = [(1, 1.0, 2.0, ("A3",)), (1, 2.0, 3.0, ("A4",)), (1, 3.0, 4.0, ("A3",)), (1, 4.0, 5.0, ("A4",)),
            (2, 1.0, 3.0, ("A3",)), (2, 3.0, 5.0, ("A4",))]
-    got = read_spec(render_wav("octave_jump", alt, seed=0), "--lowest", "A3")
+    got = read_spec(render_wav("octave_jump", alt), "--lowest", "A3")
     missed = [(bar, b0, notes[0]) for bar, b0, b1, notes in alt
               if not any(gb == bar and gs < b1 and ge > b0 and notes[0] in gn for gb, gs, ge, gn in got)]
     if missed or {n for *_, notes in got for n in notes} - {"A3", "A4"}:
@@ -251,6 +258,27 @@ def main() -> int:
     print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune, +40 cents and cut on the barlines, "
           "a moved-boundary render, an anticipated pedal change and handover, a last chord with and without a ring tail, "
           "octave jumps over the --lowest note, and a pedal change with --lowest per stretch")
+
+    #     Robustness report, not a gate: the case-2 score under other pick-jitter
+    #     draws. Fading lower notes in octave pairs are a known limit (SKILL.md,
+    #     Step 5); this shows how often they bite on the fixture's synth.
+    def slot_sets(rows):
+        sets = {}
+        for bar, b0, b1, notes in rows:
+            for k in range(int(round((b0 - 1) * 4)), int(round((b1 - 1) * 4))):
+                sets.setdefault((bar, k), set()).update(notes)
+        return sets
+
+    want = slot_sets(truth)
+    played = {n for *_, notes in truth for n in notes}
+    print("reading robustness (case-2 score, pick-jitter seeds 1-10, --lowest A#3@1-3,A3@4; report only):")
+    for seed in range(1, 11):
+        got = read_spec(render_wav(f"case2_seed{seed}", truth, seed=seed), "--lowest", "A#3@1-3,A3@4")
+        have = slot_sets(got)
+        wrong = sum(have.get(k, set()) != want.get(k, set()) for k in set(want) | set(have))
+        extra = sorted({n for *_, notes in got for n in notes} - played)
+        print(f"  seed {seed:2d}: " + ("exact" if got == truth else
+              f"{wrong}/{len(want)} sixteenths differ" + (f", unplayed pitch read: {', '.join(extra)}" if extra else "")))
 
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")

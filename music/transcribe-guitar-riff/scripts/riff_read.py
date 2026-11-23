@@ -27,12 +27,16 @@ table prints). Every candidate that is not a voice is listed with its reason:
 - "octave above/below X": of two candidates an octave apart, a --lowest note
   wins unless the octave above it leads it (is OCTAVE_LEAD_DB stronger, or,
   where the --lowest note has no peak, is the slot's strongest candidate) in
-  this slot and in a neighbouring one: two or more slots
-  leading is a played note, and the --lowest note under it is its sub-octave
-  image. A lead of one slot, or by less, is the harmonic of a dipping or
-  ringing note. Otherwise the one with the higher mean level over the
-  surrounding beat is the voice and the other its harmonic or sub-octave
-  image. A partner with no peak in this slot (a dip) still counts when it
+  this slot and in a neighbouring one: two or more slots leading is a played
+  note, and the --lowest note under it is its sub-octave image. A lead of one
+  slot, or by less, is the harmonic of a dipping or ringing note.
+  OCTAVE_LEAD_DB is 5.5 dB because on the fixture's synth a played A4 led its
+  ringing A3 by 5.9 dB at the least, while the octave harmonic of a dipping
+  A#3 led it by 5.2 dB: at 6 dB a played A4 beat was lost, at 5 dB the
+  harmonic was read as a note, and with no margin harmonics were read on
+  several renders. It is fitted to that synth, not measured on guitars.
+  Otherwise the one with the higher mean level over the surrounding beat is
+  the voice and the other its harmonic or sub-octave image. A partner with no peak in this slot (a dip) still counts when it
   peaks in the surrounding slots. "12th / two octaves above X": the 3rd or
   4th harmonic of a stronger note. A played doubling at these intervals
   looks the same, so it is never read as a voice, and the report says so.
@@ -42,7 +46,10 @@ table prints). Every candidate that is not a voice is listed with its reason:
 Notes, per pitch: a one-slot gap inside a run is held (a dip, not a rest); a
 run of one slot is a flicker and is dropped. A note that a new note in the
 same line (nearer its pitch than any other voice) attacks over, while it still
-sounds, ends at that attack. A note that fades out on its own has its last
+sounds, ends at that attack. When the new note is the only other voice and
+carries on past it, it ends it only in the same role (a --lowest note in its
+run and the new one at its attack, a pedal change, or neither); otherwise it
+is the dyad's other line and never ends it. A note that fades out on its own has its last
 RING_S seconds cut: that sound is the last pick ringing on (measured on
 re-picked notes). A held or let-ring note's tail is cut the same way, so it
 may be written up to RING_S short; "check by ear" lists each one. A note
@@ -76,7 +83,7 @@ RING_S = 0.25  # ring after the last pick that a note fading out on its own lose
 FILTER_SCALE = 0.7  # CQT filter length relative to riff_salience.py's table
 OCTAVE_WINDOW = 4  # slots each side used to decide which member of an octave pair sounds
 ABSENT_DB = rs.PEAK_FLOOR_DB  # level a slot without the peak contributes to that decision
-OCTAVE_LEAD_DB = 6.0  # margin by which the octave above a --lowest note must beat it to count as leading
+OCTAVE_LEAD_DB = 5.5  # margin by which the octave above a --lowest note must beat it to count as leading
 
 
 def midi_of(note: str) -> int:
@@ -181,7 +188,7 @@ def classify(rows, lowest: list[set[int]], voices: int):
                 reason[m] = f"weaker than {voices} voices"
             else:
                 kept.append(m)
-        out.append({"voices": kept, "reason": reason, "cands": cs, "gate": gate})
+        out.append({"voices": kept, "reason": reason, "cands": cs, "lowest": low})
     return out
 
 
@@ -213,23 +220,29 @@ def read(rows, slots, n_read, slot_len):
         for s0, s1 in runs_of(on):
             if s1 - s0 >= 2:
                 raw.append((m, s0, s1, [h for h in held if s0 <= h < s1]))
-    starts = {}
-    for m, s0, _, _ in raw:
+    starts, run_end = {}, {}
+    for m, s0, s1, _ in raw:
         starts.setdefault(s0, []).append(m)
+        run_end[m, s0] = s1
     notes = []
     for m, s0, s1, held in raw:
         ringout = s1 > n_read
         end, ring, how = s1, [], "faded"
         if s1 >= len(slots):
             how = "end"
-        elif m < slots[s1]["gate"]:
+        elif m < min(slots[s1]["lowest"]):
             how = "gated"
         else:
             # a new note in the same line (nearer this pitch than any other voice sounding
             # at its attack or once this one has stopped) attacking while this one still
-            # rings: end at that attack
+            # rings: end at that attack. The only other voice, sounding on past this one,
+            # replaces it only in the same role: this one a --lowest note in its run and
+            # the new one at its attack (a pedal change), or neither; otherwise it is the
+            # dyad's other line
             def same_line(o, t):
                 others = [x for x in {*slots[t]["voices"], *slots[s1]["voices"]} if x not in (m, o)]
+                if not others and run_end[o, t] > s1:
+                    return any(m in slots[j]["lowest"] for j in range(s0, s1)) == (o in slots[t]["lowest"])
                 return all(abs(o - m) < abs(x - m) for x in others)
 
             new = [t for t in range(s0 + 1, s1 + 1) if s1 - t <= ring_max + 1
@@ -356,7 +369,7 @@ def main(argv=None) -> int:
         elif x["how"] == "replaced" and x["end"] < len(ids):
             why = f"a new note in the same line attacks at {ids[x['end']]}"
         elif x["how"] == "gated":
-            why = f"the next stretch's lowest voice, {name_of(slots[x['end']]['gate'])}, starts at {ids[x['end']]} (--lowest)"
+            why = f"the next stretch's lowest voice, {name_of(min(slots[x['end']]['lowest']))}, starts at {ids[x['end']]} (--lowest)"
         else:
             nxt = x["end"]
             why = f"absent from the voices at {ids[nxt]}" if nxt < len(ids) else "end of file"
