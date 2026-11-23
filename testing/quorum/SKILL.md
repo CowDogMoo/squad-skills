@@ -1,6 +1,6 @@
 ---
 name: quorum
-description: Unanimous completion gate — "is the task complete? No until everyone agrees." Runs the project's deterministic checks plus one evidence-obligated skeptic seat over the task's acceptance criteria, adjudicated by a deterministic unanimity judge; any veto, abstention, or missing ballot means NOT_COMPLETE, and every veto must cite the unmet criterion, so the output is an actionable work queue. Use for "/quorum", "is it done", "is the task complete", "run the completion gate", or before declaring any substantial task or architectural evaluation finished. Defaults to one skeptic seat run as an independent subagent — multi-seat panels only on explicit request.
+description: "Unanimous completion gate — \"is the task complete? No until everyone agrees.\" Runs deterministic checks plus one evidence-obligated skeptic seat (independent read-only subagent by default; multi-seat panels only on explicit request) over numbered acceptance criteria, adjudicated by judge.mjs. Any veto, abstention, absent, or malformed ballot means NOT_COMPLETE: ballots are never hand-authored or repaired, a missing, prose, or schema-invalid seat gets at most one re-ask with the exact same rendered prompt before staying absent and failing closed, and every veto cites an unmet criterion. Use for \"/quorum\", \"is it done\", \"is the task complete\", \"run the completion gate\", before declaring any substantial task or architectural evaluation finished, or when adjudicating a quorum run (panel.json, ballots/, verdict.json) or handling missing, prose, or malformed seat ballots, re-asks, and seat faults."
 ---
 
 # Quorum: unanimous completion gate
@@ -232,16 +232,22 @@ binaries get only the existence check, since their wrappers are legitimately
 scripts. If no driver can run, `run-seats.mjs` exits 1 with a named error rather
 than letting the seat read as a mysterious absence at judge time.
 
-**Re-ask rule (measured: ~20% of seats return prose instead of a ballot):** if a
-seat returned prose, schema-invalid JSON, or no output:
+#### Re-ask rule (missing, prose, or malformed seat output)
+
+About 20% of measured seat calls returned prose instead of a ballot. Whenever a
+seat returns prose, schema-invalid JSON, or no output:
 
 1. **Never treat prose as a vote, and never write, patch, or repair a ballot** on
-   that seat's behalf — even if the prose says the work looks done or you
-   expected the seat to vote `"complete"`. Only `run-seats.mjs` may write
-   `<run>/ballots/<seat_id>.json` (if unparsable prose was mistakenly placed in
-   `ballots/<seat_id>.json`, remove it rather than editing it into JSON).
-2. **Re-ask only that missing/malformed seat, at most ONCE, with the exact same
-   rendered prompt:**
+   that seat's behalf — even when the prose says the work looks done or you
+   expected `"complete"`. Prose or schema-invalid JSON is `malformed` (never
+   counted as `"complete"` or rewritten into an `"abstain"` ballot), and only
+   `run-seats.mjs` may write `<run>/ballots/<seat_id>.json` (if unparsable prose
+   or invalid JSON was mistakenly placed in `ballots/<seat_id>.json`, remove it
+   before re-asking rather than editing it into JSON).
+2. **Re-ask only that missing or malformed seat, at most ONCE, with the exact
+   same rendered prompt** (`<run>/prompts/<seat_id>.prompt.md` — never rewrite
+   the prompt or append ad-hoc formatting instructions, which changes what the
+   seat was asked and bypasses `render-prompts.mjs` independence checks):
    - Subagent mode: spawn one fresh read-only subagent for `<seat_id>` alone
      (same isolation rules as step 2), recompute the fingerprint once it returns
      (a change voids the run as in step 4 and counts toward its one-retry cap),
@@ -254,11 +260,13 @@ seat returned prose, schema-invalid JSON, or no output:
    Never re-run seats that already have valid ballots, never retry a second
    time, and never re-ask because you dislike a valid vote.
 3. **Fail closed if the single re-ask also fails:** if the retry still produces
-   prose, invalid JSON, or no output, stop retrying. Leave
-   `<run>/ballots/<seat_id>.json` absent, keep `<seat_id>` in `<run>/panel.json`
-   with `"required": true` (never drop or mark optional a rendered seat), and
-   let `judge.mjs` fail closed to `NOT_COMPLETE` as the final gate outcome
-   (reported as a seat fault / infrastructure signal, not a tentative hold).
+   prose, schema-invalid JSON, or no output, stop retrying. Leave
+   `<run>/ballots/<seat_id>.json` absent (never write a placeholder or
+   `"abstain"` ballot for it), keep `<seat_id>` in `<run>/panel.json` with
+   `"required": true` (never drop or mark optional a rendered seat), and let
+   `judge.mjs` record the seat as `absent` and fail closed to `NOT_COMPLETE` as
+   the final gate outcome — reported as a seat fault / infrastructure signal,
+   never softened into a tentative hold (`"NOT_COMPLETE for now"`).
 
 ### 4. Judge
 
@@ -322,9 +330,11 @@ that did not run):
      a multi-seat panel, that all seats were spawned concurrently in parallel as
      separate subagents in one turn, never bundled into a single subagent), plus
      whether the `<run>/stage/` content fingerprint matched before and after.
-   - **Panel manifest (`panel.json`) and seat states:** name the seats in
-     `<run>/panel.json` (`gates`, any execution seats, and every rendered model
-     seat, all `"required": true`) and each seat's state in `verdict.json`
+   - **Panel manifest (`panel.json`):** explicitly name `panel.json`, list every
+     seat in it (`gates`, any execution seats, and every rendered model seat),
+     and confirm that all are marked `"required": true` (plus
+     `"requires_artifacts": true` on `exec-seat.mjs` seats).
+   - **Seat states (`verdict.json`):** give each seat's judged state
      (`complete`, `veto`, `abstain`, `absent`, `malformed`).
 4. **Cited evidence or verbatim `work_queue`:**
    - **COMPLETE** — give each seat's cited evidence per numbered criterion.
