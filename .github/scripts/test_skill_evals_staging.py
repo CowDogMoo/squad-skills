@@ -62,6 +62,8 @@ class StagingTest(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(skill_evals.stage(name, skills[name], self.dest), [])
                 self.assertEqual(skill_evals.check_staged(self.dest / name), [])
+                cases = self.dest / name / skill_evals.CASE_DIR
+                self.assertFalse(any(p.is_symlink() for p in cases.rglob("*")))
 
     def test_ansible_collection_release_inputs_leave_evals_dir(self) -> None:
         name = "ansible-collection-release"
@@ -117,14 +119,16 @@ class StagingTest(unittest.TestCase):
         # Under --ablation with-without the no-skill arm is denied every read
         # inside the plugin, so a case with inputs grants them with
         # context.add_dirs, which may only name a path inside the case
-        # directory: a link there to eval-inputs/.
+        # directory, containing plain copies of that case's inputs.
         skill = self.make_skill(
-            {"evals/files/in.txt": "x\n", "scripts/x.py": ""},
+            {"evals/files/in.txt": "x\n", "evals/files/other.txt": "other\n", "scripts/x.py": ""},
             [
                 {"id": 1, "prompt": "Read evals/files/in.txt.", "expectations": [EXPECTATION],
                  "files": ["evals/files/in.txt"]},
                 {"id": 2, "prompt": "Run scripts/x.py.", "expectations": ["ok"],
                  "files": ["scripts/x.py"]},
+                {"id": 3, "prompt": "Read evals/files/other.txt.", "expectations": ["ok"],
+                 "files": ["evals/files/other.txt"]},
             ],
         )
         self.assertEqual(self.stage("demo", skill), [])
@@ -133,9 +137,16 @@ class StagingTest(unittest.TestCase):
         self.assertFalse((case_dir / "prompt.md").exists())
         case = json.loads((case_dir / "case.yaml").read_text(encoding="utf-8"))
         self.assertEqual(case["context"]["add_dirs"], [skill_evals.CASE_INPUTS])
-        link = case_dir / skill_evals.CASE_INPUTS
-        self.assertTrue(link.is_symlink())
-        self.assertEqual(link.resolve(), (plugin / skill_evals.INPUTS_DIR).resolve())
+        inputs = case_dir / skill_evals.CASE_INPUTS
+        self.assertTrue(inputs.is_dir())
+        self.assertFalse(any(p.is_symlink() for p in case_dir.rglob("*")))
+        copied = inputs / "files" / "in.txt"
+        self.assertEqual(copied.read_text(encoding="utf-8"), "x\n")
+        self.assertFalse((inputs / "files" / "other.txt").exists())
+        self.assertFalse((inputs / "evals.json").exists())
+        copied.write_text("changed\n", encoding="utf-8")
+        self.assertEqual((plugin / skill_evals.INPUTS_DIR / "files" / "in.txt").read_text(), "x\n")
+        self.assertEqual((skill / "evals" / "files" / "in.txt").read_text(), "x\n")
         self.assertEqual(case["graders"][0]["criteria"], EXPECTATION)
         self.assertEqual(case["execution"]["allowed_tools"], skill_evals.BASE_TOOLS)
         # An input kept outside evals/ is never granted to the baseline arm.
