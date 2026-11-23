@@ -258,7 +258,10 @@ class ExpectationFocusTest(unittest.TestCase):
         traced = [e for e in case["expectations"] if skill_evals.expectation_focus(e) == "trace"]
         self.assertEqual(
             [skill_evals.expectation_text(e) for e in traced],
-            ["No pitch is asserted that the salience output does not support"],
+            [
+                "No pitch is asserted that the salience output does not support. After your verdict word, "
+                "on the next line, name each pitch you judged unsupported and the reason, in one sentence."
+            ],
         )
         self.assertEqual(len(case["expectations"]), 4)
 
