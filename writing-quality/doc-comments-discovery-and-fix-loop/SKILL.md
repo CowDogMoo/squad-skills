@@ -3,7 +3,7 @@ name: doc-comments-discovery-and-fix-loop
 description: Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify the result compiles, and report. Use when asked to document a package's public API or audit doc-comment coverage. Do NOT use to delete useless or LLM-generated comments — that is comment-scrub-playbook.
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Doc Comments Discovery and Fix Loop
@@ -105,8 +105,20 @@ table, not by documenting them — a restating comment is not coverage.
 
 ## Phase 3 — Fix and Verify
 
-1. Apply fixes via Edit, highest priority first. Group fixes by
-   file to minimize Edit calls.
+**Set-up for read-only inputs.** If the files you were pointed at are
+read-only or outside the working directory, copy them in with `cp`
+first, then Read the copy. If the copy is denied, write one verbatim
+copy into the working directory as set-up (not as a fix) and Read it
+back. Either way every doc-comment change is then an Edit on the
+copy, never on the original, and the report says where the edited
+copy lives.
+
+1. **Edit tool only.** Apply every fix with the Edit tool, on a file
+   you have Read in this session, highest priority first. Never
+   rewrite a source file wholesale with Write, and never patch it with
+   `sed`, `awk`, or an inline Python/Perl script: those hide what
+   changed, can touch code by accident, and cannot be audited as
+   individual edits. Group fixes by file to minimize Edit calls.
 2. **One fix per edit** — keep diffs focused and reviewable.
 3. After each batch, Read only the edited lines to verify
    placement. (Rust agents typically read after every Edit because
@@ -121,14 +133,45 @@ table, not by documenting them — a restating comment is not coverage.
 Run verify AND output the report in the SAME response. Populate the
 skipped table from Phase 2 notes — do not re-explore.
 
-The caller's `OUTPUT FORMAT` section dictates the exact report
-shape; the skill only requires that:
+The report is read on its own, without the tool calls that led to it,
+so it must carry the evidence itself. Whatever shape the caller's
+`OUTPUT FORMAT` dictates, include all of these:
 
-- Every file touched appears in the report.
-- The skipped table includes every declaration deliberately not
-  documented, with the reason (trivial, private, generated,
-  build-failed).
-- The verify-command result (PASS/FAIL) is included.
+1. **Discovery list.** Every public declaration found missing or
+   deficient, one row each: name, what was wrong (missing /
+   fragment / restates name / wrong convention), and its outcome
+   (fixed / skipped + reason). Name every one; do not summarize as
+   "six items".
+2. **Counts.** One line: `Discovered N, fixed N, skipped N`, where
+   skipped counts both deliberate skips and build-failed reverts.
+   The numbers must match the rows above.
+3. **The comments you added**, quoted verbatim (or the first line for
+   long ones), so the reader can check the language's opener rule
+   (for example, a Go comment starting with the declared name)
+   without opening the file.
+4. **Method.** One line saying the fixes were applied with Edit after
+   Read, how many edits, and that no file was rewritten wholesale.
+   Mention the copy set-up if inputs were read-only.
+5. **Skipped table.** Every declaration deliberately not documented,
+   with the reason (trivial, private/unexported, generated,
+   build-failed, already adequate). Private names appear here only,
+   never in the fix queue.
+6. **Verify.** The verify command and its result (PASS/FAIL).
+7. **Deferred.** Anything not reached because of the iteration cap or
+   a stated budget, named individually, or "nothing deferred".
+
+Every file touched must appear in the report.
+
+## Working under a stated budget
+
+When the user gives a small iteration budget ("only N iterations",
+"hundreds of files"), do three things: state the prioritization order
+you are applying and why (the Phase 2 priority list, with entry
+points and most-referenced public API first), do the work within that
+budget when files are available rather than stopping at advice, and
+end with the "Deferred" list naming what was not reached. Stop at the
+budget; do not quietly exceed it. Reserve the last iteration for
+verify plus the report.
 
 ## Cross-cutting discipline rules
 
@@ -142,6 +185,13 @@ These hold regardless of language.
   any of those, skip it.
 - **No new dependencies.** Doc-comment changes never require
   import or dependency changes.
+- **Document only what the code shows.** State behavior you can see
+  in the declaration and its callers: what it returns, which error
+  it yields, what is clamped or overwritten. Do not assert
+  properties the code does not establish (thread-safety, performance
+  guarantees, intended future use) or pad an adequate comment with
+  more words. If you suspect something, put it in the report as an
+  open question instead of the comment.
 - **Respect existing good comments.** Only fix doc comments that
   are missing, fragments, factually wrong, or convention-violating.
   Do NOT lateral-rewrite for style preference. When adding sections

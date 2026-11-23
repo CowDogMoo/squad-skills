@@ -3,7 +3,7 @@ name: comment-scrub-playbook
 description: Classify source-code comments into five delete-candidate categories (states-the-obvious, LLM-generated, no-info, non-idiomatic, visual noise) and decide delete vs. trim vs. keep. Use when scrubbing useless or LLM-slop comments from a codebase, auditing comment quality, or deciding whether one comment earns its place. Do NOT use to write or repair missing doc comments — that is doc-comments-discovery-and-fix-loop.
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Comment Scrub Playbook
@@ -188,6 +188,46 @@ This skill produces, for each comment block the caller hands it:
 The caller assembles these into Edits and runs the language-specific
 build-verify command (`go build ./...`, `cargo check`,
 `python -m compileall`, `tsc --noEmit`, etc.) before reporting.
+
+### Report shape
+
+The reader sees only your final message, so it must carry every
+decision itself. Use this shape unless the caller dictates another:
+
+1. **Decision table.** One row per comment block that is not exempt,
+   columns `Location | Comment | Decision | Category | Why`.
+   - Every row has exactly one decision (`DELETE`, `TRIM`, `KEEP`, or
+     `FIX_GAP`) and a category number 1-5. For `DELETE`/`TRIM` it is
+     the category that fired. List every category that fired,
+     primary first: numbered step labels are Category 5 and also a
+     strong Category 2 tell in `detect-llm-tells`, so cite `5, 2`;
+     narration that also restates the next line is `5, 1`.
+   - For `KEEP`, the category is the one you tested and why it did not
+     win, for example `1, overridden by exported-doc protection` or
+     `1, not fired: records why (incident reference)`. Never leave
+     the category blank.
+2. **Exempt list.** A separate list of the always-exempt content you
+   found (directives such as `//go:generate`, `//nolint`, `# noqa`,
+   `# type:`, convention markers such as `TODO`, license headers),
+   each marked kept and exempt, not scored, so it does not get a
+   decision row or a category.
+3. **Trimmed text.** For every `TRIM`, show the before and after
+   text verbatim, not a description of the cut.
+4. **Counts and method.** How many blocks were deleted, trimmed, kept,
+   and exempt, plus one line on how the edits were applied. State
+   that only comment lines changed.
+5. **Verify.** The verify command and its result.
+
+### Applying the edits
+
+Inputs are often read-only. Copy the file into the working directory
+with `cp`, Read it, and apply each decision as an Edit on the copy.
+If the copy is denied, write one verbatim copy with Write as set-up,
+then Edit it, or, if you cannot write anywhere, still deliver the
+complete report above with the final text of each trim, and say that
+nothing was applied and why. A report with every decision is the
+deliverable; never stop at a one-line refusal. Report the path of the
+edited copy.
 
 ## Examples
 
