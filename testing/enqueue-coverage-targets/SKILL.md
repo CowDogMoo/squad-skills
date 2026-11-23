@@ -134,8 +134,7 @@ Make this copy **before** Step 2. From here on, `"$work"` is the project:
   before editing them.
 - Add tests to existing test files, including the baseline copies, strictly
   with `Edit`, never a second `Write`, and keep every original test
-  unremoved and unrenamed. (If you create a brand-new test file with `Write`,
-  run `git -C "$work" add -N <new-file>` so `git diff` tracks it.)
+  unremoved and unrenamed.
 - Run Step 3 build, test, coverage re-measurement, and `git diff` from inside
   `"$work"`. The queue from Step 1 stays valid because the code is identical.
 
@@ -180,7 +179,8 @@ For each batch:
      test file deletes every test in it — a prior run lost 2,524 lines
      across 7 files this way.
    - If no test file exists, `Write` a new one named per the language's
-     mirror rule (in the reference file).
+     mirror rule (in the reference file). In a git repository (always true
+     for `"$work"`), then run `git add -N <new-file>` so `git diff` tracks it.
    - Every symbol you reference must have appeared in source you read this
      iteration.
    - Each file must contain at least one real test with meaningful
@@ -204,7 +204,10 @@ From inside the project directory (or `"$work"` when Step 1a created a working
 copy), run the language's build, test, and coverage re-measurement commands
 once (see `references/<lang>.md`), plus `git diff --stat` and `git diff` on
 the touched test files to confirm zero existing test functions were removed or
-renamed. Fix only test code on failure.
+renamed. If an in-place project has no git baseline
+(`git rev-parse --is-inside-work-tree` fails), don't create one; skip
+`git diff` and report `Diff Summary: not available (no git baseline)`. Fix
+only test code on failure.
 
 Copy the real re-measured percentage into the report. If you skip
 re-measurement, the `After` field says `not measured` — a projected number is
@@ -220,7 +223,7 @@ Coverage Report
   Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
   Working Copy: <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
 Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
-Diff Summary: <none, or `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
+Diff Summary: <none | not available (no git baseline) | `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
 Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
 Skipped: <none, or newline-indented `<unit or function> — <specific reason>` lines>
 Run Record:
@@ -228,7 +231,7 @@ Run Record:
   2. Reference read: <references/<lang>.md — applied: <naming and idiom> | none (no supported project)>
   3. Targets from /tmp/squad-uncovered.out: <unit: functions or line ranges | none>
   4. Per file: <Read <source>; Read <existing test file> (existing tests: <names>); then Edit | Write <file> | none>
-  5. Existing tests preserved in diff: <names (0 removed or renamed test functions in git diff) | n/a>
+  5. Existing tests preserved in diff: <names (0 removed or renamed test functions in git diff) | not verified (no git baseline) | n/a>
   6. Coverage commands run: <enqueue.sh (Step 1), <Step 3 command>; none in between | enqueue.sh (Step 1) only>
 ```
 
@@ -242,7 +245,8 @@ Run Record:
 - **Run Record** — in the order it happened, naming `Edit` vs `Write` for each
   file and confirming existing test functions were preserved in `git diff`.
   Never claim a file was edited or existing tests were kept without having
-  `Read` the file first and verified `git diff`.
+  `Read` the file first and verified `git diff`; with no git baseline, say
+  the preservation was not verified.
 - **Early stop** (nothing to queue): keep the fenced block and write literal
   `Before: not measured`, `After: not measured`, `Files Touched: none`,
   `Diff Summary: none`, and `Tests Added: none`, with the script's reason
