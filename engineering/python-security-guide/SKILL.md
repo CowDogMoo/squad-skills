@@ -678,6 +678,14 @@ if __name__ == '__main__':
     app.run(debug=os.environ.get('FLASK_DEBUG', 'False') == 'True')
 ```
 
+**Answering a hardening question about settings the user quotes:** when the user pastes or describes settings (for example `app.secret_key = 'dev'` and `app.debug = True`) instead of pointing at files, answer from what they gave you. Do not search the workspace for the app first, and do not open with a disclaimer that it was not found. Lead with the corrected configuration in its final production state, then explain each change briefly:
+
+- The secret key is read from an environment variable or a secrets manager, generated with `secrets.token_hex(32)`, and never committed. Treat a key that was ever deployed as compromised and rotate it.
+- Debug is off. Remove `debug=True`, serve through a WSGI server such as gunicorn or waitress, and keep any development-only debug flag defaulting to off.
+- `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, and `SESSION_COOKIE_SAMESITE` are set, alongside HTTPS and security headers.
+
+The same shape applies to Django settings.
+
 ### FastAPI
 
 **Vulnerable FastAPI:**

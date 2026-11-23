@@ -1005,6 +1005,15 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 - `module`: Shared across test module
 - `session`: Shared across entire test run
 
+## Reporting Test Work
+
+A calling agent or task that defines its own report format takes precedence over this section. Otherwise, when you write or change tests, put the evidence in the reply itself, because the reader may never open the file:
+
+- Include the test code you wrote. For a long suite, include the parametrization tables, one representative test with its docstring, and the exception tests, and say where the rest lives.
+- Say which functions use parametrization and which cases each table covers.
+- Give the command you ran and its result, such as `37 passed`.
+- Flag any test that documents current behavior you may want to change.
+
 ## What NOT to Test
 
 1. **Trivial getters/setters**: Properties that just return a value
