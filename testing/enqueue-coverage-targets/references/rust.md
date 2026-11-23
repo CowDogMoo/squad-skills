@@ -40,6 +40,9 @@ would discard everything else in it.
 
 ## Verify and re-measure (Step 3)
 
+Run from the crate or workspace root (or `"$work"` when Step 1a created a
+working copy):
+
 ```bash
 cargo build && cargo test
 cargo llvm-cov --summary-only   # or: cargo tarpaulin --out Stdout

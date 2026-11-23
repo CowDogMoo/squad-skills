@@ -382,14 +382,15 @@ Use scripting libraries for standardized dashboards:
 
 ## Maturity Model
 
-Organizations typically evolve through these stages:
+Organizations typically evolve through three dashboard-management stages:
 
 ### Low Maturity: Dashboard Sprawl
 
-- Uncontrolled, ad-hoc dashboard creation and casual UI cloning (titles ending in `copy`, `v2`, or environment suffixes)
-- Duplicated dashboards per environment, cluster, or instance instead of parameterized views
-- Absent naming conventions, folder structure, and ownership metadata
-- Difficult to find or trust relevant dashboards during incidents, with high maintenance drift across copies
+Defined by three root characteristics that reinforce each other:
+
+- **Uncontrolled dashboard creation**: Anyone creates or clones dashboards ad hoc in the UI with no design review or governance (leaving titles ending in `copy`, `v2`, or environment suffixes)
+- **Per-environment and per-resource duplication**: Separate dashboards are copied for each environment, cluster, or instance instead of parameterizing a single dashboard with template variables, causing copies to drift apart
+- **Absent naming conventions and ownership**: No consistent title scheme, folder hierarchy, or owner tags exist, making authoritative dashboards hard to find or trust during incidents
 
 ### Medium Maturity: Methodical Approach
 
@@ -402,20 +403,22 @@ Organizations typically evolve through these stages:
 ### High Maturity: Optimized Ecosystem
 
 - Scripted dashboard generation (infrastructure-as-code with Grafonnet, Grafanalib, or Terraform)
-- Comprehensive version control and peer review in Git
+- Version control and peer review in Git
 - Automated linting, testing, and schema validation in CI
-- Deliberate curation, governance, and observability-as-code practices across all teams
+- Deliberate curation, governance, and observability-as-code practices across teams
 
-### Advancing from Low to Medium Maturity
+### Diagnosing Sprawl and Advancing to Medium Maturity
 
-When an organization is in **Low maturity** (hundreds of dashboards, per-environment copies, no naming standard), do **not** jump straight to High-maturity code generation — scripting inconsistent copies only cements dashboard sprawl. Move to **Medium maturity** first through four coordinated steps:
+Teams in **Low maturity (dashboard sprawl)** usually report only the visible symptoms, such as a large dashboard inventory, per-environment copies, or missing naming rules. When assessing where an organization sits on the maturity model, identify the stage explicitly as **Low maturity / dashboard sprawl** and call out all three of its defining drivers together: **uncontrolled, ad-hoc dashboard creation** (casual UI creation and cloning without governance, which is why the count balloons), **duplication across environments or instances**, and **absent naming conventions and ownership**. Treating sprawl as a one-time merge without curbing uncontrolled creation lets duplicates accumulate again.
 
-1. **Collapse duplicates with template variables**: Parameterize `environment`, `datasource`, `cluster`, and `service` so per-environment and per-instance copies merge into one master dashboard per service or resource, and share filtered views via URL parameters (`?var-environment=prod`) instead of cloning.
-2. **Establish a naming convention**: Adopt and enforce a consistent title and folder scheme (such as `<Team> / <Service> — <Methodology or Purpose>`), ownership tags, and `TEST`/`TMP` prefixes as dashboards are consolidated.
-3. **Adopt RED, USE, or the Four Golden Signals**: Standardize service dashboards around **RED** or **Four Golden Signals** and resource dashboards around **USE**, with purpose text panels and overview-to-detail drill-down links.
-4. **Institute regular cleanup**: Audit dashboard views/access logs on a recurring cadence, archive or delete dead and experimental dashboards, and prohibit casual UI copying.
+Do **not** jump straight from Low to High-maturity code generation: scripting unstandardized copies in Grafonnet or Terraform only locks in dashboard sprawl. Move toward **Medium maturity** first through four coordinated steps:
 
-Once Medium-maturity conventions are stable, advance to **High maturity** by managing dashboard definitions in Git and generating shared patterns as code.
+1. **Collapse duplicates into a single dashboard with template variables**: Parameterize `environment`, `datasource` (`type: "datasource"`, referenced as `${datasource}`), `cluster`, and `service` so per-environment and per-instance copies merge into one reusable dashboard per service or resource, and share filtered views via URL parameters (`?var-environment=prod`) instead of cloning.
+2. **Establish a naming convention**: Enforce a consistent title and folder scheme (such as `<Team> / <Service> - <Methodology or Purpose>`), owner tags, and `TEST`/`TMP` prefixes as consolidated dashboards replace copies.
+3. **Adopt RED, USE, or the Four Golden Signals**: Align service dashboards around **RED** or **Four Golden Signals** and resource dashboards around **USE**, with purpose text panels and overview-to-detail drill-down links.
+4. **Institute regular cleanup**: Audit dashboard views or access logs on a recurring schedule, archive or delete unused and `TEST`/`TMP` dashboards, and stop casual UI copying so new dashboards follow the shared conventions.
+
+Once Medium-maturity practices are stable, advance to **High maturity** by managing dashboard JSON in Git with peer review and generating shared patterns as code.
 
 ### Continuous Improvement
 

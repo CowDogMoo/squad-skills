@@ -37,7 +37,10 @@ Aim tests at the functions containing those lines.
 
 ## Verify and re-measure (Step 3)
 
+Run from the project root (or `"$work"` when Step 1a created a working copy) so
+imports and `--cov` resolve against it:
+
 ```bash
-python -m pytest -q
-python -m pytest --cov="${SQUAD_PYTHON_PKG:-.}" -q 2>&1 | tail -20
+COVERAGE_FILE=/tmp/squad-coverage-data python -m pytest -p no:cacheprovider \
+    --cov="${SQUAD_PYTHON_PKG:-.}" --cov-branch --cov-report=term-missing -q
 ```
