@@ -129,7 +129,11 @@ Picked notes peak at -3 to -8 DI. Quieter DIs (peaks near -18) need
 low notes (F#1 is about 46 Hz, a 22 ms period) add pitch-period ripple to a
 2 ms RMS envelope, which shows as correlation peaks about 19 ms apart. That
 is why a single audio method often contradicts the other, and why the
-positive control is per region.
+positive control is per region. The cost is that a slip larger than the
+window (a 0.0625-beat nudge is 31 ms at 120 BPM) reads as "edge" with low
+corr. A wider window measures it only while the window stays under half the
+riff's shortest attack period; on the synthetic fixtures `--window-ms 45`
+reads the planted 31 ms nudge as +32 ms at corr 1.00.
 
 ## 5. Amp-render cross-check (`render_xcheck.py`)
 
