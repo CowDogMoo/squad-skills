@@ -217,11 +217,14 @@ For each flag, decide from the evidence:
 | Single audio method only, or the methods contradict                                                                                     | Report as unconfirmed and suggest listening, solo-paired at that bar  |
 | Repeated pattern, 16th-grid offset, or already tight by audio                                                                           | Leave it alone and say why                                            |
 
-A pair is **flagged** only when two independent methods agree (placement plus
-audio, or DI plus render). A lag from one audio method alone, however large
-and steady, makes the pair **unconfirmed**: say so in those words, name the
-single method, and say what would confirm it (a render or a solo-paired
-listen at those bars).
+A pair is **flagged** when the exact placement check flags it (row 1) and no
+audio evidence contradicts it, including where the DI `--inject` control
+MISSED and step 4 leaves the region to placement and ears. Audio that reads
+the pair tight puts it in the last row instead. An audio-only finding needs a
+second independent method (render agreeing with DI, row 2) before it is
+flagged. A lag from one audio method alone, however large and steady, makes
+the pair **unconfirmed**: say so in those words, name the single method, and
+say what would confirm it (a render or a solo-paired listen at those bars).
 
 Report in this shape. The reply to the user is the report: they read the
 reply, not your working files. A `REPORT.md` copy is fine, but the reply
