@@ -346,22 +346,24 @@ one slot is usually an attack transient of the next note, not a note.
 
 **Decide which candidates are voices before drawing any boundary.** A peak the
 long-term block tags as a distortion difference tone is never a voice, however
-high it ranks in a slot. Nor is an octave of the lowest voice that the octave
-check's `verdict:` ruled out in Step 2. The octave above a voice that is
-already sounding may be that voice's harmonic or a played octave (an octave
-shape, a root-fifth-octave chord, an octave over a pedal). Both start and stop
-on the same sixteenths as the voice, so matching slots prove nothing either
-way; never cite them as proof. Write such a candidate into the spec, MIDI and
-tab only when it is independently played or the user named that voicing.
-Independently played means that, with those two kinds of candidate struck, the
-per-sixteenth table shows it in the top two for at least two consecutive slots
-where the voice an octave below is out of the top two, or a beat's per-beat
-summary lists it without that lower voice. A single slot where it edges past
-the lower voice is a flicker, not a note. Leave every other octave candidate
-out of the reading and list it in the reply as a possible played octave to
-check by ear. The candidates left are the voices, and "top two" from here on
-means the top two of those voices in a slot, with every excluded candidate
-struck first, so an excluded candidate never moves a voice's boundary.
+high it ranks in a slot. Nor is an octave below the lowest voice that the
+octave check's `verdict:` ruled out in Step 2 (a sub-octave image). The
+verdict does not strike the octave above the lowest voice: like the octave
+above any voice that is already sounding, it may be that voice's harmonic or a
+played octave (an octave shape, a root-fifth-octave chord, an octave over a
+pedal). Both start and stop on the same sixteenths as the voice, so matching
+slots prove nothing either way; never cite them as proof. Write such a
+candidate into the spec, MIDI and tab only when it is independently played or
+the user named that voicing. Independently played means that, with difference
+tones and those sub-octave images struck, the per-sixteenth table shows it in
+the top two for at least two consecutive slots where the voice an octave below
+is out of the top two, or a beat's per-beat summary lists it without that
+lower voice. A single slot where it edges past the lower voice is a flicker,
+not a note. Leave every other octave candidate out of the reading and list it
+in the reply as a possible played octave to check by ear. The candidates left
+are the voices, and "top two" from here on means the top two of those voices
+in a slot, with every excluded candidate struck first, so an excluded
+candidate never moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
@@ -565,10 +567,11 @@ the folder. Put these in it, each copied from a script's output:
   tone), say which output line shows it and why it is not a played note. A
   rejection rests on printed evidence: the long-term block's difference-tone
   tag, or the octave check's `verdict:` for the lowest voice's register, which
-  rules out reading that voice an octave high or low. An octave above a
-  sounding voice goes into the reading only on Step 5's independent-play
-  test (quote the consecutive slot ids or the per-beat entry that pass it)
-  or the user's named voicing; otherwise it is listed as a possible played
+  rules out reading that voice an octave high or low and so rejects the
+  octaves below it as sub-octave images, never the octave above. An octave
+  above a sounding voice goes into the reading only on Step 5's
+  independent-play test (quote the consecutive slot ids or the per-beat entry
+  that pass it) or the user's named voicing; otherwise it is listed as a possible played
   octave to check by ear, not called a harmonic. Any other candidate neither
   of those settles stays out of the reading and is listed as unresolved, not
   argued away with your own arithmetic.
