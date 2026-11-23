@@ -39,6 +39,5 @@ re-measure.
 Run from the module root (or `"$work"` when Step 1a created a working copy):
 
 ```bash
-go build ./... && go test ./... -coverprofile=/tmp/squad-after.out -count=1
-go tool cover -func=/tmp/squad-after.out | tail -1
+go build ./... && go test ./... -coverprofile=/tmp/squad-after.out -count=1 && go tool cover -func=/tmp/squad-after.out | tail -1
 ```

@@ -88,20 +88,26 @@ Edit the project in place by default. Only make a working copy when the
 project directory is read-only, sits outside your writable working
 directories, or the request asks to leave the original untouched.
 
-Build the copy inside your writable working directory with `Read` and
-`Write`, the method such environments provide for changing read-only inputs:
+Build the copy outside the original tree with `Read` and `Write`, the
+method such environments provide for changing read-only inputs:
 
 1. Set `$work` to `<absolute path of your working directory>/<project
-   directory name>` (for example `/scratch/run/cov-go`) and use that absolute
-   path in every later tool call.
-2. For each file the run needs — the manifests (`go.mod`, `go.sum`,
-   `pyproject.toml`, `package.json` and its lockfile, `Cargo.toml`,
-   `Cargo.lock`), the queued units' source files and whatever they import,
-   and **every existing test file** for those units — `Read` it at its
-   original path and `Write` its content verbatim to the same relative path
-   under `"$work"`. Change nothing while copying. Skip `.git`, build output,
-   and dependency directories (`node_modules`, `target`, `vendor`,
-   `__pycache__`).
+   directory name>` (for example `/scratch/run/cov-go`). If your working
+   directory is the project or sits inside it, use
+   `${TMPDIR:-/tmp}/<project directory name>-work` instead, so the copy never
+   lands inside the original tree. Use that absolute path in every later tool
+   call.
+2. Copy the whole project, not just the queued units: `Read` every source,
+   test, manifest, config, and fixture file (`go.mod`, `pyproject.toml`,
+   `conftest.py`, `setup.cfg`, `.coveragerc`, `package.json`,
+   `tsconfig.json`, `vitest.config.*`, `Cargo.toml`, `build.rs`, `testdata/`,
+   lockfiles, and the like) at its original path and `Write` its content
+   verbatim to the same relative path under `"$work"`. Change nothing while
+   copying. Skip `.git` and build output (`target`, `dist`, `__pycache__`).
+   Link dependency directories instead of copying them, so the copy uses the
+   same installed tools without installing anything:
+   `ln -s /path/to/project/node_modules "$work/node_modules"` (likewise
+   `vendor` and `.venv`).
 3. Stage that verbatim baseline before adding any test, so `git diff` shows
    exactly what this run changed and that every original test survived:
 
