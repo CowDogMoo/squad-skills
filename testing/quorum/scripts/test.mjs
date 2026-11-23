@@ -781,13 +781,17 @@ test('exec-seat: multiple checks on one seat accumulate without clobbering vetoe
     process.execPath, '-e', 'process.exit(0)']).status, 0);
   assert.equal(seatState(judgeRun(abstainThenPass), 'gates').state, 'abstain');
 
-  // --reset explicitly replaces the prior ballot; corrupt prior ballot without --reset fails closed.
-  assert.equal(runNode([EXEC_SEAT, failThenPass, 'gates', '--reset', '--',
-    process.execPath, '-e', 'process.exit(0)']).status, 0);
-  assert.equal(judgeRun(failThenPass).verdict, 'COMPLETE');
+  // No flag can discard a recorded veto, and a corrupt prior ballot fails closed.
+  const resetRes = runNode([EXEC_SEAT, failThenPass, 'gates', '--reset', '--',
+    process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(resetRes.status, 1);
+  assert.equal(judgeRun(failThenPass).verdict, 'NOT_COMPLETE');
   writeFileSync(join(failThenPass, 'ballots', 'gates.json'), 'not json');
-  assert.equal(runNode([EXEC_SEAT, failThenPass, 'gates', '--',
-    process.execPath, '-e', 'process.exit(0)']).status, 1);
+  const corruptRes = runNode([EXEC_SEAT, failThenPass, 'gates', '--',
+    process.execPath, '-e', 'process.exit(0)']);
+  assert.equal(corruptRes.status, 1);
+  assert.ok(corruptRes.stderr.includes('fresh run directory'), corruptRes.stderr);
+  assert.equal(readFileSync(join(failThenPass, 'ballots', 'gates.json'), 'utf8'), 'not json');
 });
 
 test('rendered prompt carries the untrusted-content boundary, independence intact', () => {

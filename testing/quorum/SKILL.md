@@ -101,10 +101,10 @@ node <skill-dir>/scripts/exec-seat.mjs <run> gates --criterion "go vet ./... pas
 Multiple `exec-seat.mjs` calls on the same `<run>` and `<seat_id>` accumulate
 into one ballot (preserving every check's command, exit status, and evidence,
 and keeping `"incomplete"` if any check failed or `"abstain"` if any could not
-start; pass `--reset` only to discard an earlier ballot). Mark `exec-seat.mjs`
-seats `"requires_artifacts": true` in `panel.json`: the judge then demotes any
-vote on that seat lacking artifacts to abstain ("looks like it would work" is
-not evidence — only an execution that ran is). A failed execution is a cited
+start; a corrupt earlier ballot is an error, so start a fresh run dir). Mark
+`exec-seat.mjs` seats `"requires_artifacts": true` in `panel.json`: the judge
+then demotes any vote on that seat lacking artifacts to abstain ("looks like it
+would work" is not evidence — only an execution that ran is). A failed execution is a cited
 veto; a timed-out or unstartable one (including exit 126/127) is an abstain.
 Both fail closed.
 

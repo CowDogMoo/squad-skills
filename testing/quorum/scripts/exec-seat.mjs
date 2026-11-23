@@ -21,16 +21,14 @@
 //                          (default zero; use nonzero when the command is a
 //                          reproduction that MUST fail for the task to count
 //                          as complete)
-//   --reset                replace any existing ballot/raw output for <seat_id>
-//                          instead of accumulating checks into one ballot
 //
 // Writes <run-dir>/ballots/<seat_id>.json (canonical JSON) and the raw
 // combined output to <run-dir>/raw/<seat_id>.out. Multiple calls on the same
 // <run-dir> and <seat_id> accumulate checks into a single ballot (any
 // "incomplete" check keeps the seat "incomplete" with all failing criteria
-// preserved; else any "abstain" keeps it "abstain"; else "complete") unless
-// --reset is passed. Exits 0 whenever a ballot was written (any verdict), 1 on
-// usage or corrupt-prior-ballot error.
+// preserved; else any "abstain" keeps it "abstain"; else "complete"). Exits 0
+// whenever a ballot was written (any verdict), 1 on usage or corrupt-prior-ballot
+// error.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -56,16 +54,10 @@ let criterion = `execution check passes: ${command.join(' ')}`;
 let cwd = process.cwd();
 let timeout = 300000;
 let expect = 'zero';
-let reset = false;
-for (let i = 2; i < head.length; i += 1) {
+for (let i = 2; i < head.length; i += 2) {
   const flag = head[i];
-  if (flag === '--reset') {
-    reset = true;
-    continue;
-  }
   const value = head[i + 1];
   if (value === undefined) usage(`flag ${flag} needs a value`);
-  i += 1;
   if (flag === '--criterion') criterion = value;
   else if (flag === '--cwd') cwd = value;
   else if (flag === '--timeout') timeout = Number(value);
@@ -78,16 +70,16 @@ if (!Number.isFinite(timeout) || timeout <= 0) usage('--timeout must be a positi
 const ballotPath = join(runDir, 'ballots', `${seatId}.json`);
 const rawOutPath = join(runDir, 'raw', `${seatId}.out`);
 let prior = null;
-if (!reset && existsSync(ballotPath)) {
+if (existsSync(ballotPath)) {
   let parsed;
   try {
     parsed = JSON.parse(readFileSync(ballotPath, 'utf8'));
   } catch (err) {
-    usage(`existing ballot ${ballotPath} is unparsable (${err.message}); pass --reset to replace it`);
+    usage(`existing ballot ${ballotPath} is unparsable (${err.message}); start a fresh run directory`);
   }
   const check = validateBallot(parsed, seatId);
   if (!check.valid) {
-    usage(`existing ballot ${ballotPath} is schema-invalid (${check.errors.join('; ')}); pass --reset to replace it`);
+    usage(`existing ballot ${ballotPath} is schema-invalid (${check.errors.join('; ')}); start a fresh run directory`);
   }
   prior = parsed;
 }
