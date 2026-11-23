@@ -18,6 +18,7 @@ A comprehensive guide to writing effective Go tests following community best pra
 8. [Common Patterns](#common-patterns)
 9. [What Not to Test](#what-not-to-test)
 10. [Cobra CLI Testing](#cobra-cli-testing)
+11. [Authoring and Verification Workflow](#authoring-and-verification-workflow)
 
 ---
 
@@ -94,6 +95,45 @@ func TestParseURL(t *testing.T) {
             }
             if !reflect.DeepEqual(got, tt.want) {
                 t.Errorf("ParseURL() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```
+
+### Table with Sentinel Errors
+
+When the function under test returns exported sentinel errors (`var ErrX = errors.New(...)`), keep valid cases, boundary cases, and error paths in one table with a `wantErr error` field and assert with `errors.Is` rather than `wantErr bool` or a separate loop:
+
+```go
+func TestParsePort(t *testing.T) {
+    tests := []struct {
+        name    string
+        raw     string
+        want    int
+        wantErr error
+    }{
+        {name: "standard https port", raw: "443", want: 443},
+        {name: "minimum valid port", raw: "1", want: 1},
+        {name: "maximum valid port", raw: "65535", want: 65535},
+        {name: "empty input", raw: "", wantErr: ErrEmptyPort},
+        {name: "out of range port", raw: "70000", wantErr: ErrPortOutOfRange},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParsePort(tt.raw)
+            if tt.wantErr != nil {
+                if !errors.Is(err, tt.wantErr) {
+                    t.Fatalf("ParsePort(%q) error = %v, want %v", tt.raw, err, tt.wantErr)
+                }
+                return
+            }
+            if err != nil {
+                t.Fatalf("ParsePort(%q) unexpected error: %v", tt.raw, err)
+            }
+            if got != tt.want {
+                t.Errorf("ParsePort(%q) = %d, want %d", tt.raw, got, tt.want)
             }
         })
     }
@@ -367,6 +407,12 @@ go test -cover ./...
 
 ### Error Testing
 
+Choose the assertion that matches how the package exposes failures:
+
+1. **Sentinel errors (`var ErrNotFound = errors.New(...)`):** store `wantErr error` in the table and assert `errors.Is(err, tt.wantErr)`. Never check only `err != nil` when a specific sentinel exists, because a bug that triggers the wrong error branch would still pass.
+2. **Custom error types (`type *ValidationError`):** assert `errors.As(err, &target)` and inspect fields on `target`.
+3. **Unexported or third-party error strings (no sentinel or exported type):** check `err != nil` and match a stable substring:
+
 ```go
 func TestValidate_Errors(t *testing.T) {
     tests := []struct {
@@ -537,9 +583,20 @@ if err != nil {
     t.Fatalf("unexpected error: %v", err)
 }
 
-// Error expected
+// Error expected (no sentinel exported)
 if err == nil {
     t.Fatal("expected error, got nil")
+}
+
+// Specific sentinel error expected
+if !errors.Is(err, ErrNotFound) {
+    t.Fatalf("got error %v, want %v", err, ErrNotFound)
+}
+
+// Specific error type expected
+var vErr *ValidationError
+if !errors.As(err, &vErr) {
+    t.Fatalf("got error %T (%v), want *ValidationError", err, err)
 }
 ```
 
@@ -621,6 +678,15 @@ output := string(data)
 // GOOD — distinct name
 got := string(data)
 ```
+
+---
+
+## Authoring and Verification Workflow
+
+1. **Follow the `<source>_test.go` convention:** Place tests for `foo.go` in `foo_test.go` inside the same package directory. If the source package sits in a read-only directory, copy `go.mod` (`go.sum` if present) and the `.go` files into your writable working directory first so the module layout and package declaration stay intact.
+2. **Test behavior and skip trivial code:** Cover exported functions and methods that carry real logic, boundaries, and error returns, executing table cases as named subtests with `t.Run(tt.name, ...)`. Assert exported sentinel errors with `errors.Is` rather than `err != nil`. Leave trivial field getters and setters without dedicated tests, and note why they were skipped if they leave uncovered statements.
+3. **Run `go test` before finishing:** Execute `go test ./...` (or `go test -v -cover ./...`) in the module directory and resolve any compilation or test failures.
+4. **Show the test code and `go test` result in your response:** Include the newly written `*_test.go` file (or the added test functions when extending a large file) in a fenced `go` code block so the table structure, `t.Run` subtests, and assertions are visible, followed by the `go test ./...` command and passing output and a brief note on any trivial getters intentionally left untested.
 
 ---
 
