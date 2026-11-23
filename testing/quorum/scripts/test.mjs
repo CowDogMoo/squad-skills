@@ -793,7 +793,10 @@ test('exec-seat: multiple checks on one seat accumulate without clobbering vetoe
     assert.equal(raceBallot.artifacts.checks_run, 2);
     assert.equal(raceBallot.verdict, 'incomplete');
     assert.equal(judgeRun(raced).verdict, 'NOT_COMPLETE');
-    assert.equal(existsSync(join(raced, 'ballots', 'gates.json.lock')), false);
+    const staleLock = join(raced, 'ballots', '.gates.json.lock');
+    assert.equal(existsSync(staleLock), false);
+    writeFileSync(staleLock, '');
+    assert.equal(judgeRun(raced).verdict, 'NOT_COMPLETE');
   }
 
   // A hand-written prior ballot without execution artifacts is never laundered into a grounded result.

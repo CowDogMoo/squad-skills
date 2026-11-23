@@ -221,7 +221,7 @@ function acquireLock(lockPath) {
 
 const ballotPath = join(runDir, 'ballots', `${seatId}.json`);
 const rawOutPath = join(runDir, 'raw', `${seatId}.out`);
-const lockPath = `${ballotPath}.lock`;
+const lockPath = join(runDir, 'ballots', `.${seatId}.json.lock`);
 mkdirSync(join(runDir, 'ballots'), { recursive: true });
 mkdirSync(join(runDir, 'raw'), { recursive: true });
 
