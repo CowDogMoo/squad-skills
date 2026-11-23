@@ -13,7 +13,8 @@ A comprehensive guide to Go documentation comments following the official "Go Do
 3. [Modern Doc Comment Features](#modern-doc-comment-features)
 4. [What to Document](#what-to-document)
 5. [Common Mistakes](#common-mistakes)
-6. [Quality Checklist](#quality-checklist)
+6. [Writing and Auditing Workflow](#writing-and-auditing-workflow)
+7. [Quality Checklist](#quality-checklist)
 
 ---
 
@@ -55,7 +56,7 @@ package regexp
 **Rules:**
 
 - Start with "Package [name]"
-- Only include in ONE file of multi-file packages
+- Only include in ONE file of multi-file packages (for a single-file package, place it at the top of that file)
 - Directly adjacent to package clause (no blank line)
 - For commands, describe program behavior
 
@@ -90,7 +91,7 @@ func Contains(s, substr string) bool
 ### Types
 
 ```go
-// A Request represents an HTTP request received by a server
+// Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
 // The field semantics differ slightly between client and server
@@ -103,7 +104,7 @@ type Request struct {
 
 **Rules:**
 
-- Use "A [Type] represents..." or "[Type] is..."
+- Start with the type name ("[Type] represents..." or "[Type] manages..."); a leading article ("A [Type] represents...", "An [Type]...", "The [Type]...") is also valid
 - Document concurrency safety if relevant
 - Explain zero value behavior if non-obvious
 - Document exported fields (in type comment or per-field)
@@ -309,9 +310,9 @@ func Process(data []byte) error
 
 **Best (when the name already says it all):** add no comment. For
 self-documenting names like `String`, `Len`, or a simple getter, leaving
-the declaration undocumented is correct — list it as trivial in the
-skipped table. A lateral rewrite of an already-adequate comment is not an
-improvement either; leave it alone.
+the declaration undocumented is correct; note it as intentionally skipped
+when summarizing your changes. A lateral rewrite of an already-adequate
+comment is not an improvement either, so leave it alone.
 
 ### Implementation Details
 
@@ -434,8 +435,22 @@ Automatically formats doc comments:
 - Moves link definitions and directives to end of comment
 
 ```bash
-gofmt -w .
+gofmt -w file.go
 ```
+
+### Syntax and Build Verification
+
+Verify that comment edits formatted cleanly and left all executable Go valid. Format only the files you edited, so unrelated files are not reformatted:
+
+```bash
+# Inside a Go module (go.mod present)
+gofmt -w edited.go other_edited.go && go vet ./...
+
+# Standalone .go file with no go.mod in the directory
+gofmt -w file.go && go vet file.go
+```
+
+Passing an explicit `.go` path to `go vet` or `go build` checks syntax and types even without a `go.mod` file.
 
 ### go doc
 
@@ -484,12 +499,33 @@ if err == nil {
 
 ---
 
+## Writing and Auditing Workflow
+
+### Writing Doc Comments
+
+1. **Change comments only:** Never alter executable code, signatures, or imports during a documentation pass.
+2. **Cover non-obvious exports and skip trivial ones:** Place `// Package <name> ...` directly above `package <name>` with no blank line. Give each non-obvious exported type, function, method, constant, and variable a doc comment immediately above its declaration (no intervening blank line) starting with its declared name. Document error conditions, sentinel errors, parameter constraints, and concurrency safety; leave self-documenting methods (`String`, `Len`, simple getters) uncommented.
+3. **Verify formatting and compilation:** Run `gofmt -w` on only the files you edited, then `go vet` (using `gofmt -w <file.go> && go vet <file.go>` for a standalone file without `go.mod`, or `gofmt -w <edited files> && go vet ./...` in a module) to confirm valid, compilable Go.
+4. **Show the documented code only when needed:** If a calling agent defines a report format, follow it instead. Otherwise, put the resulting Go source in your reply, in a fenced `go` block, when either condition holds:
+   - **The user cannot see your edits:** you wrote to a copy because the original was read-only (so the user's file is unchanged), or the documented files otherwise cannot be written where the user will see them. A prose or bullet summary of the comments is not a substitute for the code.
+   - **The user asks to see the result.**
+
+   Show the complete file when documenting a single file, or each added/updated comment block together with its adjacent `package` clause or declaration signature for multi-file packages. Alongside the code, note any self-documenting exports intentionally left without a comment and record the verification command run.
+
+### Auditing Doc Comments
+
+1. **Leave files unmodified:** When asked to audit or review comments without editing, do not modify any files.
+2. **Check every file systematically:** Inspect for a missing `// Package <name>` comment, blank lines detaching a comment from its `package` clause or declaration, comments that do not start with the declared name (a leading "A", "An", or "The" before the name is not a defect), tautological comments that only restate the identifier, comments describing internal implementation instead of caller-facing behavior, and undocumented exported declarations with non-obvious behavior, return values, or errors.
+3. **Report concrete fixes:** List each defect with its declaration and line number, state the rule violated, and provide a concrete replacement comment. Distinguish non-defects such as unexported declarations and self-documenting exports that properly omit comments.
+
+---
+
 ## Quality Checklist
 
 ### Before Submitting
 
 - [ ] All exported names with non-obvious meaning have doc comments (self-documenting names left undocumented)
-- [ ] Comments start with the declared name
+- [ ] Comments start with the declared name (a leading "A", "An", or "The" is fine)
 - [ ] Complete sentences with proper punctuation
 - [ ] No blank line between comment and declaration
 - [ ] Lines within 80 characters
@@ -506,7 +542,7 @@ if err == nil {
 | Function returning value | "[Name] returns..." |
 | Function returning bool | "[Name] reports whether..." |
 | Function with side effects | "[Name] [action]s..." |
-| Type | "A [Type] represents..." or "[Type] is..." |
+| Type | "[Type] represents..." or "A [Type] represents..." |
 | Error variable | "[Name] is returned when..." |
 | Constant | "[Name] is the..." |
 
