@@ -351,37 +351,42 @@ one slot is usually an attack transient of the next note, not a note.
 long-term block tags as a distortion difference tone is never a voice, however
 high it ranks in a slot. Nor is any octave below the lowest voice, one or more
 octaves down, that the octave check's `verdict:` ruled out in Step 2
-(sub-octave images). The verdict does not strike the octave above the lowest
+(sub-octave images). The verdict does not exclude the octave above the lowest
 voice: like the octave above any voice that is already sounding, it may be
 that voice's harmonic or a played octave (an octave shape, a root-fifth-octave
 chord, an octave over a pedal). Both start and stop on the same sixteenths as
 the voice, so matching slots prove nothing either way; never cite them as
 proof. Write such a candidate into the spec, MIDI and tab only when it is
 independently played or the user named that voicing. Independently played
-means that, with difference tones and those sub-octave images struck, the
+means that, with difference tones and those sub-octave images set aside, the
 per-sixteenth table shows it in the top two for at least two consecutive slots
 where the voice an octave below is out of the top two, or a beat's per-beat
 summary lists it without that lower voice. A single slot where it edges past
 the lower voice is a flicker, not a note. Leave every other octave candidate
-out of the reading and list it in the reply as a possible played octave to
-check by ear. The candidates left are the voices, and "top two" from here on
+out of the reading; the reply covers them in one sentence (Step 8) and never
+names them. The candidates left are the voices, and "top two" from here on
 means the top two of those voices in a slot, with every excluded candidate
-struck first, so an excluded candidate never moves a voice's boundary.
+set aside first, so an excluded candidate never moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
-easy to write to the barline. End each note at the last sixteenth where it
-is still in that slot's top two, and start it at the first; the table, not
-the summary, settles a beat's edge slots. A voice that is missing from a
-beat's summary, or listed there only under "also seen", is not sounding on
-that beat, except in edge slots where the table shows it in the top two
+easy to write to the barline. One two-slot rule settles both edges: start a
+note at the first of two consecutive slots where it is in the top two, and
+end it after its last top-two slot once it is out of the top two for at
+least two consecutive slots. A voice that leaves the top two for a single
+sixteenth (behind a set-aside candidate, or a flicker) keeps sounding through
+that slot; never write a one-slot gap. A voice that is missing from a beat's
+summary, or listed there only under "also seen", is not sounding on that
+beat, except in edge slots where the table shows it in the top two
 continuing a run from the slot before or into the slot after. The summary
 ranks every candidate, so a beat whose entry lists an excluded candidate
 says nothing about which voices sound there; read that beat from the table.
 
 When a voice fades rather than stops, end it where the evidence ends and say
-it may ring on, so the user checks that by ear. The table in the reply, the
-spec, the MIDI and the tab then all show the same notes.
+it may ring on, so the user checks that by ear. The ring-out after the final
+chord is that chord's sustain: end it at the last bar's barline and never
+add another bar for it. The table in the reply, the spec, the MIDI and the
+tab then all show the same notes.
 
 **Author the reading from the audio alone.** When the audio comes with its
 answer (a test fixture's spec or expected notes, the MIDI it was rendered
@@ -559,25 +564,25 @@ the folder. Put these in it, each copied from a script's output:
   an evidence column that quotes, as printed, the per-beat summary entries
   covering each row (`1.2 E3 + B3`, `1.3 B3 + E3`), plus the slot id
   where a voice enters or drops out. For a beat whose entry lists a
-  candidate Step 5 excluded, quote instead the slot rows that show the voice
-  in the top two once that candidate is struck. Quote the entries rather than
+  candidate Step 5 excluded, cite instead the slot ids that show the voice
+  in the top two once that candidate is set aside. Quote the entries rather than
   paraphrasing slot dB values: the entry is the line that says the note is
   sounding, and the user can find it in the output. Show the evidence row by
   row; a blanket line such as "every note is supported" checks nothing and
   invites the question of which one is not. Name only pitches the salience
   output shows, and no key, scale or chord name the scripts did not print.
-  When you mention a candidate you rejected (an octave ghost, a difference
-  tone), say which output line shows it and why it is not a played note. A
-  rejection rests on printed evidence: the long-term block's difference-tone
-  tag, or the octave check's `verdict:` for the lowest voice's register, which
-  rules out reading that voice an octave high or low and so rejects the
-  octaves below it as sub-octave images, never the octave above. An octave
-  above a sounding voice goes into the reading only on Step 5's
-  independent-play test (quote the consecutive slot ids or the per-beat entry
-  that pass it) or the user's named voicing; otherwise it is listed as a possible played
-  octave to check by ear, not called a harmonic. Any other candidate neither
-  of those settles stays out of the reading and is listed as unresolved, not
-  argued away with your own arithmetic.
+  An octave above a sounding voice goes into the reading only on Step 5's
+  independent-play test (cite the consecutive slot ids or the per-beat entry
+  that pass it) or the user's named voicing.
+- Name only the voices written into the spec, MIDI and tab. In your own
+  words, never name a set-aside candidate (a difference tone, a sub-octave
+  image, an octave that was not independently played, the octave the octave
+  check rejected) as a pitch anywhere in the reply, not even to say it was
+  left out or is unresolved. In their place write one sentence: octave
+  doublings cannot be told from harmonics in this analysis, so any the user
+  played should be added after an ear check. For the octave check, give the
+  chosen octave and its confidence from the `verdict:` line, without naming
+  the octave it beat.
 - The printed lines that evidence rests on, pasted verbatim in one code block:
   `riff_salience.py`'s per-beat summary block and long-term peaks block, each
   `verdict:` line from `octave_check.py`, and the per-sixteenth row of every
@@ -587,7 +592,8 @@ the folder. Put these in it, each copied from a script's output:
   unsupported.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
-  a slot or two you would rather hold through; move the boundary.
+  two slots or more you would rather hold through; move the boundary. A
+  single-slot dip is held through (Step 5), not a gap.
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
@@ -597,7 +603,7 @@ the folder. Put these in it, each copied from a script's output:
   where wrong frets and garbled rhythms creep in, and nothing checked it.
 - The tab file's name and format, and the `compare_rolls.py` result against
   the cleaned MIDI (`ROLLS MATCH`).
-- The octave evidence, and what you did not run.
+- The octave evidence for the octaves you chose, and what you did not run.
 - "Not yet verified by ear against the audio." and a direct request for that
   check, saying what to A/B.
 
