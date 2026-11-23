@@ -162,10 +162,10 @@ Rules that go with these patterns:
 
 ### Strengthening an existing verify.yml
 
-- Give every registered check its own assertion, or replace it with a stronger
-  check that fails in at least the same cases. A `slurp` that fails on a
-  missing file may stand in for a `stat` + `exists` assert; dropping a check
-  with nothing covering its failure is a regression.
+- Keep every registered check and follow it with an assertion on its
+  registered result: a `stat` gets an assert on `.stat.exists` (and mode or
+  owner where it matters). Add stronger checks next to it, never in place of
+  it; use `slurp` only for content checks.
 - Apply the whole checklist to every task, not only the ones that look weak:
   FQCN on every module (including `service_facts`, `slurp`, `wait_for`, `uri`,
   `command`), facts gathered, and a `fail_msg` on every assert.
