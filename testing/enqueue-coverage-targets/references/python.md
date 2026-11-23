@@ -6,8 +6,12 @@ Queue unit: module (source file). `/tmp/squad-uncovered.out` lines are
 ## Pick targets for a queued module
 
 ```bash
-grep -F '<file>:' /tmp/squad-uncovered.out | head -15
+awk -v u='<file>:' 'index($0, u) == 1' /tmp/squad-uncovered.out | head -15
 ```
+
+These are the rows `enqueue.sh` printed per unit in Step 1. If
+`/tmp/squad-uncovered.out` is gone by now (a fresh `/tmp` per command), use
+that output instead of re-measuring.
 
 Aim tests at the functions containing those lines.
 
@@ -19,7 +23,9 @@ Aim tests at the functions containing those lines.
   before writing.
 - Set `SQUAD_PYTHON_PKG` to the top-level package (e.g. `myapp`) before
   Step 1 if the repo isn't laid out with sources at the root; otherwise
-  `--cov=.` measures test files too and skews the numbers.
+  `--cov=.` measures test files too and skews the numbers. (The queue
+  builder drops `tests/`, `test_*.py`, and `conftest.py` from the queue
+  either way.)
 
 ## Idiom
 

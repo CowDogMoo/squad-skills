@@ -3,7 +3,7 @@ name: test-writer-honesty
 description: "Discipline rules for any test-writing run: never clobber existing tests with Write, never fall back to Write when Edit fails, tie the final report to `git diff --stat` as ground truth, and report build and test failures truthfully. Use when writing or extending tests, or raising coverage, in any language."
 metadata:
   author: Jayson Grace
-  version: 1.0.0
+  version: 1.0.1
 ---
 
 # Test-Writer Honesty
@@ -206,12 +206,9 @@ Before writing a test for any function in a target file/module/package,
 your iteration must include a deterministic query that tells you which
 functions in that target have the lowest coverage. When the run was
 orchestrated by `enqueue-coverage-targets`, that data is already in
-`/tmp/squad-uncovered.out` and the query is one grep (exact form in that
-skill's `references/<language>.md`):
-
-```bash
-grep -F '<target>' /tmp/squad-uncovered.out | sort -t$'\t' -k2 -n | head -8
-```
+the hit rows its `enqueue.sh` printed (also saved to
+`/tmp/squad-uncovered.out`); the exact query is in that skill's
+`references/<language>.md`.
 
 Otherwise the calling orchestrator supplies the equivalent command for its
 coverage tool.

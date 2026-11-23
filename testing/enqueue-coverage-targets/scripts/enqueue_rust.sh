@@ -5,6 +5,7 @@ set -euo pipefail
 TARGET="${SQUAD_COVERAGE_TARGET:-75}"
 OUT=/tmp/squad-rust
 mkdir -p "$OUT"
+export CARGO_TARGET_DIR="$OUT/target"
 
 if [ ! -f Cargo.toml ] && [ ! -f Cargo.lock ]; then
 	echo "NOT_A_RUST_PROJECT: no Cargo.toml in $(pwd). Report 'no Rust source' honestly and stop." >&2
@@ -44,7 +45,12 @@ try:
             rows.append((100.0 * info.get("covered", 0) / total, fname))
             for tr in info.get("traces", []):
                 fns.append((fname, tr.get("stats", {}).get("Line", 0), f"line:{tr.get('line', 0)}"))
-except (FileNotFoundError, KeyError, json.JSONDecodeError):
+except FileNotFoundError:
+    print(f"NO_COVERAGE_DATA: cargo {tool} produced no report; see /tmp/squad-tests.out. Report it under Skipped.", file=sys.stderr)
+    open("/tmp/squad-targets.txt", "w").close()
+    open("/tmp/squad-uncovered.out", "w").close()
+    sys.exit(0)
+except (KeyError, json.JSONDecodeError):
     pass
 rows.sort()
 with open("/tmp/squad-targets.txt", "w") as f:

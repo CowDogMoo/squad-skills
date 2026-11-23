@@ -92,5 +92,5 @@ repos:
         name: Run bundled script tests
         entry: .hooks/run-script-tests.sh
         language: script
-        files: '^(music/(guitar-pro|transcribe-guitar-riff|ableton-double-track-timing)|testing/quorum)/|^\.hooks/run-script-tests\.sh$'
+        files: '^(music/(guitar-pro|transcribe-guitar-riff|ableton-double-track-timing)|testing/(quorum|enqueue-coverage-targets))/|^\.hooks/run-script-tests\.sh$'
         pass_filenames: false
