@@ -55,8 +55,10 @@ file in readonly mode, the run is invalid.
    comments, import ordering, naming, whitespace, and performance issues
    with no security impact. Out-of-scope items appear nowhere in the
    report: not as findings, not in the skipped table, not in the
-   summary. The skipped table is only for in-scope findings you chose
-   not to fix.
+   summary, not in Recommendations, and not in asides, trailing notes,
+   or "left alone" / "belongs to another stage" remarks. Do not name
+   them at all. The skipped table is only for in-scope findings you
+   chose not to fix; if it is empty, write "None" and nothing more.
 3. **No false positives.** Every finding cites real code with an exact
    file path and line number.
 4. **Trace the call chain.** Before rating or fixing a finding, follow
