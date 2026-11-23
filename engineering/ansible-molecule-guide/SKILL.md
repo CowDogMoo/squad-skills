@@ -160,6 +160,24 @@ Rules that go with these patterns:
 - Test observable behavior. Internal markers or temp files the role happens to
   create are implementation details.
 
+### Strengthening an existing verify.yml
+
+- Give every registered check its own assertion, or replace it with a stronger
+  check that fails in at least the same cases. A `slurp` that fails on a
+  missing file may stand in for a `stat` + `exists` assert; dropping a check
+  with nothing covering its failure is a regression.
+- Apply the whole checklist to every task, not only the ones that look weak:
+  FQCN on every module (including `service_facts`, `slurp`, `wait_for`, `uri`,
+  `command`), facts gathered, and a `fail_msg` on every assert.
+- When the caller sets no report format, the reply is often all the reviewer
+  reads, and the edited file may not be opened. Close the loop on each defect
+  the original had: say which check now fails, and under what broken-deploy
+  condition (package absent, file missing, service stopped). State
+  file-wide properties as facts about the whole file ("every module is
+  FQCN", "every assert has a `fail_msg`") instead of listing a few examples.
+  If the caller defines a report format, follow that and keep this content
+  inside it.
+
 Verifier choice: the `ansible` verifier (default since Molecule v3) suits
 small YAML suites. `testinfra` (Python) suits large, looping, or parametrized
 suites. `goss` is a fast YAML alternative. All of them must assert outcomes.
