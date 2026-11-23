@@ -3,7 +3,7 @@ name: enqueue-coverage-targets
 description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and prints a queue of every package or file below target (also saved to /tmp/squad-targets.txt), then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
 metadata:
   author: Jayson Grace
-  version: 2.1.0
+  version: 2.1.1
 ---
 
 # Enqueue Coverage Targets
@@ -75,30 +75,61 @@ to the top-level package when sources aren't at the repo root).
 
 If the script reports `UNKNOWN_PROJECT`, `NOT_A_<LANG>_PROJECT`,
 `NO_COVERAGE_TOOL`, or `NO_COVERAGE_DATA`, the queue is empty on purpose.
-Stop, and send the report below in its early-stop form (`Files Touched:
-none`, `After: not measured`).
+Stop immediately and send the fenced report below in its early-stop form
+(`Before: not measured`, `After: not measured`, `Files Touched: none`,
+`Tests Added: none`).
 Don't install packages on the user's system, don't create source files to
 test, and don't pivot to a different language. A run that silently changes
 scope is worse than one that reports it can't proceed.
 
 ## Step 1a — Working copy (only if the project can't be edited in place)
 
-If the project directory is read-only, or the request says to copy it before
-changing it, make a writable copy now and do every later step in the copy.
-Use `cp -r`. If the shell denies the copy, stop and send the report below in
-its early-stop form, naming the denied copy under Skipped. Do not look for
-another way around a denial.
+Edit the project in place by default. Only make a working copy when the
+project directory is read-only, sits outside your writable working
+directories, or the request asks to leave the original untouched.
 
-After that the copy is the project. An existing test file in it still gets
-`Edit`, never a second `Write` with new contents, and its original tests must
-survive. The queue from Step 1 stays valid because the code is the same.
+Copy the project byte-for-byte into a fresh scratch directory under
+`"${TMPDIR:-/tmp}"`, and stage a local git baseline when the copy is outside
+any git worktree so `git diff` tracks your test additions against the
+originals:
+
+```bash
+work=$(mktemp -d "${TMPDIR:-/tmp}/work.XXXXXX") && cp -R /path/to/project/. "$work/" && echo "$work"
+git -C "$work" rev-parse --is-inside-work-tree >/dev/null 2>&1 || (git -C "$work" init -q && git -C "$work" add -A)
+```
+
+Why `"${TMPDIR:-/tmp}"` and `<project>/.`: sandboxed shells often reject `cp`
+into protected working directories while allowing scratch directories under
+`"${TMPDIR:-/tmp}"`, and trailing `/.` copies the project root's contents
+(`go.mod`, `package.json`, `Cargo.toml`, `tests/`) without nesting an extra
+directory level.
+
+Make this copy **before** Step 2's reads. From here on, `"$work"` is the
+project:
+
+- Call `Read` on source and existing test files at their `"$work/..."` paths
+  (`Edit` requires `Read` on that exact destination path first).
+- Add tests to existing test files strictly with `Edit`, never `Write`, and
+  keep every original test unremoved and unrenamed. Never use `Write` to copy
+  or recreate an existing test file in another directory — re-emitting a file
+  synthesizes tokens instead of copying bytes and can drop or alter existing
+  tests. (If you create a brand-new test file with `Write`, run
+  `git -C "$work" add -N <new-file>` so `git diff` tracks it.)
+- Run Step 3 build, test, coverage re-measurement, and `git diff` from inside
+  `"$work"`. The queue from Step 1 stays valid because the code is identical.
+
+Only if both editing in place and copying into `"${TMPDIR:-/tmp}"` fail with
+permission errors should you stop and report the unit under `Skipped` in the
+early-stop form (`Files Touched: none`, `Tests Added: none`, `After: not
+measured`).
 
 ## Step 1b — Pick targets mechanically
 
 Read the reference file for the project's language (`references/<lang>.md`;
 naming, idiom, and the verify commands come from it). Then, for each queued
-unit, take the 3–5 lowest-hit functions or lines from the hit rows Step 1
-printed (the same rows as the command in the reference file). Test only those.
+unit, take the 3–5 lowest-hit functions or uncovered line ranges from
+`/tmp/squad-uncovered.out` — already printed in Step 1's hit rows (use those
+printed rows directly if `/tmp/squad-uncovered.out` is gone). Test only those.
 Prior runs that chose targets by judgment wrote many tests against
 already-covered code and moved the number 0% — the hit data is what makes a
 test count.
@@ -145,45 +176,52 @@ point is exactly the truncation failure above.
 
 ## Step 3 — Verify and report (last 2–3 iterations)
 
-Run the language's build and test commands once (reference file). Fix only
-test code on failure.
+From inside the project directory (or `"$work"` when Step 1a created a working
+copy), run the language's build, test, and coverage re-measurement commands
+once (see `references/<lang>.md`), plus `git diff --stat` and `git diff` on
+the touched test files to confirm zero existing test functions were removed or
+renamed. Fix only test code on failure.
 
-Then re-measure coverage with the command in the reference file and copy the
-real numbers into the report. If you skip re-measurement, the "After" column
-says "not measured" — a projected number is a fabrication, and the caller's
-report format treats it as one.
+Copy the real re-measured percentage into the report. If you skip
+re-measurement, the `After` field says `not measured` — a projected number is
+a fabrication, and the caller's report format treats it as one.
 
 Emit the caller's OUTPUT FORMAT report as a transcript of what happened, not
 a projection. The reader sees only this final message, so every claim about
-how the run went has to be in it. If the caller doesn't dictate a format, use:
+how the run went has to be in it. When the caller doesn't dictate a format,
+always emit this fenced `text` block:
 
 ```text
 Coverage Report
-  Target: <N>%   Before: <overall % from Step 1>   After: <re-measured % | not measured>
-Files Touched
-  <path> (Edit | Write)        or: none
-Tests Added
-  <test name> in <file> — covers <function or lines from the hit rows>      or: none
-Skipped
-  <unit or function> — <specific reason>      or: none
-Run Record
-  1. First command: <exact enqueue.sh command with target and language>; queue: <units and %>
-  2. Reference read: references/<lang>.md — applied: <naming / idiom>
-  3. Targets taken from the hit rows: <unit>: <functions or lines>
-  4. Per file: Read <source>; Read <existing test file> (its tests: <names>); then Edit | Write <file>
-  5. Existing tests kept: <names>
-  6. Coverage commands run: enqueue.sh (Step 1), <verify command> (Step 3); none in between
+  Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
+  Working Copy: <in place | <$work path> (copied from read-only <source>; originals untouched)>
+Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
+Diff Summary: <none, or `git diff --stat` output plus confirmation that 0 existing test functions were removed or renamed>
+Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
+Skipped: <none, or newline-indented `<unit or function> — <specific reason>` lines>
+Run Record:
+  1. First command: <exact standalone enqueue.sh command with target and language>; queue: <units and %>
+  2. Reference read: <references/<lang>.md — applied: <naming and idiom> | none (no supported project)>
+  3. Targets from /tmp/squad-uncovered.out: <unit: functions or line ranges | none>
+  4. Per file: <Read <source>; Read <existing test file> (existing tests: <names>); then Edit | Write <file> | none>
+  5. Existing tests preserved in diff: <names (0 removed or renamed test functions in git diff) | n/a>
+  6. Coverage commands run: <enqueue.sh (Step 1), <Step 3 command>; none in between | enqueue.sh (Step 1) only>
 ```
 
-- **Files Touched** — only files you `Write`d or `Edit`ed this run (a working
-  copy's files are not "touched"; say that you made a copy).
-- **Tests Added** — only test functions you appended this run.
-- **After** — from re-measurement, or the literal `not measured`.
-- **Run Record** — in the order it happened, naming the tool for each file.
-  Never write "edited in place" or "kept existing tests" without having read
-  the file first and saying so.
-- **Early stop** (nothing to queue): `Files Touched: none`, `Tests Added: none`,
-  `After: not measured`, plus the script's reason in one line.
+- **Files Touched** — only test files you `Edit`ed or `Write`d this run
+  (relative to the project or working copy; unmodified files copied during
+  Step 1a are not touched), or the literal `none`.
+- **Tests Added** — only new test functions added this run, each tied to the
+  function or lines from `/tmp/squad-uncovered.out` it covers, or `none`.
+- **After** — from Step 3 re-measurement, or the literal `not measured`.
+- **Run Record** — in the order it happened, naming `Edit` vs `Write` for each
+  file and confirming existing test functions were preserved in `git diff`.
+  Never claim a file was edited or existing tests were kept without having
+  `Read` the file first and verified `git diff`.
+- **Early stop** (nothing to queue): keep the fenced block and write literal
+  `Before: not measured`, `After: not measured`, `Files Touched: none`,
+  `Diff Summary: none`, and `Tests Added: none`, with the script's reason
+  under `Skipped`.
 
 ## Constraints that override your judgment
 
