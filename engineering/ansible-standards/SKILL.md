@@ -775,11 +775,11 @@ offline: false
 
 ### Common Rules
 
-| Rule                | Description                         |
-| ------------------- | ----------------------------------- |
-| `yaml[line-length]` | Lines should be <=160 chars         |
-| `name[casing]`      | Task names should be capitalized    |
-| `fqcn[action-core]` | Use FQCN for builtin modules        |
+| Rule                | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `yaml[line-length]` | Lines should be <=160 chars                 |
+| `name[casing]`      | Task names should be capitalized            |
+| `fqcn[action-core]` | Use FQCN for builtin modules                |
 | `no-changed-when`   | Commands should have `changed_when`         |
 | `no-jinja-when`     | Never wrap `when`/`changed_when` in `{{ }}` |
 | `risky-shell-pipe`  | Shell pipes can hide failures               |
@@ -976,16 +976,7 @@ ansible-playbook site.yml --ask-vault-pass
 
 ### Companion Document
 
-See also: [references/review-criteria.md](references/review-criteria.md) for detailed coverage of:
-
-- Variable precedence (18 levels)
-- Conditionals and boolean handling
-- Loops (`loop` vs `with_items`)
-- Handlers and `listen` keyword
-- Error handling with `block`/`rescue`/`always`
-- `include_tasks` vs `import_tasks`
-- Jinja2 filters reference
-- Registered variables and return values
+See [references/review-criteria.md](references/review-criteria.md) for the review checklist and its read-when index to the topic files.
 
 ### Official Documentation
 
