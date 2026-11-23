@@ -104,7 +104,7 @@ def read_spec(path):
                 for n in notes:
                     librosa.note_to_midi(n)
                 rows.append((int(parts[0]), float(parts[1]), float(parts[2]), notes))
-            except ValueError:
+            except (ValueError, librosa.util.exceptions.ParameterError):
                 raise SystemExit(f"malformed spec line (want 'BAR START END NOTE [NOTE ...]'): "
                                  f"{raw.strip()!r}") from None
     return rows
@@ -343,7 +343,7 @@ def main() -> int:
             seg_notes.append(note_for(cursor, cursor + ticks, notes))
             cursor += ticks
 
-        midis = [tuple(int(librosa.note_to_midi(n)) for n in group) if group else None
+        midis = [tuple(sorted(int(librosa.note_to_midi(n)) for n in group)) if group else None
                  for group in seg_notes]
         path = choose_fingering(midis, tuning_midi, args.max_fret, args.reach)
 

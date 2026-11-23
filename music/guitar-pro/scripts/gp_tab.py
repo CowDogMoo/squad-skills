@@ -39,9 +39,9 @@ except ImportError:  # pragma: no cover
         f"PyGuitarPro is not importable from {sys.executable}. Another python3 "
         "on this machine may already have it (try `which -a python3`). "
         "Otherwise make a virtualenv somewhere writable:\n"
-        '    uv venv "$TMPDIR/gp-venv"\n'
-        '    uv pip install --python "$TMPDIR/gp-venv/bin/python" -r scripts/requirements.txt\n'
-        'then run this script with "$TMPDIR/gp-venv/bin/python".'
+        '    uv venv "${TMPDIR:-/tmp}/gp-venv"\n'
+        '    uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt\n'
+        'then run this script with "${TMPDIR:-/tmp}/gp-venv/bin/python".'
     )
 
 
@@ -535,6 +535,11 @@ class Tab:
             if all(not v.beats for v in measure.voices) or not measure.voices:
                 return i
         return len(track.measures)
+
+    def _pitched_tracks(self, track: int | None) -> list[tuple[int, gpm.Track]]:
+        if track is not None:
+            return [(track, self._track(track))]
+        return [(i, t) for i, t in enumerate(self.song.tracks) if not t.isPercussionTrack]
 
     def _track(self, index: int) -> gpm.Track:
         try:
@@ -1304,9 +1309,8 @@ class Tab:
         left alone rather than silently wrapping to a wrong pitch -- the count
         of skipped notes is reported so you know the shift did not fit.
         """
-        targets = self.song.tracks if track is None else [self._track(track)]
         skipped = 0
-        for trk in targets:
+        for _index, trk in self._pitched_tracks(track):
             for measure in trk.measures:
                 for voice in measure.voices:
                     for beat in voice.beats:
@@ -1335,8 +1339,7 @@ class Tab:
         push open strings below fret 0, which a downward transposition of a
         riff built on open strings always does.
         """
-        targets = self.song.tracks if track is None else [self._track(track)]
-        for trk in targets:
+        for _index, trk in self._pitched_tracks(track):
             for string in trk.strings:
                 string.value += semitones
         return self
@@ -1344,10 +1347,9 @@ class Tab:
     def fret_shift_fits(self, semitones: int, track: int | None = None) -> bool:
         """True when transpose(semitones) can move every note without any
         falling off the fretboard."""
-        targets = self.song.tracks if track is None else [self._track(track)]
         return all(
             0 <= note.value + semitones <= trk.fretCount
-            for trk in targets
+            for _index, trk in self._pitched_tracks(track)
             for measure in trk.measures
             for voice in measure.voices
             for beat in voice.beats
@@ -1362,9 +1364,7 @@ class Tab:
         transposition moved every note, and moved it by the right amount.
         """
         out = []
-        indices = range(len(self.song.tracks)) if track is None else [track]
-        for index in indices:
-            trk = self._track(index)
+        for index, trk in self._pitched_tracks(track):
             tuning = {s.number: s.value for s in trk.strings}
             cursor = 0
             for measure in trk.measures:
@@ -1540,6 +1540,10 @@ def _tuning_label(track_info: dict[str, Any]) -> str:
     return f"{name} ({pitches})" if name else pitches
 
 
+def _first_pitched(info: dict[str, Any]) -> dict[str, Any]:
+    return next((t for t in info["tracks"] if not t["is_percussion"]), info["tracks"][0])
+
+
 def _verify_line(path: str, tab: "Tab") -> str:
     """One line summarizing a file as reloaded from disk."""
     info = tab.info()
@@ -1621,7 +1625,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "transpose":
         original = Tab.load(args.path)
         before = original.sounding_notes()
-        old_tuning = _tuning_label(original.info()["tracks"][0])
+        old_tuning = _tuning_label(_first_pitched(original.info()))
         method = "frets" if original.fret_shift_fits(args.semitones) else "retune"
         tab = Tab.load(args.path)
         if method == "frets":
@@ -1638,7 +1642,7 @@ def main(argv: list[str] | None = None) -> int:
             + ("(frets moved, tuning kept)" if method == "frets"
                else "(frets kept, every string re-pitched; a fret shift would push notes below fret 0 or past the last fret)")
         )
-        print(f"wrote {args.out}: tuning {_tuning_label(saved.info()['tracks'][0])}")
+        print(f"wrote {args.out}: tuning {_tuning_label(_first_pitched(saved.info()))}")
         if after != shifted:
             print(
                 f"VERIFY FAILED: the copy's notes are not all {args.semitones:+d} "

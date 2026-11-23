@@ -43,11 +43,11 @@ can write to (the skill directory is often read-only, so use a temp or project
 directory) and install into it:
 
 ```bash
-uv venv "$TMPDIR/gp-venv"
-uv pip install --python "$TMPDIR/gp-venv/bin/python" -r scripts/requirements.txt
+uv venv "${TMPDIR:-/tmp}/gp-venv"
+uv pip install --python "${TMPDIR:-/tmp}/gp-venv/bin/python" -r scripts/requirements.txt
 ```
 
-Without `uv`, `python3 -m venv "$TMPDIR/gp-venv" && "$TMPDIR/gp-venv/bin/pip"
+Without `uv`, `python3 -m venv "${TMPDIR:-/tmp}/gp-venv" && "${TMPDIR:-/tmp}/gp-venv/bin/pip"
 install -r scripts/requirements.txt` does the same job. If the install fails
 because there is no network, look for an interpreter that already has the
 packages (`which -a python3`, `pip list 2>/dev/null | grep -i guitarpro`) before
@@ -199,7 +199,7 @@ which one works:
 The `transpose` command picks the method automatically and has no flag to
 override it: it moves the frets when every shifted note stays between fret 0
 and the last fret, and otherwise keeps the frets and retunes every string by the
-shift. It writes a new file, then proves the result by comparing every sounding
+shift. Drum tracks are left as they are. It writes a new file, then proves the result by comparing every sounding
 note against the original:
 
 ```bash

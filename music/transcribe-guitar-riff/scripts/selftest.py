@@ -441,7 +441,12 @@ def main() -> int:
     junk = os.path.join(tmp, "junk.spec")
     with open(junk, "w") as fh:
         fh.write("1 1.0 2.0 A#3 banana\n")
-    run(os.path.join(HERE, "tab_build.py"), junk, "--tuning", "E2,A2,D3,G3,B3,E4", expect_rc=1)
+    p = subprocess.run([PY, os.path.join(HERE, "tab_build.py"), junk, "--tuning", "E2,A2,D3,G3,B3,E4"],
+                       capture_output=True, text=True)
+    if p.returncode != 1 or "malformed spec line" not in p.stderr:
+        print(p.stdout[-3000:], p.stderr[-3000:])
+        raise SystemExit(f"FAIL: tab_build.py junk spec exit {p.returncode}, expected 1 with "
+                         "a 'malformed spec line' message")
     print("tab_build: dyad tremolo .gp5 replays the cleaned MIDI; one-note-off, 8-string and "
           "malformed controls all refused")
 

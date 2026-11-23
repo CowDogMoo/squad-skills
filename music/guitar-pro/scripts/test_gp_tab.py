@@ -476,6 +476,34 @@ def main() -> int:
         and [n.value for b in beats_of(Tab.load(up)) for n in b.notes] == [3, 3, 6, 8, 5],
     )
 
+    band = Tab(tuning="drop-d")
+    band.riff("8:6.0 8:6.0 8:6.3 8:6.5 4:5.2 4:r")
+    drums = band.add_track("Drums", is_percussion=True, fret_count=127)
+    band.riff("4:1.36 4:1.38 4:1.36 4:1.38", track=drums)
+    band.song.tracks[drums].fretCount = 24
+    for string in band.song.tracks[drums].strings:
+        string.value = 0
+    band_src = os.path.join(tmp, "tr_band.gp5")
+    band.save(band_src)
+    drum_hits = Tab.load(band_src).sounding_notes(track=drums)
+    for semis, label in ((3, "moves frets"), (-2, "retunes")):
+        band_out = os.path.join(tmp, f"tr_band_{semis}.gp5")
+        rc = gp_tab_cli(["transpose", band_src, band_out, "--semitones", str(semis)])
+        out = Tab.load(band_out)
+        guitar_ok = (
+            [n.value for b in beats_of(out) for n in b.notes] == [3, 3, 6, 8, 5]
+            if semis == 3
+            else out.info()["tracks"][0]["tuning_name"] == "drop-c"
+        )
+        check(
+            f"transpose CLI {label} the guitar and leaves the drum track alone",
+            rc == 0
+            and guitar_ok
+            and out.sounding_notes(track=drums) == drum_hits
+            and [s.value for s in out.song.tracks[drums].strings] == [0] * 6,
+            f"rc={rc} drums={out.sounding_notes(track=drums)}",
+        )
+
     print("\n[measure length validation]")
     tab = Tab(tuning="7-string")
     tab.riff("8:7.0 8:7.0 16:7.0 16:7.3 8:7.5 8:7.0 4:7.0")  # 3.5 beats, not 4
