@@ -252,11 +252,13 @@ seat returns prose, schema-invalid JSON, or no output:
    disk (a staged run dir with only `panel.json` and `ballots/`). Never skip it
    or decline it for that reason. Regenerate the identical prompt with
    `render-prompts.mjs` from the run's `stage/` and `seats.json` (rendering is
-   deterministic). The re-ask runs only with the original or that regenerated
-   identical prompt: if neither can be produced, never write a substitute
-   prompt and never report a re-ask that did not happen — state that the one
-   re-ask could not be run, leave the seat absent, and go to step 3.
-   Otherwise:
+   deterministic). The decision is always exactly one re-ask of that seat with
+   its same rendered prompt; lead the report with that decision and the exact
+   command below that performs it. It runs only with the original or that
+   regenerated identical prompt. If neither can be produced, that one re-ask
+   stays the pending next step, not a skipped one: say it could not be run
+   here and why, never write a substitute prompt, never report a re-ask that
+   did not happen, leave the seat absent, and go to step 3. Otherwise:
    - Subagent mode: spawn one fresh read-only subagent for `<seat_id>` alone
      (same isolation rules as step 2), recompute the fingerprint once it returns
      (a change voids the run as in step 4 and counts toward its one-retry cap),
