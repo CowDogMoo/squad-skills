@@ -35,7 +35,7 @@ open string's frequency, and conclude the riff sits in that string's octave. Do
 not agree on that evidence alone, even when no audio is attached. Walk them
 through the tests that decide it, using their numbers, and answer about the
 octave or peak they named directly, by name, even when the measurement rules
-it out:
+it out (Step 8's ban on naming set-aside candidates does not cover it):
 
 1. **Cents offset.** A played note sits within a few cents of where the guitar
    is tuned. Compute the offset, cents = 1200 x log2(peak / tuned frequency),
@@ -131,11 +131,8 @@ python scripts/octave_check.py "OUT/clip (raw).wav" --bpm 120 --origin-beat 64 \
 It samples attacks across the whole section and fits a harmonic comb at every
 octave of the candidate over a wide band, reporting how often each wins.
 
-It decides the register of the lowest voice only; the upper voices follow
+It decides the register of the lowest voice; the upper voices then follow
 from the cents column and the fact that they are not harmonics of it (Step 4).
-Do not point it at an upper voice: on a dyad the lower note sounds in the
-same attacks, the vote splits, and the split answer has contradicted the
-per-sixteenth rows.
 Give it one pitch class at each octave in reach (`E1,E2,E3,E4` for a pedal
 you read as E), over only the bars where that note is the lowest voice. When
 the pedal changes (E3 for three bars, then D#3), check each stretch on its
@@ -356,34 +353,26 @@ it only under the one-slot exception below.
 
 **Decide which candidates are voices before drawing any boundary.** A peak the
 long-term block tags as a distortion difference tone is never a voice, however
-high it ranks in a slot. Nor is a candidate whose fret list in the row is empty
-(`[]`): no string in the stated tuning can play it, so it is a product of the
-notes above it, not this guitar's note. Nor is any octave below the lowest voice, one or more
+high it ranks in a slot. Nor is any octave below the lowest voice, one or more
 octaves down, that the octave check's `verdict:` ruled out in Step 2
-(sub-octave images). Each of these reasons is a printed fact (the tag, the
-empty fret list, the `verdict:` line), and the reply states it wherever it
-quotes a row or entry that names the candidate. The verdict does not exclude the octave above the lowest
+(sub-octave images). The verdict does not exclude the octave above the lowest
 voice: like the octave above any voice that is already sounding, it may be
 that voice's harmonic or a played octave (an octave shape, a root-fifth-octave
 chord, an octave over a pedal). Both start and stop on the same sixteenths as
 the voice, so matching slots prove nothing either way; never cite them as
 proof. Write such a candidate into the spec, MIDI and tab only when it is
 independently played or the user named that voicing. Independently played
-means that, with difference tones, empty-fret candidates and those
-sub-octave images set aside, the
+means that, with difference tones and those sub-octave images set aside, the
 per-sixteenth table shows it in the top two for at least two consecutive slots
 where the voice an octave below is out of the top two, or a beat's per-beat
 summary lists it without that lower voice. A single slot where it edges past
 the lower voice is a flicker, not a note; the one-slot exception below never
 applies to the octave above a sounding voice. Leave every other octave
-candidate out of the reading. Its measured reason is the test it failed, as
-the rows show it: it never sits in the top two without the voice an octave
-below for two consecutive slots (name the single slots where it does, if
-any), so it behaves as that voice's harmonic. The candidates left are the
-voices, and "top two" from here on means the top two of those voices in a
-slot, with every excluded candidate (difference tone, empty fret list,
-sub-octave image, octave that failed the independent-play test) set aside
-first, so an excluded candidate never moves a voice's boundary.
+candidate out of the reading; what the reply says about them is governed by Step 8,
+including both of its exceptions. The candidates left are the voices, and
+"top two" from here on means the top two of those voices in a slot, with
+every excluded candidate set aside first, so an excluded candidate never
+moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
@@ -603,45 +592,33 @@ the folder. Put these in it, each copied from a script's output:
   An octave above a sounding voice goes into the reading only on Step 5's
   independent-play test (cite the consecutive slot ids or the per-beat entry
   that pass it) or the user's named voicing.
-- Say what a slot shows in the row's own terms: give the voice's place and
-  dB as printed ("B3 third, -10.8 dB"), and when your claim rests on setting
-  candidates aside, name each one printed above the voice and its reason
-  ("second once E4 and C#1 are set aside: E4 is E3's harmonic, C#1 has no
-  string"). Never call a voice second, still sounding or in the top two in
-  a slot whose row shows otherwise.
-- Account for every candidate a quoted line names that the reading leaves
-  out, in that row's evidence, with the measured reason from Step 5: tagged
-  as a difference tone, empty fret list, ruled out by the `verdict:` line, or
-  an octave that failed the independent-play test, said as the rows show it
-  ("E4 is in the top two without E3 only at 2.3.1, never two slots running:
-  E3's harmonic"). State it as a finding about that line, not as a note that
-  might be there. Candidates no quoted line shows need no mention.
-  For the octave check, give the chosen octave and its confidence from the
-  `verdict:` line. When the user names an octave or peak, answer about it
+- Name only the voices written into the spec, MIDI and tab. In your own
+  words, never name a set-aside candidate the user did not raise (a
+  difference tone, a sub-octave image, an octave that was not independently
+  played, the octave the octave check rejected) as a pitch anywhere in the
+  transcription reply, not even to say it was left out or is unresolved. In
+  their place write one sentence: octave doublings cannot be told from
+  harmonics in this analysis, so any the user played should be added after an
+  ear check. For the octave check, give the chosen octave and its confidence
+  from the `verdict:` line, without naming the octave it beat. This gives way
+  in two places: when the user names an octave or peak, answer about it
   directly with the measured numbers ("When the question is about the
-  octave"); a `?` beat shows its candidates, labelled as unresolved
+  octave"); and a `?` beat may show its candidates, labelled as unresolved
   candidates, not as played notes (Guardrails).
 - The printed lines that evidence rests on, pasted verbatim in one code block:
   `riff_salience.py`'s per-beat summary block and long-term peaks block, each
   `verdict:` line from `octave_check.py`, and the per-sixteenth row of every
-  slot id the reply cites. Save the script's output to a file and pull the
-  cited rows out of it with `grep`; a row retyped from memory is a row the
-  script never printed, and a correction note after it does not take it
-  back. Paste the `grep` output itself. The reader checks your reading against the output
+  slot id the reply cites. The reader checks your reading against the output
   only through your message, so an entry, slot id or dB value cited without
-  its printed line cannot be checked. Each pasted row either agrees with
-  the reading or carries its reason.
+  its printed line cannot be checked, and a pitch nobody can check reads as
+  unsupported.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
   two slots or more you would rather hold through; move the boundary. A
   single-slot dip is held through, not a gap, unless Step 5's one-slot
-  exception makes it a one-slot rest; never call a slot a dip unless its row
-  shows one. A note your
-  reply would call probable ring-over, decay or doubtful is not in the
-  reading: settle it from the slots and leave it out (Step 5), and give the
-  measured reason where a quoted row shows it. Report what was left out,
-  what was not run, and each uncertain edge or possible ring-on as a doubt
-  for the user to check by ear (Step 5).
+  exception makes it a one-slot rest. A note your reply would call probable
+  ring-over, decay or doubtful is not in the reading:
+  settle it from the slots and leave it out (Step 5).
   Do not cite a check that came out weak as support for the reading.
 - That the reading came from the audio alone (Step 5).
 - The fretting in the user's tuning, with string and fret numbers, and the
