@@ -37,13 +37,13 @@ through the tests that decide it, using their numbers:
 
 1. **Cents offset.** A played note sits within a few cents of where the guitar
    is tuned. Compute the offset, cents = 1200 x log2(peak / tuned frequency),
-   and say what it means. On the real job behind this skill, a peak read as
-   "A#2" at 118.4 Hz sat +28 cents sharp of the tuned string (116.5 Hz) - far
-   too much for a string the player tuned - and it was not a played note.
+   and say what it means. For example, a peak read as "C2" at 66.5 Hz sits
+   +29 cents sharp of the tuned string (65.41 Hz) - far too much for a
+   string the player tuned - so it is not a played note.
 2. **Difference tone.** Distortion makes intermodulation products at |a - b|
    of two stronger components. Check whether the suspect peak equals the
-   difference of two other peaks: on that job 118.4 = 349.9 (F4) - 231.5
-   (A#3), exactly. A peak that is off-grid AND equals a difference is a
+   difference of two other peaks: in that example 66.5 = 196.4 (G3) - 129.9
+   (C3), exactly. A peak that is off-grid AND equals a difference is a
    distortion product, not the riff.
 3. **Independent harmonics.** A real fundamental also lights up its octave
    above, so the loudest octave proves nothing; the register is the one whose

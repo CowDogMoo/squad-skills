@@ -29,9 +29,9 @@ Two filters are on by default:
   the guitar is not at A440, pass `--all-peaks` and read the cents column.
 - **No octave collapsing.** Folding a peak onto a strong peak one octave
   below sounds right in theory, but heavy distortion puts subharmonic energy
-  everywhere and the fold deletes real upper-voice notes (measured: F4 and
-  D4 vanished from the synthetic control). It exists as `--collapse-octaves`
-  for cleaner sources only.
+  everywhere and the fold deletes real upper-voice notes (measured: two
+  upper-voice notes vanished from the synthetic control). It exists as
+  `--collapse-octaves` for cleaner sources only.
 
 The per-16th table is the evidence. The per-beat summary is a reading aid:
 notes that sit in the top two of at least half the beat's slots. A dyad
@@ -135,20 +135,20 @@ resolution. Report it and get a reference tab; do not keep processing.
 ## Deciding the octave
 
 Every fundamental f also lights up 2f (f's even harmonics are 2f's
-harmonics), so A#3 and A#4 both rank high on an A#3 note. The evidence that
-decides:
+harmonics), so C3 and C4 both rank high on a C3 note. The evidence that
+decides (example numbers: a C3 pedal under a G3, E3 and G#3 upper voice):
 
 1. The long-term spectrum peak for the true fundamental sits within a few
    cents of equal temperament. In the reference riff every played note was
-   within +-14 cents; the "A#2" at 118.4 Hz was +28 cents sharp of the tuned
-   open string (116.54 Hz).
+   within +-14 cents; in the example, a "C2" peak at 66.5 Hz is +29 cents
+   sharp of the tuned open string (65.41 Hz).
 2. A distortion **difference tone** sits at |a - b| of two other components.
-   118.4 = 349.9 (F4) - 231.5 (A#3), exactly. The script flags a peak only
+   66.5 = 196.4 (G3) - 129.9 (C3), exactly. The script flags a peak only
    when it is BOTH off-grid by more than 20 cents AND equals a difference of
    two other peaks; either alone is common by coincidence.
-3. The upper voice pins the register: D4 (296 Hz) and F#4 (371 Hz) are not
-   harmonics of any lower pedal, so the pedal they sit above is A#3, not
-   A#2.
+3. The upper voice pins the register: E3 (166 Hz) and G#3 (208 Hz) are not
+   harmonics of any lower pedal, so the pedal they sit above is C3, not
+   C2.
 
 State the octave decision and its evidence in the README you deliver; the
 user cannot hear the spectrogram.
@@ -201,8 +201,8 @@ corroboration; the cleaned reading is authored from the salience table.
   command that returns notes from any clip. Add notes to a session clip,
   duplicate it to the arrangement, and verify by opening the clip in Live's
   editor (screen control) if a reviewer demands direct evidence.
-- **Live's octave naming** is C3 = MIDI 60, so MIDI 58 shows as A#2 in the
-  clip editor while the analysis calls it A#3. Say which convention a number
+- **Live's octave naming** is C3 = MIDI 60, so MIDI 64 shows as E3 in the
+  clip editor while the analysis calls it E4. Say which convention a number
   uses.
 
 ## Tab output
