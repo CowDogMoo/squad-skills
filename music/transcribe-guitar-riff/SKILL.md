@@ -327,12 +327,16 @@ way every time, and it prints the row behind every decision:
 
 ```bash
 python scripts/riff_read.py "OUT/clip (mono).wav" --bpm 120 \
-  --tuning E2,A2,D3,G3,B3,E4 --lowest A#3,A3 --spec OUT/riff.spec --json OUT/reading.json
+  --tuning E2,A2,D3,G3,B3,E4 --lowest A#3@1-3,A3@4 --spec OUT/riff.spec --json OUT/reading.json
 ```
 
-`--lowest` takes the note each `octave_check.py` `verdict:` line named, one
-per pedal stretch (Step 2); the script refuses to run without it, because the
-register is the octave check's call, not the reader's. Pass the same
+`--lowest` takes the note each `octave_check.py` `verdict:` line named, with
+the bars that run covered, one per pedal stretch (Step 2): `NOTE@FIRST-LAST`,
+or `NOTE@BAR` for one bar, with bars numbered as in the slot ids. Each note
+applies only in its own bars, so one stretch's pedal never sets aside the
+octave of another stretch's upper voice; a bare note covers the whole riff.
+The script refuses to run without it, or with a bar it leaves uncovered,
+because the register is the octave check's call, not the reader's. Pass the same
 `--tuning`, `--offset`, `--bar-offset` and `--tune-offset`/`--auto-tune` as
 the salience run, and `--voices 3` for a three-note chord riff. Its docstring
 lists the rules; in short:
@@ -345,8 +349,9 @@ lists the rules; in short:
   note), `N dB under the lead`, or `weaker than 2 voices`.
 - **Edges.** A one-slot dip is held; a one-slot flicker is dropped. A note
   that a new note in the same line attacks over ends at that attack. A note
-  that fades out on its own loses its last 0.25 s: that sound is its last
-  pick ringing on. A note still sounding at the last barline ends there; the
+  that ends on its own is cut 0.25 s before its fade: that sound is taken as
+  its last pick ringing on, so a held or let-ring note may be written up to
+  0.25 s short. A note still sounding at the last barline ends there; the
   ring-out after the final chord is not another bar.
 
 It prints the reading as a spec (also written by `--spec`), a `note edges`
@@ -368,7 +373,8 @@ the inputs (tempo, offset, tuning, `--lowest`), rerun, and report what still
 looks wrong as a doubt for the ear check, quoting the rows. The reader's
 spec, the MIDI, the tab and the table in the reply then all show the same
 notes. It is built for picked notes on the grid (tremolo or re-picked
-lines). A held note's tail is cut like a ring, and the `check by ear` block
+lines). Every note that ends on its own is cut 0.25 s before its fade, so a
+held or let-ring note may end early; the `check by ear` block says so and
 lists each one, so pass those on.
 
 **Author the reading from the audio alone.** When the audio comes with its

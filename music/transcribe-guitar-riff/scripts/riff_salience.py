@@ -80,7 +80,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
     sal = librosa.salience(C, freqs=freqs, harmonics=[1, 2, 3, 4, 5], weights=[1, 0.8, 0.6, 0.5, 0.4], fill_value=0)
     times = librosa.times_like(sal, sr=sr, hop_length=hop)
     slot_len = 60.0 / bpm * bars_per_meter / grid  # seconds per grid slot
-    n_slots = int((times[-1] - offset_s) / slot_len)
+    n_slots = int(round((len(y) / sr - offset_s) / slot_len, 6))
     rng = (freqs >= fmin_hz) & (freqs <= fmax_hz)
     ref = float(np.max(sal)) if np.max(sal) > 0 else 1.0
     rows = []
@@ -218,14 +218,11 @@ def main(argv=None) -> int:
         print(f"{r['slot']:9s} {r['t']:7.2f}  {desc}")
 
     # per-beat summary: notes that appear in the top-2 of at least half the beat's slots
-    # A candidate with no fret in the tuning sits below the lowest open string:
-    # nobody played it (a difference tone or sub-octave image), so it never
-    # takes one of the two places a played note could.
-    print("\nper-beat sounding notes (in the top-2 playable candidates of at least half the slots; first = strongest):")
+    print("\nper-beat sounding notes (in the top-2 of at least half the slots; first = strongest):")
     per_beat: dict[str, list[list[str]]] = {}
     for r in rows:
         key = ".".join(r["slot"].split(".")[:2])
-        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"] if c["frets"]][:2])
+        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"][:2]])
     for key, slot_notes in per_beat.items():
         counts: dict[str, int] = {}
         for names in slot_notes:

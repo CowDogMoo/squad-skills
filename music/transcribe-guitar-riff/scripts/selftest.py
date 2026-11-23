@@ -7,8 +7,10 @@
    pedal (A#2) as the top candidate anywhere (octave control), and with
    --auto-tune must read the same riff rendered 40 cents sharp (tuning control).
    riff_read.py must then read the fixture exactly as riff.spec, in tune and
-   40 cents sharp, read a re-render with every boundary moved exactly as
-   rendered, and give a different reading when --lowest is an octave low.
+   40 cents sharp and cut exactly on the barlines, read a re-render with
+   every boundary moved exactly as rendered, keep a pedal an upper voice
+   anticipates, read a pedal change with --lowest given per stretch, and give
+   a different reading when --lowest is an octave low or covers every bar.
 3. riff_midi.py builds MIDI from the spec; compare_rolls.py must report a
    match against a tremolo rendering of the same spec and a mismatch against
    a spec with one note changed (negative control).
@@ -163,7 +165,45 @@ def main() -> int:
         raise SystemExit(f"FAIL: riff_read.py on the moved-boundary render read {got}, it was rendered from {moved}")
     if read_spec(os.path.join(fx, "riff.wav"), "--lowest", "A#2,A2") == truth:
         raise SystemExit("FAIL: riff_read.py gave the same reading with the octave gate an octave low (it ignores --lowest)")
-    print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune and +40 cents, and a moved-boundary render exactly")
+
+    #     A clip cut exactly on the barlines (as Step 1 exports it) must read
+    #     the same, last sixteenth included.
+    y_fx, sr_fx = soundfile.read(os.path.join(fx, "riff.wav"))
+    exact_wav = os.path.join(tmp, "exact.wav")
+    soundfile.write(exact_wav, y_fx[: int(4 * 4 * 60.0 / 120 * sr_fx)], sr_fx, subtype="PCM_24")
+    got = read_spec(exact_wav, "--lowest", "A#3@1-3,A3@4")
+    if got != truth:
+        raise SystemExit(f"FAIL: riff_read.py on the fixture cut exactly to 4 bars read {got}, riff.spec says {truth}")
+
+    #     An upper voice entering a sixteenth before a pedal change must not
+    #     end the pedal, and no octave image of a dipping voice may be read.
+    anticip = [(1, 1.0, 2.0, ["A#3"]), (1, 2.0, 5.0, ["A#3", "F#4"]), (2, 1.0, 4.75, ["A#3"]),
+               (2, 4.75, 5.0, ["A#3", "D4"]), (3, 1.0, 5.0, ["A3", "D4"])]
+    anticip_wav = os.path.join(tmp, "anticip.wav")
+    soundfile.write(anticip_wav, make_fixtures.render(anticip), make_fixtures.SR, subtype="PCM_24")
+    got = read_spec(anticip_wav, "--lowest", "A#3,A3")
+    played = {n for *_, notes in anticip for n in notes}
+    if any("A#3" not in notes for bar, *_, notes in got if bar == 2) or {n for *_, notes in got for n in notes} - played:
+        raise SystemExit(f"FAIL: riff_read.py on the anticipated pedal change read {got}, it was rendered from {anticip}")
+
+    #     A pedal change whose new pedal (F#3, bar 3) is the octave below the
+    #     old stretch's upper voice (F#4, bars 1-2): each --lowest note applies
+    #     only in its own bars, so F#4 is read there; with both notes over
+    #     every bar F#3 sets F#4 aside as its octave and the bars misread.
+    pedal = [(1, 1.0, 2.0, ("D4",)), (1, 2.0, 5.0, ("D4", "F#4")), (2, 1.0, 3.0, ("D4", "F#4")),
+             (2, 3.0, 5.0, ("D4",)), (3, 1.0, 2.0, ("F#3",)), (3, 2.0, 5.0, ("F#3", "B3"))]
+    pedal_wav = os.path.join(tmp, "pedal.wav")
+    soundfile.write(pedal_wav, make_fixtures.render([(b, s, e, list(n)) for b, s, e, n in pedal]), make_fixtures.SR, subtype="PCM_24")
+    first_stretch = [r for r in pedal if r[0] <= 2]
+    got = [r for r in read_spec(pedal_wav, "--lowest", "D4@1-2,F#3@3") if r[0] <= 2]
+    if got != first_stretch:
+        raise SystemExit(f"FAIL: riff_read.py on the pedal-change render read bars 1-2 as {got}, they were rendered from {first_stretch}")
+    if [r for r in read_spec(pedal_wav, "--lowest", "D4,F#3") if r[0] <= 2] == first_stretch:
+        raise SystemExit("FAIL: riff_read.py read the pedal change the same with both --lowest notes over every bar")
+    run(os.path.join(HERE, "riff_read.py"), pedal_wav, "--bpm", "120", "--tuning", "E2,A2,D3,G3,B3,E4",
+        "--lowest", "D4@1-2", expect_rc=2)
+    print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune, +40 cents and cut on the barlines, "
+          "a moved-boundary render, an anticipated pedal change, and a pedal change with --lowest per stretch")
 
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")

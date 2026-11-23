@@ -7,24 +7,28 @@ that used to be made by hand from its table, the same way every time, and
 prints the evidence for each one so the reading can be checked line by line.
 
     python riff_read.py RIFF.wav --bpm 120 --tuning E2,A2,D3,G3,B3,E4 \
-        --lowest A#3,A3 --spec OUT/riff.spec
+        --lowest A#3@1-3,A3@4 --spec OUT/riff.spec
 
---lowest takes every note octave_check.py's verdict lines named for the lowest
-voice (one verdict per pedal stretch). It is required: the octave check is the
-gate that decides the register, and this script will not guess it.
+--lowest takes the note each octave_check.py verdict line named for the lowest
+voice, with the bars that verdict covered (one verdict per pedal stretch, bars
+numbered as in the slot ids): NOTE@FIRST-LAST, or NOTE@BAR for one bar. Each
+note applies only in its own bars; a bare note covers the whole riff. It is
+required, and every bar must have one: the octave check is the gate that
+decides the register, and this script will not guess it.
 
 Voices, per grid slot (all on-grid salience peaks, not only the top four the
 table prints). Every candidate that is not a voice is listed with its reason:
 
 - "no fret": no position in the tuning (below the lowest open string), so
   nobody played it; a distortion product or an image.
-- "below X": under the lowest note --lowest names. The octave check settled
+- "below X": under the lowest note --lowest names for that bar. The octave check settled
   the lowest voice's register; anything under it is a sub-octave image or a
   difference tone, including the octave below an upper voice.
 - "octave above/below X": of two candidates an octave apart, a --lowest note
   always wins; otherwise the one with the higher mean level over the
   surrounding beat is the voice and the other its harmonic or sub-octave
-  image. "12th / two octaves above X": the 3rd or 4th harmonic of a stronger
+  image. A partner with no peak in this slot (a dip) still counts when it
+  peaks in the surrounding slots. "12th / two octaves above X": the 3rd or 4th harmonic of a stronger
   note. A played doubling at these intervals looks the same, so it is never
   read as a voice, and the report says so.
 - "N dB under the lead": more than FLOOR_DB under the slot's strongest voice.
@@ -35,9 +39,12 @@ run of one slot is a flicker and is dropped. A note that a new note in the
 same line (nearer its pitch than any other voice) attacks over, while it still
 sounds, ends at that attack. A note that fades out on its own has its last
 RING_S seconds cut: that sound is the last pick ringing on (measured on
-re-picked notes; a held note's tail is cut the same way and listed under
-"check by ear"). A note still sounding past the last whole bar ends at that
-barline: the ring-out after the final chord is its sustain, not another bar.
+re-picked notes). A held or let-ring note's tail is cut the same way, so it
+may be written up to RING_S short; "check by ear" lists each one. A note
+still sounding past the last whole bar ends at that barline: the ring-out
+after the final chord is its sustain, not another bar. A one-slot dip in the
+file's last slot is held too, so a clip cut on the barline keeps its last
+sixteenth.
 
 The CQT here uses filters FILTER_SCALE as long as riff_salience.py's table
 (still a third of a semitone per bin) so a slot's level leaks less into its
@@ -71,8 +78,23 @@ def name_of(midi: int) -> str:
     return librosa.midi_to_note(midi, unicode=False)
 
 
-def classify(rows, lowest: set[int], voices: int, floor_db: float):
-    """Per slot: the voices, and every other candidate with why it was set aside."""
+def parse_lowest(text: str):
+    """[(midi, first_bar, last_bar)] from 'A#3@1-3,A3@4'; a bare note covers every bar."""
+    out = []
+    for item in (x.strip() for x in text.split(",")):
+        if not item:
+            continue
+        note, _, bars = item.partition("@")
+        first, _, last = bars.partition("-")
+        span = (int(first), int(last or first)) if bars else (None, None)
+        out.append((midi_of(note.strip()), *span))
+    return out
+
+
+def classify(rows, lowest: list[set[int]], voices: int):
+    """Per slot: the voices, and every other candidate with why it was set aside.
+
+    lowest[i] holds the notes --lowest names for slot i's bar."""
     cand = []
     for r in rows:
         cs = {}
@@ -82,30 +104,38 @@ def classify(rows, lowest: set[int], voices: int, floor_db: float):
                 cs[m] = c
         cand.append(cs)
     n = len(rows)
-    lowest_midi = min(lowest)
     out = []
     for i in range(n):
         cs = cand[i]
+        low = lowest[i]
+        gate = min(low)
         reason = {}
         for m, c in cs.items():
             if not c["frets"]:
                 reason[m] = "no fret"
-            elif m < lowest_midi:
-                reason[m] = f"below {name_of(lowest_midi)}"
+            elif m < gate:
+                reason[m] = f"below {name_of(gate)}"
         lo, hi = max(0, i - OCTAVE_WINDOW), min(n, i + OCTAVE_WINDOW + 1)
 
         def presence(m):
             # mean level over the surrounding slots, a slot without the peak counting as ABSENT_DB
             return float(np.mean([cand[j][m]["db"] if m in cand[j] else ABSENT_DB for j in range(lo, hi)]))
 
+        def partner(p):
+            # a voice an image could belong to: peaking here and not set aside, or (a dip) peaking
+            # with a fret in the surrounding slots and not under the gate
+            if p in cs:
+                return p not in reason
+            return p >= gate and any(p in cand[j] and cand[j][p]["frets"] for j in range(lo, hi))
+
         for m in sorted(cs):
             if m in reason:
                 continue
-            if m in lowest:
+            if m in low:
                 continue  # the octave check named this register; its octaves are the images
             for other, rel in ((m - 12, "above"), (m + 12, "below")):
-                if other in cs and other not in reason:
-                    if other in lowest:
+                if partner(other):
+                    if other in low:
                         reason[m] = f"octave {rel} {name_of(other)}"
                         break
                     pm, po = presence(m), presence(other)
@@ -116,13 +146,15 @@ def classify(rows, lowest: set[int], voices: int, floor_db: float):
         for m in sorted(cs):
             for k, name in ((19, "12th"), (24, "two octaves")):
                 lower = m - k
-                if m not in reason and lower in cs and lower not in reason and cs[lower]["db"] > cs[m]["db"]:
+                if m in reason or not partner(lower):
+                    continue
+                if (cs[lower]["db"] > cs[m]["db"]) if lower in cs else (presence(lower) > presence(m)):
                     reason[m] = f"{name} above {name_of(lower)} (its {3 if k == 19 else 4}rd harmonic)".replace("4rd", "4th")
         live = sorted((m for m in cs if m not in reason), key=lambda m: -cs[m]["db"])
         lead = cs[live[0]]["db"] if live else None
         kept = []
         for m in live:
-            if cs[m]["db"] < lead - floor_db:
+            if cs[m]["db"] < lead - FLOOR_DB:
                 reason[m] = f"{lead - cs[m]['db']:.0f} dB under the lead"
             elif len(kept) >= voices:
                 reason[m] = f"weaker than {voices} voices"
@@ -152,8 +184,9 @@ def read(rows, slots, n_read, slot_len):
     for m in pitches:
         on = [m in s["voices"] for s in slots]
         held = []
-        for i in range(1, len(on) - 1):
-            if not on[i] and on[i - 1] and on[i + 1]:
+        for i in range(1, len(on)):
+            after = on[i + 1] if i + 1 < len(on) else i >= 2 and on[i - 2]
+            if not on[i] and on[i - 1] and after:
                 on[i] = True
                 held.append(i)
         for s0, s1 in runs_of(on):
@@ -169,10 +202,11 @@ def read(rows, slots, n_read, slot_len):
         if s1 >= len(slots):
             how = "end"
         else:
-            # a new note in the same line (nearer this pitch than any other voice
-            # sounding there) attacking while this one still rings: end at that attack
+            # a new note in the same line (nearer this pitch than any other voice sounding
+            # at its attack or once this one has stopped) attacking while this one still
+            # rings: end at that attack
             def same_line(o, t):
-                others = [x for x in slots[t]["voices"] if x not in (m, o)]
+                others = [x for x in {*slots[t]["voices"], *slots[s1]["voices"]} if x not in (m, o)]
                 return all(abs(o - m) < abs(x - m) for x in others)
 
             new = [t for t in range(s0 + 1, s1 + 1) if s1 - t <= ring_max + 1
@@ -238,32 +272,42 @@ def main(argv=None) -> int:
     ap.add_argument("wav")
     ap.add_argument("--bpm", type=float, required=True)
     ap.add_argument("--tuning", required=True, help="open strings low to high, e.g. E2,A2,D3,G3,B3,E4")
-    ap.add_argument("--lowest", required=True, help="the note(s) octave_check.py's verdict lines named for the lowest voice, e.g. A#3,A3")
+    ap.add_argument("--lowest", required=True, help="the note each octave_check.py verdict line named for the lowest voice, "
+                    "with its bars as in the slot ids, e.g. A#3@1-3,A3@4 (a bare note covers every bar)")
     ap.add_argument("--voices", type=int, default=2, help="most voices read per slot (2 = dyad riff)")
     ap.add_argument("--grid", type=int, default=16)
     ap.add_argument("--beats-per-bar", type=int, default=4)
     ap.add_argument("--offset", type=float, default=0.0, help="seconds from file start to the first downbeat")
     ap.add_argument("--bar-offset", type=int, default=1, help="number of the first bar in the slot ids (the spec always starts at bar 1)")
-    ap.add_argument("--bars", type=int, default=0, help="whole bars to read (default: every whole bar in the file)")
     ap.add_argument("--fmax", type=float, default=600.0)
     ap.add_argument("--tune-offset", type=float, default=None, help="cents sharp of A440, as riff_salience.py --tune-offset")
     ap.add_argument("--auto-tune", action="store_true")
-    ap.add_argument("--floor-db", type=float, default=FLOOR_DB)
     ap.add_argument("--spec", help="write the reading as a riff_midi.py spec")
     ap.add_argument("--json", help="write voices, notes and segments as JSON")
     args = ap.parse_args(argv)
 
     lowest = [n.strip() for n in args.lowest.split(",") if n.strip()]
+    try:
+        stretches = parse_lowest(args.lowest)
+    except ValueError:
+        ap.error(f"--lowest {args.lowest!r}: give NOTE, NOTE@BAR or NOTE@FIRST-LAST, comma-separated")
     y, sr = librosa.load(args.wav, sr=44100, mono=True)
     tune = args.tune_offset if args.tune_offset is not None else (rs.estimate_tune_offset(y, sr) if args.auto_tune else 0.0)
     tuning = rs.parse_tuning(args.tuning)
     rows = rs.analyze(y, sr, args.bpm, args.grid, args.beats_per_bar, args.offset, 30.0, args.fmax, 64,
                       args.bar_offset, tuning, tune_cents=tune, filter_scale=FILTER_SCALE)
     slot_len = 60.0 / args.bpm * args.beats_per_bar / args.grid
-    whole = int(round((len(y) / sr - args.offset) / slot_len, 6)) // args.grid
-    n_bars = args.bars or whole
+    n_bars = int(round((len(y) / sr - args.offset) / slot_len, 6)) // args.grid
+    if n_bars < 1:
+        ap.error(f"{args.wav} holds no whole bar after --offset")
     n_read = min(n_bars * args.grid, len(rows))
-    slots = classify(rows, {midi_of(n) for n in lowest}, args.voices, args.floor_db)
+    last_bar = args.bar_offset + n_bars - 1
+    bar_lowest = {b: {m for m, first, last in stretches if first is None or first <= b <= last}
+                  for b in range(args.bar_offset, last_bar + 1)}
+    bare = [b for b, low in bar_lowest.items() if not low]
+    if bare:
+        ap.error(f"--lowest names no note for bar(s) {', '.join(map(str, bare))}")
+    slots = classify(rows, [bar_lowest[min(args.bar_offset + i // args.grid, last_bar)] for i in range(len(rows))], args.voices)
     notes = read(rows, slots, n_read, slot_len)
     segs = segments(notes, n_read, args.grid, args.beats_per_bar)
     ids = [r["slot"] for r in rows]
@@ -320,6 +364,7 @@ def main(argv=None) -> int:
     print("\ncheck by ear:")
     for d in doubts or ["(no marginal edges)"]:
         print(f"  {d}")
+    print(f"  a note that ends on its own is cut {RING_S:g} s before its fade: a held or let-ring note may really end later")
     print("  octave doublings cannot be told from harmonics here; add any you played after an ear check")
 
     if args.spec:

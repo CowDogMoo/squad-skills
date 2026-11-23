@@ -34,10 +34,8 @@ Two filters are on by default:
   `--collapse-octaves` for cleaner sources only.
 
 The per-16th table is the evidence. The per-beat summary is a reading aid:
-notes that sit in the top two playable candidates (those with a fret in the
-tuning) of at least half the beat's slots. A dyad shows up as two stable notes
-per beat; a single line as one. It still ranks harmonics and images with the
-played notes, so the reading itself comes from `riff_read.py`.
+notes that sit in the top two of at least half the beat's slots. A dyad
+shows up as two stable notes per beat; a single line as one.
 
 ## Note edges and the ring of the last pick
 
