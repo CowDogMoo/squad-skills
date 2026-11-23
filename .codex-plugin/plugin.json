@@ -1,6 +1,6 @@
 {
   "name": "squad-skills",
-  "version": "0.8.15",
+  "version": "0.8.16",
   "description": "Model-agnostic, host-portable skills for the squad ecosystem: comment scrubbing, LLM-tell detection, doc-comment discovery loops, test-writing discipline and coverage queues, completion gating (quorum), the language review, testing, documentation and security knowledge bases and pipelines the squad-agents agents load, Ansible collection releases, iPhone Home Screen organizing, and recipe tooling, plus the music skills.",
   "author": {
     "name": "Jayson Grace",

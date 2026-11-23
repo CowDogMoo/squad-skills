@@ -6,6 +6,9 @@
    on every sixteenth (positive control), must NOT list the wrong-octave
    pedal (A#2) as the top candidate anywhere (octave control), and with
    --auto-tune must read the same riff rendered 40 cents sharp (tuning control).
+   riff_read.py must then read the fixture exactly as riff.spec, in tune and
+   40 cents sharp, read a re-render with every boundary moved exactly as
+   rendered, and give a different reading when --lowest is an octave low.
 3. riff_midi.py builds MIDI from the spec; compare_rolls.py must report a
    match against a tremolo rendering of the same spec and a mismatch against
    a spec with one note changed (negative control).
@@ -117,6 +120,50 @@ def main() -> int:
     if abs(est0) > 12:
         raise SystemExit(f"FAIL: tuning offset estimate {est0:+.0f} cents on the in-tune fixture")
     print(f"tuning offset: +40 cent fixture estimated {est:+.0f}, in-tune fixture {est0:+.0f}; {total - len(miss2)}/{total} notes recovered sharp")
+
+    # 2c. riff_read.py must read the fixture note for note and edge for edge:
+    #     its spec equals riff.spec, in tune and 40 cents sharp. A reading that
+    #     drifted by one sixteenth anywhere fails here. Then the same riff
+    #     re-rendered with every boundary moved must be read with the moved
+    #     boundaries (it follows the audio, not this one fixture), and an
+    #     octave gate set an octave low must not reproduce the reading.
+    def spec_rows(path):
+        rows = []
+        for line in open(path):
+            line = re.sub(r"(^|\s)#.*$", "", line).strip()
+            if line:
+                bar, b0, b1, *notes = line.split()
+                rows.append((int(bar), float(b0), float(b1), tuple(notes)))
+        return rows
+
+    def read_spec(wav, *extra):
+        out_spec = os.path.join(tmp, "read.spec")
+        run(os.path.join(HERE, "riff_read.py"), wav, "--bpm", "120", "--tuning", "E2,A2,D3,G3,B3,E4",
+            "--spec", out_spec, *extra)
+        return spec_rows(out_spec)
+
+    truth = spec_rows(os.path.join(fx, "riff.spec"))
+    for label, wav, extra in (("fixture", os.path.join(fx, "riff.wav"), ()),
+                              ("+40 cent fixture", os.path.join(fx2, "riff.wav"), ("--auto-tune",))):
+        got = read_spec(wav, "--lowest", "A#3,A3", *extra)
+        if got != truth:
+            raise SystemExit(f"FAIL: riff_read.py on the {label} read {got}, riff.spec says {truth}")
+    sys.path.insert(0, os.path.join(SKILL, "evals", "files"))
+    import make_fixtures  # noqa: E402  (the fixture's own renderer, fed a different score)
+    import soundfile  # noqa: E402
+
+    moved = [(1, 1.0, 1.75, ("A#3",)), (1, 1.75, 5.0, ("A#3", "F#4")), (2, 1.0, 2.5, ("A#3",)),
+             (2, 2.5, 4.0, ("A#3", "F4")), (2, 4.0, 5.0, ("A#3",)), (3, 1.0, 2.0, ("A#3",)),
+             (3, 2.0, 3.75, ("A#3", "D4")), (3, 3.75, 5.0, ("A#3",)), (4, 1.0, 2.5, ("A3",)),
+             (4, 2.5, 5.0, ("A3", "D4"))]
+    moved_wav = os.path.join(tmp, "moved.wav")
+    soundfile.write(moved_wav, make_fixtures.render([(b, s, e, list(n)) for b, s, e, n in moved]), make_fixtures.SR, subtype="PCM_24")
+    got = read_spec(moved_wav, "--lowest", "A#3,A3")
+    if got != moved:
+        raise SystemExit(f"FAIL: riff_read.py on the moved-boundary render read {got}, it was rendered from {moved}")
+    if read_spec(os.path.join(fx, "riff.wav"), "--lowest", "A#2,A2") == truth:
+        raise SystemExit("FAIL: riff_read.py gave the same reading with the octave gate an octave low (it ignores --lowest)")
+    print(f"reading: riff_read.py matched riff.spec ({len(truth)} segments) in tune and +40 cents, and a moved-boundary render exactly")
 
     # 3. midi build + roll comparison, positive and negative
     a_mid = os.path.join(tmp, "a.mid")

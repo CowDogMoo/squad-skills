@@ -34,8 +34,34 @@ Two filters are on by default:
   `--collapse-octaves` for cleaner sources only.
 
 The per-16th table is the evidence. The per-beat summary is a reading aid:
-notes that sit in the top two of at least half the beat's slots. A dyad
-shows up as two stable notes per beat; a single line as one.
+notes that sit in the top two playable candidates (those with a fret in the
+tuning) of at least half the beat's slots. A dyad shows up as two stable notes
+per beat; a single line as one. It still ranks harmonics and images with the
+played notes, so the reading itself comes from `riff_read.py`.
+
+## Note edges and the ring of the last pick
+
+Hand readings of the table went wrong at the edges in the same ways every
+time: a weak fourth-ranked entry promoted to "second" once the excluded
+candidates were set aside moved a boundary, and the octave below an upper
+voice (a sub-octave image whose third harmonic lands on the pedal's second)
+got written as a note. `riff_read.py` takes those decisions out of the
+reader's hands:
+
+- A candidate counts only within 15 dB of the slot's strongest voice, and
+  anything under the register the octave check named is never a voice.
+- A picked note keeps sounding after its last pick. On 16 riffs re-rendered
+  with the fixture's synth and random boundaries, a note that stopped on its
+  own stayed above that floor for two more sixteenths at 120 BPM in 56 of 66
+  endings (one or three in the rest). So a note that fades out on its own
+  loses its last 0.25 s, and a note that a new note in the same line attacks
+  over ends at that attack. Measured on 32 such riffs (16 of them never used
+  while choosing the rules): 96% of slots read exactly, starts exact on 208
+  of 227 notes and ends on 190; the fixture reads exactly, in tune and 40
+  cents sharp.
+- The analysis CQT uses filters 0.7 as long as the table's: with full-length
+  filters a slot's level leaks about half a sixteenth into its neighbours,
+  which made starts early and ends late.
 
 ## The band-limited-search trap (read this first)
 

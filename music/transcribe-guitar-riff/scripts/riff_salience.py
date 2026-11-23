@@ -66,7 +66,7 @@ def drop_octave_duplicates(peaks, s, freqs, ratio=0.5, tol_cents=40):
     return keep
 
 
-def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True, tune_cents=0.0):
+def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True, tune_cents=0.0, filter_scale=1.0):
     shift = 2 ** (-tune_cents / 1200.0)  # a guitar N cents sharp: divide measured Hz by 2^(N/1200) to land on the grid
     hop = 512
     # Put the CQT bins on the guitar's actual grid: with the lowest bin at C1
@@ -75,7 +75,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
     fmin = librosa.note_to_hz("C1") / shift
     bpo = 36
     n_bins = 6 * bpo
-    C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=n_bins, bins_per_octave=bpo))
+    C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=n_bins, bins_per_octave=bpo, filter_scale=filter_scale))
     freqs = librosa.cqt_frequencies(n_bins, fmin=fmin, bins_per_octave=bpo)
     sal = librosa.salience(C, freqs=freqs, harmonics=[1, 2, 3, 4, 5], weights=[1, 0.8, 0.6, 0.5, 0.4], fill_value=0)
     times = librosa.times_like(sal, sr=sr, hop_length=hop)
@@ -218,11 +218,14 @@ def main(argv=None) -> int:
         print(f"{r['slot']:9s} {r['t']:7.2f}  {desc}")
 
     # per-beat summary: notes that appear in the top-2 of at least half the beat's slots
-    print("\nper-beat sounding notes (in the top-2 of at least half the slots; first = strongest):")
+    # A candidate with no fret in the tuning sits below the lowest open string:
+    # nobody played it (a difference tone or sub-octave image), so it never
+    # takes one of the two places a played note could.
+    print("\nper-beat sounding notes (in the top-2 playable candidates of at least half the slots; first = strongest):")
     per_beat: dict[str, list[list[str]]] = {}
     for r in rows:
         key = ".".join(r["slot"].split(".")[:2])
-        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"][:2]])
+        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"] if c["frets"]][:2])
     for key, slot_notes in per_beat.items():
         counts: dict[str, int] = {}
         for names in slot_notes:
