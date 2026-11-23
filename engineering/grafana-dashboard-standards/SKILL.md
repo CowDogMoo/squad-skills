@@ -17,7 +17,8 @@ A comprehensive guide to creating effective, maintainable, and scalable Grafana 
 7. [Management and Maintenance](#management-and-maintenance)
 8. [Performance Optimization](#performance-optimization)
 9. [Maturity Model](#maturity-model)
-10. [Dashboard Review and Pre-Provisioning Audit](#dashboard-review-and-pre-provisioning-audit)
+10. [Quick Reference Checklist](#quick-reference-checklist)
+11. [Dashboard Review and Pre-Provisioning Audit](#dashboard-review-and-pre-provisioning-audit)
 
 ---
 
@@ -428,18 +429,38 @@ Observability requires ongoing iteration:
 
 ---
 
+## Quick Reference Checklist
+
+When creating a new dashboard, ask yourself:
+
+- [ ] Does this dashboard have a clear purpose?
+- [ ] Have I identified the target audience?
+- [ ] Does it follow our chosen methodology (RED/USE/Golden Signals)?
+- [ ] Are template variables used to prevent duplication?
+- [ ] Is the naming convention followed?
+- [ ] Have I added documentation (dashboard and panel descriptions)?
+- [ ] Are colors used meaningfully and consistently?
+- [ ] Are axes normalized for fair comparisons?
+- [ ] Is the visual hierarchy guiding viewers effectively?
+- [ ] Are the right visualization types chosen for each metric?
+- [ ] Is the refresh rate appropriate?
+- [ ] Have I tested the dashboard with real data?
+- [ ] Are drill-down links to related dashboards included?
+- [ ] Is the dashboard version controlled?
+- [ ] Have I verified accessibility (colorblind-friendly)?
+
 ## Dashboard Review and Pre-Provisioning Audit
 
-When auditing an existing dashboard JSON or reviewing a dashboard before provisioning, check both structural hygiene and query/visualization correctness:
+When auditing an existing dashboard JSON or reviewing one before provisioning, check both structural hygiene and query/visualization correctness, and tie each finding to the section above that explains it:
 
-- [ ] **Descriptive titles, no sprawl artifacts**: Dashboard and panel titles state what is measured; untouched defaults (`New dashboard`, `Panel Title`) and clone suffixes (`copy`, `v2`, `backup`, `- old`, per-env copies) are flagged as non-descriptive and as symptoms of **dashboard sprawl**
-- [ ] **Templated datasources and dimensions**: `templating.list` defines a `datasource` variable (instead of hardcoded instance-specific datasource UIDs in panels) plus `environment`/`service`/`cluster` variables to avoid duplication
-- [ ] **Methodology alignment**: Request-driven services follow **RED** or **Four Golden Signals** (rate, error ratio, latency percentiles/heatmap); infrastructure resources follow **USE**
-- [ ] **Bounded query cardinality and valid PromQL**: `by (...)` clauses avoid unbounded labels (user/request IDs) and fleet-wide `instance`/`pod` fanout; `histogram_quantile` wraps `sum by (le) (rate(..._bucket[$__rate_interval]))` rather than raw counters without a `rate()` and interval
-- [ ] **Matching visualization types**: Latency and rates over time use **time series** or **heatmap** panels, never **pie charts**
-- [ ] **Explicit semantic units**: Every numeric panel sets a meaningful `unit` (`reqps`, `s`/`ms`, `percentunit`, `bytes`) — flag missing units and generic `"short"` units on rates, ratios, or durations
-- [ ] **Refresh vs. time range cost**: Auto-refresh matches the default time window — flag fast refresh intervals (`5s`–`15s`) paired with multi-day or multi-month ranges (`30d`, `90d`)
-- [ ] **Accessibility, documentation, and links**: Purpose text panel, panel descriptions, runbook/drill-down links, explicit `gridPos`, and colorblind-safe thresholds are in place
+- [ ] **Titles**: Dashboard and panel titles state what is measured; Grafana defaults and clone suffixes are flagged ([Naming and Documentation](#naming-and-documentation))
+- [ ] **Template variables**: Datasources and environment/service dimensions are parameterized rather than hardcoded ([Template Variables](#template-variables))
+- [ ] **Methodology**: Request-driven services follow RED or the Four Golden Signals; resources follow USE ([Observability Methodologies](#observability-methodologies))
+- [ ] **Queries**: Groupings use bounded labels, and counters and histogram buckets are wrapped in `rate()` over an interval ([Query Optimization](#query-optimization))
+- [ ] **Visualization types**: Each panel type fits its data, with time series or heatmaps for values over time ([Panel Selection and Visualization Types](#panel-selection-and-visualization-types))
+- [ ] **Units**: Every numeric panel sets a semantic unit ([Graph and Visualization Best Practices](#graph-and-visualization-best-practices))
+- [ ] **Refresh and time range**: The auto-refresh interval is proportionate to the default time window ([Refresh Rates](#refresh-rates))
+- [ ] **Documentation and accessibility**: Purpose text, panel descriptions, drill-down links, and colorblind-safe colors are in place
 
 ---
 

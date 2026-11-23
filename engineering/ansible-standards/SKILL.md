@@ -20,7 +20,6 @@ for the ansible-review agent.
 - [Playbooks](#playbooks)
 - [Naming Conventions](#naming-conventions)
 - [Task Quality](#task-quality)
-- [Review Calibrations](#review-calibrations)
 - [Molecule Testing](#molecule-testing)
 - [Linting](#linting)
 - [Security Best Practices](#security-best-practices)
@@ -395,22 +394,21 @@ Roles must produce the same result on repeated runs:
 
 **Use declarative file modules instead of shell redirects:**
 
-Replace `echo ... >>`, `sed -i`, or heredoc shell appends with `ansible.builtin.lineinfile` (single line), `ansible.builtin.blockinfile` (delimited multi-line block), or `ansible.builtin.template` / `ansible.builtin.copy` (whole managed file):
+Replace `echo ... >>`, `sed -i`, or heredoc shell appends with `ansible.builtin.lineinfile` (single line), `ansible.builtin.blockinfile` (delimited multi-line block), or `ansible.builtin.template` / `ansible.builtin.copy` (whole managed file). For kernel parameters use `ansible.posix.sysctl`, which also applies the value at runtime:
 
 ```yaml
 # Bad: appends a duplicate line and reports changed on every run
-- name: Set sysctl forwarding
-  ansible.builtin.shell: echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+- name: Set app connection limit
+  ansible.builtin.shell: echo "max_connections=200" >> /etc/myapp/app.conf
 
 # Good: idempotent key=value management with regexp + line
-- name: Ensure IPv4 forwarding is enabled
+- name: Ensure app connection limit is 200
   ansible.builtin.lineinfile:
-    path: /etc/sysctl.conf
-    regexp: "^net\\.ipv4\\.ip_forward="
-    line: "net.ipv4.ip_forward=1"
+    path: /etc/myapp/app.conf
+    regexp: "^max_connections="
+    line: "max_connections=200"
 
-# Good: idempotent literal line check (state defaults to present; without
-# regexp, lineinfile matches the exact line and skips if already present)
+# Good: ensures a fixed literal line exists
 - name: Ensure local bin include directive exists
   ansible.builtin.lineinfile:
     path: /etc/profile
@@ -558,16 +556,6 @@ Always use Fully Qualified Collection Names:
     (var3 == 'c' and var4 in ['d', 'e', 'f']) or
     (var5 | length > 3)
 ```
-
----
-
-## Review Calibrations
-
-When reviewing or auditing Ansible playbooks, roles, or task files, report **only genuine violations** and avoid false positives on valid, idiomatic constructs:
-
-- **Do not flag valid `ansible.builtin.lineinfile` module usage.** `state` defaults to `present`, and when `regexp` is omitted `lineinfile` checks the file for an exact match of `line:` — reruns report `ok` and do **not** append duplicate lines. Require `regexp` when replacing a key whose value may vary, not when ensuring a fixed literal line exists. Likewise, `lineinfile` without `create: true` edits an existing file rather than creating one, so omitting `mode` there is valid. Do not report `lineinfile` module usage itself as a violation or insist on `template`, `blockinfile`, `state: present`, `insertafter`, or `backup: true` without concrete evidence of a bug; if the task has an unrelated issue (such as `{{ }}` in `when:`), flag **only** that issue.
-- **Match findings to the artifact's scope.** Enforce role conventions (role-prefixed variable names `<role>_*`, `defaults/main.yml` vs `vars/main.yml`, `meta/argument_specs.yml`, `handlers/main.yml`, Molecule layout) when reviewing a **role**. When reviewing a standalone task file with no role context, evaluate the tasks themselves (task `name:`, FQCN, idempotent modules over `shell`/`command`, `changed_when: false` on read-only commands, bare `when:` expressions, quoted octal modes, `no_log: true` on secrets) instead of inventing violations for absent role directories or role variable prefixes.
-- **Keep correct constructs out of the violations list.** Do not pad reviews by flagging omitted default parameters whose defaults are already right, or by treating optional hardening ideas as best-practice violations.
 
 ---
 

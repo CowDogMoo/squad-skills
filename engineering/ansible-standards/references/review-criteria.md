@@ -47,7 +47,7 @@ Sources: [Red Hat Good Practices](https://redhat-cop.github.io/automation-good-p
 Judgment calls where over-eager reviews produce false positives:
 
 - **Only report actual violations.** Leave valid, idiomatic Ansible constructs unflagged; do not invent defects on clean module calls or pad findings with optional stylistic preferences.
-- **`ansible.builtin.lineinfile` with `path` and `line` is idempotent for literal lines.** `state` defaults to `present`, and without `regexp` the module searches for an exact literal match of `line` before inserting — reruns do **not** duplicate the line. Require `regexp` only when updating a key whose value varies (e.g., `regexp: '^MaxClients\b'`). Without `create: true`, `lineinfile` modifies an existing file rather than creating one, so `mode` is not required. Never flag `lineinfile` module usage itself as a violation or demand rewriting it to `template`/`blockinfile` or adding `state: present`, `insertafter`, or `backup: true`; if a `lineinfile` task has a real defect elsewhere (such as `{{ }}` in `when:`), flag only that defect.
+- **A correct `ansible.builtin.lineinfile` task is not a violation.** `state` defaults to `present`, and without `regexp` the module checks for an exact match of `line` before inserting, so reruns report `ok` and never duplicate a fixed literal line. Without `create: true` it edits an existing file, so `mode` is not required. Flag `lineinfile` only for a concrete defect, such as managing a key whose value varies without `regexp` (e.g., `regexp: '^MaxClients\b'`). Do not demand rewriting it to `template`/`blockinfile` or adding `state: present`, `insertafter`, or `backup: true`. If the task has an unrelated defect (such as `{{ }}` in `when:`), flag only that defect.
 - **Scope rules to what is being reviewed.** Apply role rules (role-name variable prefixes, `defaults/main.yml`, `meta/argument_specs.yml`, `handlers/main.yml`) when reviewing a **role**. On a standalone task file with no role context, check task-level standards rather than reporting missing role files or role prefixes as violations.
 
 ## YAML formatting
@@ -273,9 +273,8 @@ Report findings on the consumer agent's scale:
 - [ ] Every `command`/`shell` task has `creates`/`removes` or `changed_when`
 - [ ] No `{{ }}` in `when`; string booleans use `| bool`
 - [ ] `loop` rather than `with_*`; `include_tasks` for looped includes
-- [ ] `mode` set (quoted octal, e.g. `"0644"`) on tasks that create files or directories (not required on `lineinfile` unless `create: true` is set)
+- [ ] `mode` set (quoted octal, e.g. `"0644"`) on tasks that create files or directories
 - [ ] `ignore_errors` only with real handling
-- [ ] No false positives reported on valid module usage (such as `lineinfile` with `path` and a literal `line`)
 
 ### Security
 
