@@ -341,6 +341,9 @@ cat > testing/my-skill/evals/evals.json <<'EOF'
   ]
 }
 EOF
+# An expectation is graded on the agent's final reply. To grade one on the
+# tool calls and their output as well, write it as
+# {"text": "...", "focus": "trace"}.
 
 # 4. Validate before committing
 pre-commit run --all-files

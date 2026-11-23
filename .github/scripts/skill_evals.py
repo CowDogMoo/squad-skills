@@ -240,6 +240,36 @@ def nonempty_str(value) -> bool:
     return isinstance(value, str) and value.strip() != ""
 
 
+FOCUSES = ("last_message", "trace")
+
+
+def expectation_text(expectation) -> str:
+    """The criterion of an expectation given as a string or {"text", "focus"}."""
+    return expectation["text"] if isinstance(expectation, dict) else expectation
+
+
+def expectation_focus(expectation) -> str:
+    """What the judge sees: the final reply (default) or the whole trace.
+
+    "trace" shows the judge the agent's tool calls and their output, for a
+    criterion about evidence the final reply may not quote.
+    """
+    return expectation.get("focus", "last_message") if isinstance(expectation, dict) else "last_message"
+
+
+def check_expectation(expectation) -> str | None:
+    """Return why an expectation is malformed, or None when it is valid."""
+    if isinstance(expectation, dict):
+        if set(expectation) - {"text", "focus"}:
+            return "an expectation object takes only text and focus"
+        if not nonempty_str(expectation.get("text")):
+            return "an expectation object needs a non-empty text"
+        if expectation.get("focus", "last_message") not in FOCUSES:
+            return f"expectation focus must be one of {', '.join(FOCUSES)}"
+        return None
+    return None if nonempty_str(expectation) else "has an empty expectation"
+
+
 def check_evals(skill: Path) -> list[str]:
     """Return the problems with skill/evals/evals.json (empty when valid)."""
     path = skill / "evals" / "evals.json"
@@ -277,8 +307,11 @@ def check_evals(skill: Path) -> list[str]:
         expectations = case.get("expectations")
         if not isinstance(expectations, list) or not expectations:
             errors.append(f"{where} expectations must be a non-empty list")
-        elif not all(nonempty_str(e) for e in expectations):
-            errors.append(f"{where} has an empty expectation")
+        else:
+            for n, e in enumerate(expectations, 1):
+                problem = check_expectation(e)
+                if problem:
+                    errors.append(f"{where} expectation {n}: {problem}")
         files = case.get("files", [])
         if not isinstance(files, list):
             errors.append(f"{where} files must be a list")
@@ -667,7 +700,7 @@ def write_case_yaml(
     case_dir: Path,
     prompt: str,
     tools: list[str],
-    criteria: list[str],
+    criteria: list,
     max_turns: int,
     timeout: int,
     add_dirs: list[str],
@@ -693,8 +726,14 @@ def write_case_yaml(
             "allowed_tools": tools,
         },
         "graders": [
-            {"name": f"expectation-{n}", "type": "llm", "weight": 1, "criteria": text}
-            for n, text in enumerate(criteria, 1)
+            {
+                "name": f"expectation-{n}",
+                "type": "llm",
+                "weight": 1,
+                "criteria": expectation_text(e),
+                **({"focus": expectation_focus(e)} if expectation_focus(e) != "last_message" else {}),
+            }
+            for n, e in enumerate(criteria, 1)
         ],
     }
     (case_dir / "case.yaml").write_text(json.dumps(case, indent=2) + "\n", encoding="utf-8")
@@ -788,8 +827,12 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
                 shutil.copy2(staged / rel, target)
             continue
         graders = {
-            f"expectation-{n}": f"---\ntype: llm\nweight: 1\n---\n\n{expectation}\n"
-            for n, expectation in enumerate(case["expectations"], 1)
+            f"expectation-{n}": (
+                "---\ntype: llm\nweight: 1\n"
+                + (f"focus: {expectation_focus(e)}\n" if expectation_focus(e) != "last_message" else "")
+                + f"---\n\n{expectation_text(e)}\n"
+            )
+            for n, e in enumerate(case["expectations"], 1)
         }
         write_case(
             staged / CASE_DIR / f"case-{case['id']}",
