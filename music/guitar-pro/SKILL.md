@@ -196,9 +196,11 @@ which one works:
   same and sounds lower: drop D becomes drop C, standard becomes D standard.
   This is how players actually take a riff down a step.
 
-The `transpose` command picks for you (frets when they fit, otherwise retune),
-writes a new file, and then proves the result by comparing every sounding note
-against the original:
+The `transpose` command picks the method automatically and has no flag to
+override it: it moves the frets when every shifted note stays between fret 0
+and the last fret, and otherwise keeps the frets and retunes every string by the
+shift. It writes a new file, then proves the result by comparing every sounding
+note against the original:
 
 ```bash
 python scripts/gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2 --midi song-down2.mid
@@ -206,8 +208,8 @@ python scripts/gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2 --midi
 
 It prints the original tuning, the method it used and why, the new tuning, and
 `verified: all N sounding notes ... are 2 semitone(s) lower`. A `VERIFY FAILED`
-line (exit 1) means the copy is wrong; do not deliver it. `--method frets` or
-`--method retune` forces a choice when the user asked for one.
+line (exit 1) means the copy is wrong; do not deliver it. If the user wants the
+other method, call `tab.transpose(n)` or `tab.retune(n)` from Python instead.
 
 ### Guitar Pro 6/7+ files (`.gpx`, `.gp`)
 

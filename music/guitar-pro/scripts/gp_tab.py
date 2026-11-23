@@ -1595,18 +1595,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_tr = sub.add_parser(
         "transpose",
-        help="write a transposed copy, then prove every note moved by the shift",
+        help="write a transposed copy (frets moved when every note fits, else "
+        "strings retuned), then prove every note moved by the shift",
     )
     p_tr.add_argument("path", help="the file to read; it is never modified")
     p_tr.add_argument("out", help="where to write the transposed copy")
     p_tr.add_argument("--semitones", type=int, required=True, help="-2 = down a whole step")
-    p_tr.add_argument(
-        "--method",
-        choices=["auto", "frets", "retune"],
-        default="auto",
-        help="frets: move frets, keep the tuning; retune: keep frets, retune the "
-        "strings; auto (default): frets when every note fits, else retune",
-    )
     p_tr.add_argument("--midi", help="also write a .mid of the transposed copy")
 
     p_riffout = sub.add_parser("to-riff", help="dump a track as riff notation")
@@ -1628,16 +1622,7 @@ def main(argv: list[str] | None = None) -> int:
         original = Tab.load(args.path)
         before = original.sounding_notes()
         old_tuning = _tuning_label(original.info()["tracks"][0])
-        method = args.method
-        if method == "auto":
-            method = "frets" if original.fret_shift_fits(args.semitones) else "retune"
-        elif method == "frets" and not original.fret_shift_fits(args.semitones):
-            print(
-                f"error: moving frets by {args.semitones} pushes notes off the "
-                "fretboard; use --method retune (or auto)",
-                file=sys.stderr,
-            )
-            return 1
+        method = "frets" if original.fret_shift_fits(args.semitones) else "retune"
         tab = Tab.load(args.path)
         if method == "frets":
             tab.transpose(args.semitones)

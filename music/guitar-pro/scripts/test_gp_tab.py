@@ -475,8 +475,6 @@ def main() -> int:
         and Tab.load(up).info()["tracks"][0]["tuning_name"] == "drop-d"
         and [n.value for b in beats_of(Tab.load(up)) for n in b.notes] == [3, 3, 6, 8, 5],
     )
-    rc = gp_tab_cli(["transpose", src, up, "--semitones", "-2", "--method", "frets"])
-    check("transpose CLI refuses a fret shift that falls off the neck", rc == 1, str(rc))
 
     print("\n[measure length validation]")
     tab = Tab(tuning="7-string")
