@@ -24,7 +24,7 @@
         "The tab file's MIDI export is checked against the cleaned MIDI with compare_rolls.py and reported as matching",
         "The tab uses .gp5 for a 6-string (the 8-string .gp routing is not applied)",
         {
-          "text": "No pitch is asserted that the salience output does not support",
+          "text": "No pitch is asserted that the salience output does not support. After your verdict word, on the next line, name each pitch you judged unsupported and the reason, in one sentence.",
           "focus": "trace"
         }
       ]
