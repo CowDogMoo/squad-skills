@@ -171,8 +171,9 @@ Rules that go with these patterns:
   `command`), facts gathered, and a `fail_msg` on every assert.
 - When the caller sets no report format, the reply is often all the reviewer
   reads, and the edited file may not be opened. Close the loop on each defect
-  the original had: say which check now fails, and under what broken-deploy
-  condition (package absent, file missing, service stopped). State
+  the original had: say which check now fails, under what broken-deploy
+  condition (package absent, file missing, service stopped), and quote the
+  `fail_msg` it reports so the reader sees what the message names. State
   file-wide properties as facts about the whole file ("every module is
   FQCN", "every assert has a `fail_msg`") instead of listing a few examples.
   If the caller defines a report format, follow that and keep this content
