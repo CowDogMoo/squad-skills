@@ -90,12 +90,14 @@ directories, or the request asks to leave the original untouched.
 
 Build the copy outside the original tree, choosing the copy method up front:
 
-1. Set `$work` to `<absolute path of your working directory>/<project
-   directory name>` (for example `/scratch/run/cov-go`). If your working
-   directory is the project or sits inside it, use
-   `${TMPDIR:-/tmp}/<project directory name>-work` instead, so the copy never
-   lands inside the original tree. Use that absolute path in every later tool
-   call.
+1. Set `$work` to a new directory outside the project and outside any git
+   repository that contains it: `<absolute path of your working
+   directory>/<project directory name>-work` (for example
+   `/scratch/run/cov-go-work`) when your working directory is outside both,
+   otherwise `${TMPDIR:-/tmp}/<project directory name>-work`. If that path
+   already exists (an earlier run's copy may hold its only tests), never
+   write into it: append `-2`, `-3`, and so on until the path is new. Use
+   that absolute path in every later tool call.
 2. Copy the whole project, not just the queued units, with one method:
    - **Inputs declared read-only, or not writable by you** (the project is
      read-only or sits outside your writable working directories): `Read`
