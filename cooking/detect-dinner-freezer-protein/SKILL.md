@@ -5,121 +5,189 @@ description: Given a dish name (and optionally a recipe URL), determine what pro
 
 # Detect dinner freezer protein
 
-You are deciding what to take out of the freezer in the morning so it's thawed by dinner. The caller has a dish name (e.g. `bang bang salmon`, `chicken Tinga tacos`, `tofu stir fry`) and optionally a recipe URL. Output is a single normalized protein keyword the caller plugs into a reminder, or `null` with a reason when no protein needs thawing.
+You are deciding what protein to take out of the freezer in the morning so it is thawed by dinner. Given a dish name (and optionally a recipe URL), return the normalized lowercase protein keyword, or `null` with a reason when nothing needs thawing.
 
-This is a pure transformation — no side effects, no calendar writes. The caller decides what to do with the result.
+This is a pure transformation: no side effects, no calendar writes, and no conversational prose. Whether the caller passes structured fields or asks a natural-language question (such as `"What do I need to defrost for chicken Tinga tacos tonight?"`), extract the dish name and optional URL and reply **only** with the three-line plain-text record defined under `# Output`. The caller owns rendering any reminder sentence such as `Take out {protein} for tonight's dinner`.
 
 # Host-environment translation (READ FIRST)
 
-Step 3 (URL fallback) is the only host-dependent path. Steps 1–2 are dish-name string matching and need no tools.
+Step 3 (URL fallback) is the only host-dependent path. Steps 1–2 are dish-name word matching and need no tools.
 
 | Action | Squad / shell hosts | Claude Code / Desktop | Browser-MCP-only hosts |
 |---|---|---|---|
 | Fetch recipe page (Step 3) | `Bash curl -sL --max-time 10 <URL>` | `WebFetch <URL>` | `mcp__chrome__evaluate_script` with `fetch(url).then(r => r.text())` |
 
-If your host has none of those (extremely restricted environment), skip Step 3 and return `null` with reason `"no fetch capability — dish name didn't match"`.
+If your host has none of those (for example, a sandboxed environment with no shell, web, or browser tools), skip Step 3 and return `protein: null`, `source: skipped`, `reason: no fetch capability and dish name did not match`.
 
 # Inputs
 
-    {
-      dish_name: string,                  # e.g. "bang bang salmon"
-      recipe_url: string | null           # may be null/missing/empty
-    }
+Callers invoke this skill in either of two shapes:
+
+1. **Structured input** with `dish_name` (string) and optional `recipe_url` (string or `null`/empty).
+2. **Natural-language question** naming tonight's dish (and optionally including a recipe URL). Strip conversational framing (`"tonight's"`, `"for dinner"`, `"what protein comes out of the freezer for"`) to isolate `dish_name`; set `recipe_url` to `null` when no URL is present.
 
 # Output
 
-    {
-      protein: string | null,             # lowercased keyword, or null
-      source: "specific" | "generic" | "url-fetch" | "skipped",
-      reason: string | null               # human-readable; required when protein is null
-    }
+Reply with **only** these three plain-text lines as your entire final message:
 
-The `protein` value drops into a sentence like `Take out {protein} for tonight's dinner`. Use plural for ingredients that read naturally as plural (`meatballs`, `burgers`, `sausages`); singular for everything else (`chicken`, `salmon`).
+```text
+protein: <lowercased keyword or null>
+source: <specific | generic | url-fetch | skipped>
+reason: <lowercased explanation>
+```
 
-# Step-by-step — first match wins
+Formatting rules for every response:
 
-## 1. Specific protein keyword in the dish name (source = "specific")
+- **Three lines only, nothing else:** emit no greeting, no full-sentence prose before or after, no `Take out ...` reminder sentence, no JSON braces, and no Markdown code fences (` ``` `).
+- **All lowercase, unquoted, and trimmed:** every character across all three lines must be lowercase (write `url`, not `URL`). Never wrap `protein` or any other value in double quotes (`"..."`), single quotes (`'...'`), backticks (`` `...` ``), or bold/italic markers (`**...**`, `*...*`). Trim all leading and trailing whitespace on every value and line.
+- **Pluralization:** use plural for items stocked and thawed as count plurals (`meatballs`, `burgers`, `sausages`); use singular for cuts, birds, fillets, and shellfish keywords (`chicken`, `steak`, `pork`, `salmon`, `shrimp`).
+- **Always populate `reason`** in plain lowercase words (avoid apostrophes or quotes):
+  - When `protein` is matched (`specific`, `generic`, or `url-fetch`), state concisely how it was derived (for example, `matched specific keyword in dish name without url fetch`, `matched generic term in dish name without url fetch`, or `matched headline protein from recipe url`).
+  - When `protein` is `null` (`skipped`), state why nothing needs thawing (see Step 4).
 
-Case-insensitive substring match against the dish name. The matched word becomes the protein verbatim (lowercased).
+Anti-example (wrong: prose wrapper, uppercase letters, Markdown bold, and quotes):
 
-Word list:
+```text
+Take the **chicken** out of the freezer this morning so it's thawed by dinner. "Chicken Tinga tacos" names the protein directly.
+```
 
-- **Land meats**: chicken, beef, steak, pork, bacon, sausage, ham, lamb, turkey, duck
-- **Fish & seafood**: salmon, tuna, cod, halibut, tilapia, shrimp, prawn, scallop
+Correct output:
 
-Examples:
+```text
+protein: chicken
+source: specific
+reason: matched specific keyword in dish name without url fetch
+```
 
-- `"chicken Tinga tacos"` → `chicken`
-- `"bang bang salmon"` → `salmon`
-- `"pork belly bao"` → `pork`
-- `"grilled steak salad"` → `steak`
+# Step-by-step (first match wins)
 
-The matched word stays in its specific form — don't generalize `steak → beef` or `bacon → pork`; the user is taking *that* item out of the freezer.
+## 1. Specific protein keyword in the dish name (source = specific)
 
-## 2. Generic protein-bearing term in the dish name (source = "generic")
+Case-insensitive word match against `dish_name` (match whole words and regular plurals such as `steaks` → `steak`, `shrimps` → `shrimp`, `prawns` → `prawn`, `scallops` → `scallop`, so `ham` never false-matches inside `champagne`). Output the canonical singular lowercase keyword from this list:
 
-When no Step 1 word matched, scan for these. Map to the canonical plural/singular:
+- **Land meats**: `chicken`, `beef`, `steak`, `pork`, `bacon`, `ham`, `lamb`, `turkey`, `duck`
+- **Fish & seafood**: `salmon`, `tuna`, `cod`, `halibut`, `tilapia`, `shrimp`, `prawn`, `scallop`
 
-| Match (case-insensitive) | Output |
-|---|---|
-| `meatball` or `meatballs` | `meatballs` |
-| `burger` or `burgers` | `burgers` |
-| `sausages` (alone — `sausage` already caught in Step 1) | `sausages` |
-| `fish` (not preceded by `cat`, `jelly`, etc.) | `fish` |
-| `seafood` | `seafood` |
-
-Examples:
-
-- `"harissa meatball"` → `meatballs` (don't fall through to URL fetch — the name tells you)
-- `"smash burgers"` → `burgers`
-- `"weeknight fish stew"` → `fish`
-
-## 3. URL fallback (source = "url-fetch")
-
-Only run this when Steps 1–2 BOTH miss AND `recipe_url` is non-empty.
-
-Fetch the recipe page and look for the primary animal protein in:
-
-- `<title>` (often "Chicken Tinga Tacos | Foo Blog")
-- The schema.org JSON-LD `recipeIngredient` array — the first 1–3 ingredients usually name the headline protein
-- `<meta name="description">`
-
-Re-run the Step 1 word list against this text; same lowercased-match semantics. If multiple proteins are mentioned (e.g. chicken broth in a beef recipe), pick the **headline** one — the recipe title and the largest-quantity ingredient outrank a small flavor add.
+Keep the matched cut in its specific form. Do not generalize `steak` → `beef` or `bacon` → `pork`; the user is taking that specific item out of the freezer. (`sausage` / `sausages` is handled in Step 2 so it normalizes to plural `sausages`.)
 
 Worked examples:
 
-- Input: `{dish: "spicy stir fry", url: "https://example.com/sichuan-stir-fry"}`. Fetch finds `<title>Sichuan Chicken Stir Fry</title>` and `1.5 lb chicken thighs` in JSON-LD → `chicken` (source: `url-fetch`).
-- Input: `{dish: "harissa meatball", url: "..."}` — Step 2 already matched `meatballs`; do NOT fetch the URL.
+- `"chicken Tinga tacos"` →
 
-If fetch fails (paywall, timeout, network error), return `null` with reason `"couldn't determine protein from recipe link"`.
+  ```text
+  protein: chicken
+  source: specific
+  reason: matched specific keyword in dish name without url fetch
+  ```
 
-If the fetch succeeds but no protein is found anywhere in title/ingredients/description, that means the dish is genuinely vegetarian/vegan — go to Step 4.
+- `"pork belly bao"` →
 
-## 4. Skip — nothing freezer-bound (source = "skipped")
+  ```text
+  protein: pork
+  source: specific
+  reason: matched specific keyword in dish name without url fetch
+  ```
 
-Return `{protein: null, source: "skipped", reason: <one of below>}`:
+- `"grilled steak salad"` →
 
-- `"vegetarian"` — the dish name (or fetched recipe) is plainly meatless. Examples: `"tofu stir fry"`, `"lentil soup"`, `"veggie pasta"`, `"mushroom risotto"`, `"chickpea curry"`. **Tofu, eggs, beans, lentils, chickpeas, mushrooms — none need freezer thawing.**
-- `"couldn't determine protein from recipe link"` — Step 3 was attempted but the fetch failed.
-- `"no protein keyword in name, no recipe URL to check"` — Steps 1–2 missed and `recipe_url` was null/empty.
+  ```text
+  protein: steak
+  source: specific
+  reason: matched specific keyword in dish name without url fetch
+  ```
 
-The caller will surface this reason in its summary. Be specific so the user can correct the dish name or attach a URL for next week.
+## 2. Generic protein-bearing term in the dish name (source = generic)
+
+When no Step 1 word matched, scan `dish_name` case-insensitively for these whole words and map to the canonical form:
+
+| Match (case-insensitive whole word) | Output `protein` |
+|---|---|
+| `meatball` or `meatballs` | `meatballs` |
+| `burger` or `burgers` | `burgers` |
+| `sausage` or `sausages` | `sausages` |
+| `fish` (standalone, not `fish sauce`, `jellyfish`, etc.) | `fish` |
+| `seafood` | `seafood` |
+
+Do **not** fall through to a URL fetch when Step 2 matches; the dish name already resolved the protein.
+
+Worked examples:
+
+- `"smash burgers"` →
+
+  ```text
+  protein: burgers
+  source: generic
+  reason: matched generic term in dish name without url fetch
+  ```
+
+- `"weeknight fish stew"` →
+
+  ```text
+  protein: fish
+  source: generic
+  reason: matched generic term in dish name without url fetch
+  ```
+
+## 3. URL fallback (source = url-fetch)
+
+Only run this when Steps 1 and 2 **both** miss **and** `recipe_url` is non-empty.
+
+Fetch the recipe page and check for the primary animal protein in:
+
+- `<title>` (often `"Sichuan Chicken Stir Fry | Example Blog"`)
+- The schema.org JSON-LD `recipeIngredient` array, where the first 1–3 ingredients usually name the headline protein
+- `<meta name="description">`
+
+Re-run the Step 1 and Step 2 word lists against this text with the same lowercase normalization. If multiple proteins appear (for example, chicken broth in a beef recipe), pick the **headline** one: the recipe title and largest-quantity ingredient outrank minor flavorings.
+
+Worked example:
+
+- Input `{dish_name: "spicy stir fry", recipe_url: "https://example.com/sichuan-stir-fry"}` where fetch finds `<title>Sichuan Chicken Stir Fry</title>` and `1.5 lb chicken thighs` in JSON-LD →
+
+  ```text
+  protein: chicken
+  source: url-fetch
+  reason: matched headline protein from recipe url
+  ```
+
+If the fetch fails (paywall, timeout, network error), go to Step 4 with `could not determine protein from recipe link`. If the fetch succeeds and no animal protein appears in title, ingredients, or description, the dish is meatless; go to Step 4 with the vegetarian reason.
+
+## 4. Skip: nothing freezer-bound (source = skipped)
+
+Return `protein: null` and `source: skipped` with one of these lowercase `reason` values:
+
+- `vegetarian - meatless dish needs no freezer thawing`: the dish name or fetched recipe is plainly vegetarian/vegan/meatless (for example, `"lentil soup"`, `"veggie pasta"`, `"mushroom risotto"`, `"chickpea curry"`, `"black bean tacos"`, `"egg fried rice"`, or a tofu dish). **Tofu, eggs, beans, lentils, chickpeas, and mushrooms never need morning freezer thawing in this workflow; do not hedge or add advice about frozen tofu or frozen vegetables.**
+- `could not determine protein from recipe link`: Step 3 ran, and the fetch failed or the page did not clearly identify a protein.
+- `no protein keyword in dish name and no recipe url to check`: Steps 1–2 missed on a non-obvious dish name (such as `"friday night special"`) and `recipe_url` was null/empty.
+- `no fetch capability and dish name did not match`: Step 3 was needed, and the host lacks fetch tools.
+- `not an animal protein`: the input refers to frozen non-protein prep such as `"frozen pizza dough"`.
+
+Worked example:
+
+- `"chickpea curry"` →
+
+  ```text
+  protein: null
+  source: skipped
+  reason: vegetarian - meatless dish needs no freezer thawing
+  ```
 
 # Edge cases
 
-- **Two specific proteins in one dish** (`"surf and turf"`, `"chicken and shrimp paella"`): take the first one mentioned in the dish name. Both need thawing, but the caller's freezer-reminder template only fits one — log a note. (Future improvement: support a list output.)
-- **Plant-based "meat"** (`"impossible burger"`, `"beyond sausage"`): treat as the matched generic word (`burgers`, `sausages`). The user still pulls something from the freezer; the keyword is what's on the package.
-- **Frozen prep that isn't an animal protein** (e.g. `"frozen pizza dough"`): not in scope for this skill. Return `null` with reason `"not an animal protein"` if the recipe makes it obvious.
-- **Stock / broth mentions** in the fetched recipe (`chicken broth`, `beef stock`) when no headline meat exists: do NOT count as protein. Chicken broth alone doesn't mean chicken comes out of the freezer.
+- **Two specific proteins in one dish** (`"chicken and shrimp paella"`): pick the first protein mentioned in the dish name (`chicken`), since `protein` holds a single keyword, and note the second in `reason` (`matched first specific keyword in dish name also mentions shrimp`).
+- **Plant-based meat** (`"impossible burger"`, `"beyond sausage"`): Step 2 matches `burgers` or `sausages` (`source: generic`); the user still pulls that package from the freezer.
+- **Stocks, broths, and condiments** (`chicken broth`, `beef stock`, `fish sauce`, `oyster sauce`) when no headline meat or seafood exists: never count as freezer protein.
+- **Frozen non-protein prep** (`"frozen pizza dough"`): out of scope; return `protein: null`, `source: skipped`, `reason: not an animal protein`.
 
 # Hard rules
 
 - First match wins, in order: Step 1 → Step 2 → Step 3 → Step 4.
-- Step 3 (URL fetch) ONLY runs when 1 and 2 both miss. Don't waste a network call when the dish name already answered the question.
-- Output `protein` is lowercase. No leading/trailing whitespace. No quotes.
-- A `null` result MUST include a `reason`. The caller surfaces it.
-- Don't infer a protein you didn't see. If the answer is uncertain, return `null` with reason `"couldn't determine protein from recipe link"` — better a missed reminder than a wrong one.
+- Step 3 (URL fetch) runs **only** when Steps 1 and 2 both miss and `recipe_url` is provided.
+- Output **only** the three-line `protein` / `source` / `reason` record: no prose sentences, no Markdown formatting (`**`, `*`, `` ` ``, ` ``` `), no JSON braces, and no quotes (`"`, `'`).
+- Every character in the output is lowercase, with no leading or trailing whitespace on any value or line.
+- Every `null` result must include `source: skipped` and a specific lowercase `reason`.
+- Never infer or guess a protein you did not observe in the dish name or fetched recipe.
 
 # Related skills
 
-- `extract-recipe-grocery-list` — the other consumer of dish names + recipe URLs; for ingredient extraction, not protein detection
+- `extract-recipe-grocery-list`: the other consumer of dish names + recipe URLs; for ingredient extraction, not protein detection
