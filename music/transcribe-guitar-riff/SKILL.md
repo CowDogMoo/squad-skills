@@ -344,26 +344,24 @@ by hand; hand-named intervals are where readings pick up errors.
 Quantize to the grid the table shows (sixteenths). A note that flickers for
 one slot is usually an attack transient of the next note, not a note.
 
-**Decide which candidates are voices before drawing any boundary.** A peak
-the long-term block tags as a distortion difference tone is never a voice,
-however high it ranks in a slot. Nor is a candidate below the lowest voice
-whose register the octave check's `verdict:` settled in Step 2: that is a
-sub-octave image. The octave above a voice that is already sounding
-may be that voice's harmonic or a played octave (an octave shape, a
-root-fifth-octave chord, an octave over a pedal). Both start and stop on the
-same sixteenths as the voice, so matching slots prove nothing either way;
-never cite them as proof. Write such a candidate into the spec, MIDI and tab
-only when it is independently played or the user named that voicing.
-Independently played means that, with difference tones and sub-octave images
-struck, the per-sixteenth table shows it in the top two for at least two
-consecutive slots where the voice an octave below is out of the top two, or a
-beat's per-beat summary lists it without that lower voice. A single slot where
-it edges past the lower voice is a flicker, not a note. Leave every other
-octave candidate out of the reading and list it in the reply as a possible
-played octave to check by ear. The candidates left are the voices, and "top
-two" from here on means the top two of those voices in a slot, with every
-excluded candidate struck first, so an excluded candidate never moves a
-voice's boundary.
+**Decide which candidates are voices before drawing any boundary.** A peak the
+long-term block tags as a distortion difference tone is never a voice, however
+high it ranks in a slot. Nor is an octave of the lowest voice that the octave
+check's `verdict:` ruled out in Step 2. The octave above a voice that is
+already sounding may be that voice's harmonic or a played octave (an octave
+shape, a root-fifth-octave chord, an octave over a pedal). Both start and stop
+on the same sixteenths as the voice, so matching slots prove nothing either
+way; never cite them as proof. Write such a candidate into the spec, MIDI and
+tab only when it is independently played or the user named that voicing.
+Independently played means that, with those two kinds of candidate struck, the
+per-sixteenth table shows it in the top two for at least two consecutive slots
+where the voice an octave below is out of the top two, or a beat's per-beat
+summary lists it without that lower voice. A single slot where it edges past
+the lower voice is a flicker, not a note. Leave every other octave candidate
+out of the reading and list it in the reply as a possible played octave to
+check by ear. The candidates left are the voices, and "top two" from here on
+means the top two of those voices in a slot, with every excluded candidate
+struck first, so an excluded candidate never moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
@@ -376,10 +374,9 @@ continuing a run from the slot before or into the slot after. The summary
 ranks every candidate, so a beat whose entry lists an excluded candidate
 says nothing about which voices sound there; read that beat from the table.
 
-When a voice fades rather than stops, end it at the last slot where it is
-still in the top two and say it may ring on, so the user checks that by ear.
-The table in the reply, the spec, the MIDI and the tab then all show the same
-notes.
+When a voice fades rather than stops, end it where the evidence ends and say
+it may ring on, so the user checks that by ear. The table in the reply, the
+spec, the MIDI and the tab then all show the same notes.
 
 **Author the reading from the audio alone.** When the audio comes with its
 answer (a test fixture's spec or expected notes, the MIDI it was rendered
@@ -568,13 +565,13 @@ the folder. Put these in it, each copied from a script's output:
   tone), say which output line shows it and why it is not a played note. A
   rejection rests on printed evidence: the long-term block's difference-tone
   tag, or the octave check's `verdict:` for the lowest voice's register, which
-  rules out reading that voice an octave high or low and anything below it
-  as a voice. An octave above a sounding voice goes into the reading only on
-  Step 5's independent-play test (quote the consecutive slot ids or the
-  per-beat entry that pass it) or the user's named voicing; otherwise it is
-  listed as a possible played octave to check by ear, not called a harmonic.
-  Any other candidate neither of those settles stays out of the reading and
-  is listed as unresolved, not argued away with your own arithmetic.
+  rules out reading that voice an octave high or low. An octave above a
+  sounding voice goes into the reading only on Step 5's independent-play
+  test (quote the consecutive slot ids or the per-beat entry that pass it)
+  or the user's named voicing; otherwise it is listed as a possible played
+  octave to check by ear, not called a harmonic. Any other candidate neither
+  of those settles stays out of the reading and is listed as unresolved, not
+  argued away with your own arithmetic.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak; move the boundary.
   Do not cite a check that came out weak as support for the reading.
