@@ -1,6 +1,6 @@
 ---
 name: python-security-guide
-description: "Python security guide: static-analysis tools, common vulnerabilities, insecure deserialization, web frameworks, cryptography, supply chain, secrets, and a checklist. Use when security-auditing or hardening Python code."
+description: "Python security guide: static-analysis tools, common vulnerabilities, insecure deserialization, web frameworks, cryptography, supply chain, secrets, and a checklist. Use when security-auditing or hardening Python code, including hardening a Flask, Django, or FastAPI app for production (secret keys, debug mode, session cookies), even when the user only quotes their settings."
 ---
 # Python Security: Comprehensive Guide to Identifying and Patching Vulnerabilities
 
@@ -677,6 +677,14 @@ Talisman(app, content_security_policy=csp, force_https=True)
 if __name__ == '__main__':
     app.run(debug=os.environ.get('FLASK_DEBUG', 'False') == 'True')
 ```
+
+**Answering a hardening question about settings the user quotes:** when the user pastes or describes settings (for example `app.secret_key = 'dev'` and `app.debug = True`) instead of pointing at files, check whether the workspace holds the application. If its files exist, open and review them and base the answer on what they actually contain; edit them only when the user asked for changes, and for a question, recommend the changes without editing. If there is no workspace or no relevant files, answer from what the user gave you: do not keep hunting for the app, and do not open with a disclaimer that it was not found. Either way, lead with the corrected configuration in its final production state, then explain each change briefly:
+
+- The secret key is read from an environment variable or a secrets manager, generated with `secrets.token_hex(32)`, and never committed. Treat a key that was ever deployed as compromised and rotate it.
+- Debug is off. Remove `debug=True`, serve through a WSGI server such as gunicorn or waitress, and keep any development-only debug flag defaulting to off.
+- `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, and `SESSION_COOKIE_SAMESITE` are set, alongside HTTPS and security headers.
+
+The same shape applies to Django settings.
 
 ### FastAPI
 

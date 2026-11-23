@@ -764,7 +764,7 @@ convention = "google"
 ### Docstrings
 
 - [ ] Triple double quotes (`"""`)
-- [ ] All public modules, classes, and functions that need documentation are documented (trivial/self-documenting ones listed as skipped, not documented)
+- [ ] All public modules, classes, and functions that need documentation are documented (trivial/self-documenting ones listed as skipped, not documented). Trivial means a getter, property, dunder, or override whose name says everything; a public function that encodes a rule, or whose name promises more than it checks, still needs a docstring
 - [ ] One-line format for simple cases
 - [ ] Multi-line format with summary, blank line, details
 - [ ] Args, Returns, Raises sections for functions
@@ -798,6 +798,15 @@ convention = "google"
 - [ ] No commented-out code
 - [ ] TODOs include context and ownership
 - [ ] Professional and respectful tone
+
+### Reporting an Audit or Rewrite
+
+A calling agent or task that defines its own report format takes precedence over this section. Otherwise, when you audit or rewrite docstrings and comments, put the evidence in the reply itself, because the reader may never open the file:
+
+- List each violation fixed, naming the function or line and the rule it broke.
+- Quote each new or rewritten docstring verbatim, and name every comment or block of commented-out code you removed. A description such as "now explains the discount" cannot be checked against the standard; the quoted text can.
+- List what you deliberately left undocumented and why.
+- State whether you ran a linter or `pydocstyle`, or that you did not.
 
 ---
 

@@ -112,31 +112,45 @@ Core patterns:
     - name: Gather service facts
       ansible.builtin.service_facts:
 
-    - name: Assert nginx is running and enabled
+    - name: Assert nginx is running
       ansible.builtin.assert:
         that:
-          - "'nginx.service' in ansible_facts.services"
-          - "ansible_facts.services['nginx.service'].state == 'running'"
-          - "ansible_facts.services['nginx.service'].status == 'enabled'"
-        fail_msg: "nginx is not running or not enabled"
+          - "ansible_facts.services['nginx.service'].state | default('absent') == 'running'"
+        fail_msg: "nginx.service is not running"
+
+    - name: Assert nginx is enabled
+      ansible.builtin.assert:
+        that:
+          - "ansible_facts.services['nginx.service'].status | default('absent') == 'enabled'"
+        fail_msg: "nginx.service is not enabled at boot"
 
     - name: Stat config file
       ansible.builtin.stat:
         path: /etc/nginx/nginx.conf
       register: nginx_conf_stat
 
+    - name: Assert config exists
+      ansible.builtin.assert:
+        that:
+          - nginx_conf_stat.stat.exists
+        fail_msg: "/etc/nginx/nginx.conf is missing"
+
+    - name: Assert config mode
+      ansible.builtin.assert:
+        that:
+          - nginx_conf_stat.stat.mode == '0644'
+        fail_msg: "/etc/nginx/nginx.conf mode is {{ nginx_conf_stat.stat.mode }}, expected 0644"
+
     - name: Read config file
       ansible.builtin.slurp:
         src: /etc/nginx/nginx.conf
       register: nginx_conf
 
-    - name: Assert config exists with correct mode and content
+    - name: Assert config listens on the role port
       ansible.builtin.assert:
         that:
-          - nginx_conf_stat.stat.exists
-          - nginx_conf_stat.stat.mode == '0644'
           - "('listen ' ~ nginx_port) in (nginx_conf.content | b64decode)"
-        fail_msg: "nginx.conf missing, wrong mode, or not listening on {{ nginx_port }}"
+        fail_msg: "/etc/nginx/nginx.conf has no 'listen {{ nginx_port }}' directive"
 
     - name: Query health endpoint
       ansible.builtin.uri:
@@ -154,11 +168,41 @@ Rules that go with these patterns:
   keys carry the `.service` suffix.
 - `gather_facts: true` (or an explicit facts task) when anything reads
   `ansible_facts`.
-- Every assert has a `fail_msg` that names what broke.
+- Every assert checks one failure mode, and its `fail_msg` names that single
+  condition ("nginx.conf is missing", not "missing, wrong mode, or not
+  listening"). Never OR several possible causes into one message.
 - Load role values with `vars_files` instead of hardcoding ports, paths, or
   users that can drift from defaults.
 - Test observable behavior. Internal markers or temp files the role happens to
   create are implementation details.
+
+### Strengthening an existing verify.yml
+
+- Keep every registered check and follow it with an assertion on its
+  registered result: a `stat` gets its own assert on `.stat.exists`, with
+  mode or owner in separate asserts where they matter, each with its own
+  single-condition `fail_msg`. Add stronger checks next to it, never in place of
+  it; use `slurp` only for content checks.
+- Apply the whole checklist to every task, not only the ones that look weak:
+  FQCN on every module (including `service_facts`, `slurp`, `wait_for`, `uri`,
+  `command`), facts gathered, and a `fail_msg` on every assert.
+- When the caller sets no report format, the reply is often all the reviewer
+  reads, and the edited file may not be opened. Close the loop on each defect
+  the original had: say which check now fails, under what broken-deploy
+  condition (package absent, file missing, service stopped), and quote the
+  `fail_msg` it reports so the reader sees what the message names. Give each
+  original registered check its own item named by its module and target
+  (for example "the `stat` on `<path>` is kept and now asserted on
+  `.stat.exists`, failing with `<path> is missing`"); never fold it into a
+  combined line about a neighbouring check.
+- State file-wide properties as facts about the whole file instead of
+  listing a few examples, in their concrete form: "every module uses its
+  `ansible.builtin.` name, including the ones that were short names in the
+  original", "every assert has a single-condition `fail_msg`". Name each
+  new check by its FQCN module too, so no task in the reply appears without
+  its module.
+- If the caller defines a report format, follow that and keep this content
+  inside it.
 
 Verifier choice: the `ansible` verifier (default since Molecule v3) suits
 small YAML suites. `testinfra` (Python) suits large, looping, or parametrized
