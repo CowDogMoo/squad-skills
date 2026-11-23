@@ -435,7 +435,7 @@ Automatically formats doc comments:
 - Moves link definitions and directives to end of comment
 
 ```bash
-gofmt -w .
+gofmt -w file.go
 ```
 
 ### Syntax and Build Verification
@@ -525,7 +525,7 @@ if err == nil {
 ### Before Submitting
 
 - [ ] All exported names with non-obvious meaning have doc comments (self-documenting names left undocumented)
-- [ ] Comments start with the declared name
+- [ ] Comments start with the declared name (a leading "A", "An", or "The" is fine)
 - [ ] Complete sentences with proper punctuation
 - [ ] No blank line between comment and declaration
 - [ ] Lines within 80 characters
