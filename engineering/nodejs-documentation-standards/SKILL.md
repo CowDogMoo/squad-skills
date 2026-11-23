@@ -15,7 +15,8 @@ knowledge base for the nodejs-doc-comments pattern.
 3. [JSDoc Tags Reference](#jsdoc-tags-reference)
 4. [What to Document](#what-to-document)
 5. [Common Mistakes](#common-mistakes)
-6. [Quality Checklist](#quality-checklist)
+6. [Writing and Auditing Workflow](#writing-and-auditing-workflow)
+7. [Quality Checklist](#quality-checklist)
 
 ---
 
@@ -277,14 +278,26 @@ export async function sendEmail(to: string, subject: string): Promise<void> {}
 
 ### Error Values
 
+Document when the error is thrown on the class, and document every public
+property on the error with what its value means to callers handling it (for
+example, when or after what delay a rate-limited request may be retried, or
+which field failed validation). State units when the code or type establishes
+them; when the implementation stores a caller-supplied number without fixing a
+unit, explain the property's retry or failure semantics to the caller without
+inventing an unverified unit:
+
 ```ts
 /**
  * Thrown when a rate limit is exceeded.
  *
- * The `retryAfter` property indicates when to retry (Unix timestamp in ms).
+ * Inspect {@link RateLimitError.retryAfter} to determine when the request
+ * may be retried.
  */
 export class RateLimitError extends Error {
-  /** Unix timestamp (ms) after which the request may be retried. */
+  /**
+   * Delay or timestamp indicating when the caller may retry the
+   * rate-limited operation (in ms when issued by the HTTP client).
+   */
   retryAfter: number;
 }
 ```
@@ -303,13 +316,19 @@ export async function connect(url: string): Promise<BrokerClient> {}
 
 ### Parameter Constraints
 
+Read the implementation and document caller-observable bounds, defaults,
+clamping or rounding, and execution semantics (such as minimum intervals
+enforced with `Math.max`, whether the first tick waits one interval, overlap
+behavior, or callback rejection handling). Never claim constraints the code
+does not enforce:
+
 ```ts
 /**
  * Schedules a job to run at the specified interval.
  *
- * @param intervalMs - Polling interval in milliseconds. Must be ≥ 100.
- *   Values below 100 are rounded up to prevent CPU saturation.
- * @param fn - The async function to execute. Must resolve within `intervalMs`.
+ * @param intervalMs - Polling interval in milliseconds. Must be >= 100;
+ *   values below 100 are rounded up to 100 to prevent CPU saturation.
+ * @param fn - Async callback invoked on each tick.
  */
 export function schedule(intervalMs: number, fn: () => Promise<void>): Job {}
 ```
@@ -497,6 +516,52 @@ module.exports = {
 
 ---
 
+## Writing and Auditing Workflow
+
+### Writing JSDoc for Declarations
+
+1. **Read the implementation first.** Inspect every exported declaration and
+   its body so comments capture real caller-observable behavior: parameter
+   clamping or defaults, `null`/`undefined` return conditions, thrown errors,
+   custom `Error` property meanings, async or timer scheduling semantics, and
+   idempotent cleanup or cancellation. Do not invent units or runtime
+   guarantees the code does not establish.
+2. **Modify comments only.** Never alter runtime logic, type annotations,
+   signatures, or exports when adding or fixing JSDoc. Place every `/** ... */`
+   block immediately above its declaration (and above documented interface
+   methods, class properties, and constructors) with **no blank line** between
+   the closing `*/` and the declaration.
+3. **Omit brace types in TypeScript.** In `.ts` and `.tsx` files, never write
+   `{Type}` on `@param` or `@returns` (`@throws {ErrorType}` is the sole tag
+   that names a type in braces, because TypeScript signatures do not declare
+   thrown error types).
+4. **Include the documented code in your response.** Even after editing a file
+   in place or writing a working copy, present the documented declarations in
+   a code block in your reply (the full file when concise, or every documented
+   export with its attached JSDoc block and signature) so callers and reviewers
+   can verify block attachment, tag syntax, and descriptions directly. Note any
+   exported declarations intentionally left undocumented as trivial.
+
+### Auditing Existing JSDoc
+
+Group findings by declaration and call out every defect:
+
+- **Detached blocks:** Any blank line between `*/` and the `export` or member
+  declaration detaches the comment in TypeScript, TypeDoc, and IDE tooltips.
+- **Redundant types in `.ts`:** `{type}` annotations on `@param` or `@returns`
+  duplicate the TypeScript signature and can drift out of sync.
+- **No-information summaries:** Comments like `/** Gets the user. */` or
+  `@returns The user` restate the identifier without adding semantics (such as
+  source, `null` conditions, or side effects).
+- **Missing `@throws` or caveats:** Functions that call throwing APIs (such as
+  `JSON.parse` throwing `SyntaxError` on malformed JSON) or perform unchecked
+  `as T` casts without runtime validation must document those hazards.
+
+Provide corrected JSDoc blocks immediately above their declarations so each
+fix is ready to apply.
+
+---
+
 ## Quality Checklist
 
 ### Before Submitting
@@ -504,14 +569,16 @@ module.exports = {
 - [ ] All exported names with non-obvious meaning have JSDoc blocks (trivial getters/setters/re-exports left undocumented)
 - [ ] Comments start with an action verb or noun phrase
 - [ ] Complete sentences with proper punctuation
-- [ ] No blank line between JSDoc block and declaration
+- [ ] No blank line between JSDoc block and declaration (including interface methods, class properties, and constructors)
 - [ ] Lines within 80 characters
-- [ ] `@param` for all non-obvious parameters
-- [ ] `@returns` describing the return value semantics
+- [ ] `@param` for all non-obvious parameters, with no `{type}` braces in `.ts` files
+- [ ] `@returns` describing the return value semantics, with no `{type}` braces in `.ts` files
 - [ ] `@throws` for known/documented error types
+- [ ] Custom `Error` properties and parameter clamping/bounds documented with caller semantics
 - [ ] Async behavior documented when non-obvious
 - [ ] Cleanup requirements documented
 - [ ] Deprecated exports marked with `@deprecated`
+- [ ] Documented declarations (JSDoc blocks attached directly above signatures) shown in the response
 
 ### Common Patterns
 
