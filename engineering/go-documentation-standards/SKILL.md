@@ -440,11 +440,11 @@ gofmt -w .
 
 ### Syntax and Build Verification
 
-Verify that comment edits formatted cleanly and left all executable Go valid:
+Verify that comment edits formatted cleanly and left all executable Go valid. Format only the files you edited, so unrelated files are not reformatted:
 
 ```bash
 # Inside a Go module (go.mod present)
-gofmt -w . && go vet ./...
+gofmt -w edited.go other_edited.go && go vet ./...
 
 # Standalone .go file with no go.mod in the directory
 gofmt -w file.go && go vet file.go
@@ -505,7 +505,7 @@ if err == nil {
 
 1. **Change comments only:** Never alter executable code, signatures, or imports during a documentation pass.
 2. **Cover non-obvious exports and skip trivial ones:** Place `// Package <name> ...` directly above `package <name>` with no blank line. Give each non-obvious exported type, function, method, constant, and variable a doc comment immediately above its declaration (no intervening blank line) starting with its declared name. Document error conditions, sentinel errors, parameter constraints, and concurrency safety; leave self-documenting methods (`String`, `Len`, simple getters) uncommented.
-3. **Verify formatting and compilation:** Run `gofmt -w` and `go vet` (using `gofmt -w <file.go> && go vet <file.go>` for a standalone file without `go.mod`, or `gofmt -w . && go vet ./...` in a module) to confirm valid, compilable Go.
+3. **Verify formatting and compilation:** Run `gofmt -w` on only the files you edited, then `go vet` (using `gofmt -w <file.go> && go vet <file.go>` for a standalone file without `go.mod`, or `gofmt -w <edited files> && go vet ./...` in a module) to confirm valid, compilable Go.
 4. **Show the documented code only when needed:** If a calling agent defines a report format, follow it instead. Otherwise, put the resulting Go source in your reply, in a fenced `go` block, when either condition holds:
    - **The user cannot see your edits:** you wrote to a copy because the original was read-only (so the user's file is unchanged), or the documented files otherwise cannot be written where the user will see them. A prose or bullet summary of the comments is not a substitute for the code.
    - **The user asks to see the result.**
