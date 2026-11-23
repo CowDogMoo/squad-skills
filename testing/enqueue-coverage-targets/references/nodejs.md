@@ -36,7 +36,8 @@ Take the 3–5 lowest-hit functions.
 
 ## Verify and re-measure (Step 3)
 
+Run from the project root (or `"$work"` when Step 1a created a working copy):
+
 ```bash
-npx vitest run            # or: npx jest
 npx vitest run --coverage # or: npx jest --coverage
 ```

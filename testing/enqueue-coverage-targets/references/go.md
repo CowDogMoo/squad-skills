@@ -36,7 +36,8 @@ re-measure.
 
 ## Verify and re-measure (Step 3)
 
+Run from the module root (or `"$work"` when Step 1a created a working copy):
+
 ```bash
-go build ./... && go test ./...
-go test -cover ./... 2>&1 | grep "coverage:"
+go build ./... && { go test ./... -coverprofile=/tmp/squad-after.out -count=1; go tool cover -func=/tmp/squad-after.out | tail -1; }
 ```
