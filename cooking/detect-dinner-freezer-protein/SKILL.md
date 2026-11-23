@@ -11,7 +11,7 @@ This is a pure transformation: no side effects, no calendar writes, and no conve
 
 # Host-environment translation (READ FIRST)
 
-Step 3 (URL fallback) is the only host-dependent path. Steps 1–2 are dish-name word matching and need no tools.
+Step 3 (URL fallback) is the only host-dependent path. Steps 1–2 are dish-name string matching and need no tools.
 
 | Action | Squad / shell hosts | Claude Code / Desktop | Browser-MCP-only hosts |
 |---|---|---|---|
@@ -63,12 +63,12 @@ reason: matched specific keyword in dish name without url fetch
 
 ## 1. Specific protein keyword in the dish name (source = specific)
 
-Case-insensitive word match against `dish_name` (match whole words and regular plurals such as `steaks` → `steak`, `shrimps` → `shrimp`, `prawns` → `prawn`, `scallops` → `scallop`, so `ham` never false-matches inside `champagne`). Output the canonical singular lowercase keyword from this list:
+Case-insensitive substring match against `dish_name`, so plurals and compound words still match (`steaks` → `steak`, `porkchops` → `pork`). The one exception is `ham`, which matches only as a standalone word (`ham`, `hams`) so it never false-matches inside `champagne`, `hamburger`, or `graham`. Output the matched keyword lowercased, except `sausage` always outputs plural `sausages`:
 
-- **Land meats**: `chicken`, `beef`, `steak`, `pork`, `bacon`, `ham`, `lamb`, `turkey`, `duck`
+- **Land meats**: `chicken`, `beef`, `steak`, `pork`, `bacon`, `sausage`, `ham`, `lamb`, `turkey`, `duck`
 - **Fish & seafood**: `salmon`, `tuna`, `cod`, `halibut`, `tilapia`, `shrimp`, `prawn`, `scallop`
 
-Keep the matched cut in its specific form. Do not generalize `steak` → `beef` or `bacon` → `pork`; the user is taking that specific item out of the freezer. (`sausage` / `sausages` is handled in Step 2 so it normalizes to plural `sausages`.)
+Keep the matched cut in its specific form. Do not generalize `steak` → `beef` or `bacon` → `pork`; the user is taking that specific item out of the freezer.
 
 Worked examples:
 
@@ -98,14 +98,13 @@ Worked examples:
 
 ## 2. Generic protein-bearing term in the dish name (source = generic)
 
-When no Step 1 word matched, scan `dish_name` case-insensitively for these whole words and map to the canonical form:
+When no Step 1 word matched, scan `dish_name` with the same case-insensitive substring match and map to the canonical form:
 
-| Match (case-insensitive whole word) | Output `protein` |
+| Match (case-insensitive substring) | Output `protein` |
 |---|---|
 | `meatball` or `meatballs` | `meatballs` |
 | `burger` or `burgers` | `burgers` |
-| `sausage` or `sausages` | `sausages` |
-| `fish` (standalone, not `fish sauce`, `jellyfish`, etc.) | `fish` |
+| `fish` (including `swordfish`, `crawfish`; not `fish sauce` or `jellyfish`) | `fish` |
 | `seafood` | `seafood` |
 
 Do **not** fall through to a URL fetch when Step 2 matches; the dish name already resolved the protein.
@@ -138,7 +137,7 @@ Fetch the recipe page and check for the primary animal protein in:
 - The schema.org JSON-LD `recipeIngredient` array, where the first 1–3 ingredients usually name the headline protein
 - `<meta name="description">`
 
-Re-run the Step 1 and Step 2 word lists against this text with the same lowercase normalization. If multiple proteins appear (for example, chicken broth in a beef recipe), pick the **headline** one: the recipe title and largest-quantity ingredient outrank minor flavorings.
+Re-run the Step 1 and Step 2 word lists against this text with the same case-insensitive substring matching and `ham` guard. If multiple proteins appear (for example, chicken broth in a beef recipe), pick the **headline** one: the recipe title and largest-quantity ingredient outrank minor flavorings.
 
 Worked example:
 
@@ -175,7 +174,7 @@ Worked example:
 # Edge cases
 
 - **Two specific proteins in one dish** (`"chicken and shrimp paella"`): pick the first protein mentioned in the dish name (`chicken`), since `protein` holds a single keyword, and note the second in `reason` (`matched first specific keyword in dish name also mentions shrimp`).
-- **Plant-based meat** (`"impossible burger"`, `"beyond sausage"`): Step 2 matches `burgers` or `sausages` (`source: generic`); the user still pulls that package from the freezer.
+- **Plant-based meat** (`"impossible burger"`, `"beyond sausage"`): treat as the matched word (`burgers` from Step 2, `sausages` from Step 1); the user still pulls that package from the freezer.
 - **Stocks, broths, and condiments** (`chicken broth`, `beef stock`, `fish sauce`, `oyster sauce`) when no headline meat or seafood exists: never count as freezer protein.
 - **Frozen non-protein prep** (`"frozen pizza dough"`): out of scope; return `protein: null`, `source: skipped`, `reason: not an animal protein`.
 
