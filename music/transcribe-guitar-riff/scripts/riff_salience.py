@@ -176,41 +176,6 @@ def estimate_tune_offset(y, sr, max_abs_cents=50):
     return float(max(-max_abs_cents, min(max_abs_cents, est)))
 
 
-PER_BEAT_HEADER = "per-beat sounding notes (in the top-2 of at least half the slots; first = strongest):"
-
-
-def format_row(r) -> str:
-    desc = " | ".join(f"{c['note']:4s}{c['cents']:+4d} {c['db']:6.1f}dB [{c['frets']}]" for c in r["candidates"])
-    return f"{r['slot']:9s} {r['t']:7.2f}  {desc}"
-
-
-def per_beat_summary(rows) -> dict[str, tuple[list[str], list[str], int]]:
-    """Notes in the top-2 of at least half a beat's slots, per beat key ('bar.beat')."""
-    per_beat: dict[str, list[list[str]]] = {}
-    for r in rows:
-        key = ".".join(r["slot"].split(".")[:2])
-        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"][:2]])
-    out = {}
-    for key, slot_notes in per_beat.items():
-        counts: dict[str, int] = {}
-        for names in slot_notes:
-            for n in names:
-                counts[n] = counts.get(n, 0) + 1
-        n_slots = len(slot_notes)
-        stable = sorted((n for n, c in counts.items() if 2 * c >= n_slots), key=lambda n: -counts[n])
-        others = sorted(n for n in counts if n not in stable)
-        out[key] = (stable, others, n_slots)
-    return out
-
-
-def format_beat(key, stable, others, n_slots) -> str:
-    return f"  {key:6s} {' + '.join(stable) or '?':12s}  (of {n_slots} slots; also seen: {others})"
-
-
-def format_peak(hz, d, tag="") -> str:
-    return f"  {hz:7.1f}  {d:6.1f}  {librosa.hz_to_note(hz, cents=True)}{tag}"
-
-
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("wav")
@@ -249,11 +214,24 @@ def main(argv=None) -> int:
     print(f"# {args.wav}  {len(y)/sr:.2f}s  bpm={bpm:g}  grid={args.grid}/bar  tuning={args.tuning}")
     print("slot       t(s)    top fundamentals: note cents dB [string:fret]")
     for r in rows:
-        print(format_row(r))
+        desc = " | ".join(f"{c['note']:4s}{c['cents']:+4d} {c['db']:6.1f}dB [{c['frets']}]" for c in r["candidates"])
+        print(f"{r['slot']:9s} {r['t']:7.2f}  {desc}")
 
-    print("\n" + PER_BEAT_HEADER)
-    for key, (stable, others, n_slots) in per_beat_summary(rows).items():
-        print(format_beat(key, stable, others, n_slots))
+    # per-beat summary: notes that appear in the top-2 of at least half the beat's slots
+    print("\nper-beat sounding notes (in the top-2 of at least half the slots; first = strongest):")
+    per_beat: dict[str, list[list[str]]] = {}
+    for r in rows:
+        key = ".".join(r["slot"].split(".")[:2])
+        per_beat.setdefault(key, []).append([c["note"] for c in r["candidates"][:2]])
+    for key, slot_notes in per_beat.items():
+        counts: dict[str, int] = {}
+        for names in slot_notes:
+            for n in names:
+                counts[n] = counts.get(n, 0) + 1
+        n_slots = len(slot_notes)
+        stable = sorted((n for n, c in counts.items() if 2 * c >= n_slots), key=lambda n: -counts[n])
+        others = sorted(n for n in counts if n not in stable)
+        print(f"  {key:6s} {' + '.join(stable) or '?':12s}  (of {n_slots} slots; also seen: {others})")
 
     peaks, flagged = long_term_peaks(y, sr)
     print("\nlong-term spectrum peaks (Hz, dB rel. max, note):")
@@ -262,7 +240,7 @@ def main(argv=None) -> int:
         for fh, a, b in flagged:
             if fh == hz:
                 tag = f"   <- off-grid and = {a:.0f}-{b:.0f} Hz: distortion difference tone, not a played note"
-        print(format_peak(hz, d, tag))
+        print(f"  {hz:7.1f}  {d:6.1f}  {librosa.hz_to_note(hz, cents=True)}{tag}")
 
     if args.json:
         with open(args.json, "w") as fh:

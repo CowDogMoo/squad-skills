@@ -340,17 +340,12 @@ Then build the MIDI and the Ableton note list:
 
 ```bash
 python scripts/riff_midi.py OUT/riff.spec --bpm 120 --bar-offset 70 \
-  --out "OUT/cleaned.mid" --ableton-json OUT/notes.json --evidence OUT/slots.json
+  --out "OUT/cleaned.mid" --ableton-json OUT/notes.json
 ```
 
 It prints the reading back as a table with the interval each upper note forms
 above the lowest one. Copy intervals from that column rather than naming them
-by hand; hand-named intervals are where readings pick up errors. With
-`--evidence` (the `slots.json` from Step 4, same `--bar-offset`) it also
-prints the evidence block Step 8 pastes: the per-beat entry of every beat the
-spec writes, every row of each beat whose entry does not list all the notes
-written there, and a pitch map. A pitch-map line saying a note is "written on
-beats where no row shows it" is a boundary to recheck before going on.
+by hand; hand-named intervals are where readings pick up errors.
 
 Quantize to the grid the table shows (sixteenths). A note that flickers for
 one slot is usually an attack transient of the next note, not a note.
@@ -579,11 +574,9 @@ the folder. Put these in it, each copied from a script's output:
 - The reading: the bar-by-beat table, with intervals from `riff_midi.py` and
   an evidence column that quotes, as printed, the per-beat summary entries
   covering each row (`1.2 E3 + B3`, `1.3 B3 + E3`), plus the slot id
-  where a voice enters or drops out. For a beat whose entry does not list a
-  written voice, cite instead the row ids where that voice appears. Say a
-  voice is in a row, never where it ranks there: the printed rows rank every
-  candidate, set-aside ones included, so "second" or "top two" reads as false
-  against the pasted row. Quote the entries rather than
+  where a voice enters or drops out. For a beat whose entry lists a
+  candidate Step 5 excluded, cite instead the slot ids that show the voice
+  in the top two once that candidate is set aside. Quote the entries rather than
   paraphrasing slot dB values: the entry is the line that says the note is
   sounding, and the user can find it in the output. Show the evidence row by
   row; a blanket line such as "every note is supported" checks nothing and
@@ -606,19 +599,16 @@ the folder. Put these in it, each copied from a script's output:
   octave"); and a `?` beat may show its candidates, labelled as unresolved
   candidates, not as played notes (Guardrails).
 - The printed lines that evidence rests on, pasted verbatim in one code block:
-  the whole evidence block from `riff_midi.py --evidence` (per-beat entries,
-  rows and pitch map), `riff_salience.py`'s long-term peaks block, and each
-  `verdict:` line from `octave_check.py`. Copy them as printed; never
-  assemble, shorten ("...") or renumber rows by hand, and cite only slot ids
-  whose rows are in the block. The reader checks your reading against the
-  output only through your message, so an entry, slot id or dB value cited
-  without its printed line cannot be checked, and a pitch nobody can check
-  reads as unsupported.
+  `riff_salience.py`'s per-beat summary block and long-term peaks block, each
+  `verdict:` line from `octave_check.py`, and the per-sixteenth row of every
+  slot id the reply cites. The reader checks your reading against the output
+  only through your message, so an entry, slot id or dB value cited without
+  its printed line cannot be checked, and a pitch nobody can check reads as
+  unsupported.
 - Keep the reply consistent with itself. Do not write a note over a stretch
   your own evidence column or doubts call absent or weak, including a gap of
   two slots or more you would rather hold through; move the boundary. A
-  single-slot dip is held through (Step 5), not a gap, and is part of the
-  note, not a doubt or exception to list in the reply. A note your reply
+  single-slot dip is held through (Step 5), not a gap. A note your reply
   would call probable ring-over, decay or doubtful is not in the reading:
   settle it from the slots and leave it out (Step 5).
   Do not cite a check that came out weak as support for the reading.
