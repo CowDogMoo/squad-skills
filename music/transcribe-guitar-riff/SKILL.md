@@ -346,24 +346,24 @@ one slot is usually an attack transient of the next note, not a note.
 
 **Decide which candidates are voices before drawing any boundary.** A peak the
 long-term block tags as a distortion difference tone is never a voice, however
-high it ranks in a slot. Nor is an octave below the lowest voice that the
-octave check's `verdict:` ruled out in Step 2 (a sub-octave image). The
-verdict does not strike the octave above the lowest voice: like the octave
-above any voice that is already sounding, it may be that voice's harmonic or a
-played octave (an octave shape, a root-fifth-octave chord, an octave over a
-pedal). Both start and stop on the same sixteenths as the voice, so matching
-slots prove nothing either way; never cite them as proof. Write such a
-candidate into the spec, MIDI and tab only when it is independently played or
-the user named that voicing. Independently played means that, with difference
-tones and those sub-octave images struck, the per-sixteenth table shows it in
-the top two for at least two consecutive slots where the voice an octave below
-is out of the top two, or a beat's per-beat summary lists it without that
-lower voice. A single slot where it edges past the lower voice is a flicker,
-not a note. Leave every other octave candidate out of the reading and list it
-in the reply as a possible played octave to check by ear. The candidates left
-are the voices, and "top two" from here on means the top two of those voices
-in a slot, with every excluded candidate struck first, so an excluded
-candidate never moves a voice's boundary.
+high it ranks in a slot. Nor is any octave below the lowest voice, one or more
+octaves down, that the octave check's `verdict:` ruled out in Step 2
+(sub-octave images). The verdict does not strike the octave above the lowest
+voice: like the octave above any voice that is already sounding, it may be
+that voice's harmonic or a played octave (an octave shape, a root-fifth-octave
+chord, an octave over a pedal). Both start and stop on the same sixteenths as
+the voice, so matching slots prove nothing either way; never cite them as
+proof. Write such a candidate into the spec, MIDI and tab only when it is
+independently played or the user named that voicing. Independently played
+means that, with difference tones and those sub-octave images struck, the
+per-sixteenth table shows it in the top two for at least two consecutive slots
+where the voice an octave below is out of the top two, or a beat's per-beat
+summary lists it without that lower voice. A single slot where it edges past
+the lower voice is a flicker, not a note. Leave every other octave candidate
+out of the reading and list it in the reply as a possible played octave to
+check by ear. The candidates left are the voices, and "top two" from here on
+means the top two of those voices in a slot, with every excluded candidate
+struck first, so an excluded candidate never moves a voice's boundary.
 
 **Take every segment boundary from the per-sixteenth table.** The per-beat
 summary is the draft, and it smooths: a voice that sounds for half a bar is
