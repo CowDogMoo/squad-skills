@@ -173,7 +173,11 @@ Rules that go with these patterns:
   reads, and the edited file may not be opened. Close the loop on each defect
   the original had: say which check now fails, under what broken-deploy
   condition (package absent, file missing, service stopped), and quote the
-  `fail_msg` it reports so the reader sees what the message names. State
+  `fail_msg` it reports so the reader sees what the message names. Name each
+  original registered check by its module in its own item (for example "the
+  `stat` on nginx.conf is kept and now asserted on `.stat.exists`"), even
+  when one assert also covers a new content check; never fold it into a
+  combined line about config or `slurp`. State
   file-wide properties as facts about the whole file ("every module is
   FQCN", "every assert has a `fail_msg`") instead of listing a few examples.
   If the caller defines a report format, follow that and keep this content
