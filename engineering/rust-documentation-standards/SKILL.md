@@ -21,11 +21,13 @@ Comprehensive reference for writing idiomatic Rust documentation.
 - **The first line is the summary.** Rustdoc uses the first paragraph as the
   short description in module listings and search results. Make it count.
 - **Complete sentences.** Every doc comment must be grammatically correct
-  with proper punctuation. A summary line is a full sentence with a verb
-  (`Returns…`, `Holds…`, `Configures…`), not a noun-phrase label such as
-  "the configuration" or "Application configuration." Short noun-phrase docs
-  on fields, enum variants, and constants are fine when they end with a
-  period.
+  with proper punctuation. Every summary is capitalized, ends with a period,
+  and adds information beyond the item's name; a lowercase label such as
+  "the configuration" is never acceptable. Function and method summaries are
+  full sentences in the third person (`Returns…`, `Parses…`, `Loads…`).
+  Struct, enum, trait, type alias, module, field, variant, and constant
+  summaries follow std and the Rust API Guidelines and use a descriptive noun
+  phrase (`A UTF-8–encoded, growable string.`), not a verb.
 
 ## Doc Comment Syntax
 
@@ -98,7 +100,7 @@ pub fn parse_config(input: &str) -> Result<Config, ConfigError>
 ### Structs
 
 ```rust
-/// Holds the settings for the HTTP client.
+/// Configuration for the HTTP client.
 ///
 /// Use [`ClientConfig::builder`] for construction, or
 /// [`ClientConfig::default`] for sensible defaults.
@@ -121,7 +123,7 @@ pub struct ClientConfig {
 ### Enums
 
 ```rust
-/// Describes the current state of a background task.
+/// The current state of a background task.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TaskState {
@@ -148,7 +150,7 @@ pub enum TaskState {
 ### Traits
 
 ```rust
-/// Defines a repository for storing and retrieving users.
+/// A repository for storing and retrieving users.
 ///
 /// Implementations must be safe for concurrent access
 /// from multiple threads.
@@ -180,10 +182,10 @@ pub const MAX_CONNECTIONS: usize = 100;
 ### Type Aliases
 
 ```rust
-/// Shares an immutable string across threads.
+/// A thread-safe reference-counted string.
 pub type SharedString = Arc<str>;
 
-/// Reports the outcome of a database operation.
+/// Result type for database operations.
 pub type DbResult<T> = Result<T, DbError>;
 ```
 
@@ -332,14 +334,21 @@ use `#![deny(missing_docs)]`.
 ### Mistake 1: Fragment Instead of Sentence
 
 ```rust
-// BAD — lowercase fragment
+// BAD — lowercase label that adds nothing
 /// the configuration
+pub struct Config { /* ... */ }
 
-// BAD — capitalized, but still a noun phrase with no verb
-/// Application configuration.
+// GOOD — capitalized noun phrase that says what the type holds
+/// Application settings loaded from `config.toml` at startup.
+pub struct Config { /* ... */ }
 
-// GOOD
-/// Holds the application configuration loaded from disk.
+// BAD — function summary with no verb
+/// Configuration loading.
+pub fn load(path: &Path) -> Result<Config, ConfigError>
+
+// GOOD — third-person verb sentence
+/// Loads the application settings from the TOML file at `path`.
+pub fn load(path: &Path) -> Result<Config, ConfigError>
 ```
 
 ### Mistake 2: Restating the Name
@@ -428,7 +437,7 @@ pub fn process(data: &[u8]) -> Vec<u8>
 Doc comments on conditional items should note the condition:
 
 ```rust
-/// Provides Unix-specific file permission utilities.
+/// Unix-specific file permission utilities.
 ///
 /// This module is only available on Unix platforms.
 #[cfg(unix)]
@@ -446,7 +455,7 @@ Before finishing, verify:
 - [ ] Every `Result`-returning public function has `# Errors`
 - [ ] Every panicking function has `# Panics`
 - [ ] Complex public functions have `# Examples`
-- [ ] No fragments — every summary line is a complete sentence with a verb, not a noun-phrase label
+- [ ] No fragments — function and method summaries are third-person verb sentences; type, trait, alias, and module summaries are capitalized noun phrases ending in a period; no lowercase labels
 - [ ] No redundant comments — every comment adds value
 - [ ] Intra-doc links used for cross-references
 - [ ] Comments are directly adjacent to declarations (no blank lines)
