@@ -115,7 +115,7 @@ verbatim copy there as set-up (not as a fix) and Read it back. Every
 doc-comment change is then an Edit on the copy, and the report says
 where it lives. Before the first Edit, commit only the copied paths
 (`git add <paths>`, then `git commit -m baseline -- <paths>`) so the
-`git checkout -- <file>` revert in step 5 works; if committing there
+`git checkout -- <file>` revert in step 6 works; if committing there
 is unsafe, revert by re-copying the original or by Edit-to-undo.
 
 1. **Edit tool only.** Apply every fix with the Edit tool, on a file
@@ -129,9 +129,17 @@ is unsafe, revert by re-copying the original or by Edit-to-undo.
    placement. (Rust agents typically read after every Edit because
    `git checkout` is forbidden — caller-specific.)
 4. After ALL fixes, run the caller's verify command.
-5. If verify fails, use the caller-declared revert mechanism on the
-   offending file and move the finding to the skipped table. Do
-   NOT proceed past a failing build.
+5. **Comments-only check.** Diff each edited file against its
+   baseline (`git diff`, or `diff` against the original when you
+   worked on a copy) and confirm every changed line is a comment
+   line. Also run the language's formatter check where one exists
+   (`gofmt -l`, `rustfmt --check`). A build can pass while an Edit
+   dropped a space in code, so do not skip this when verify passes.
+   Fix any code-line change with an Edit before reporting.
+6. If verify or the comments-only check fails and you cannot fix it,
+   use the caller-declared revert mechanism on the offending file
+   and move the finding to the skipped table. Do NOT proceed past a
+   failing build.
 
 ## Phase 4 — Report
 
@@ -161,7 +169,10 @@ so it must carry the evidence itself. Whatever shape the caller's
    with the reason (trivial, private/unexported, generated,
    build-failed, already adequate). Private names appear here only,
    never in the fix queue.
-6. **Verify.** The verify command and its result (PASS/FAIL).
+6. **Verify.** The verify command and its result (PASS/FAIL), plus
+   the comments-only check from Phase 3 step 5: the diff and
+   formatter commands you ran and their result. Do not write
+   "comments only" unless that check passed.
 7. **Deferred.** Anything not reached because of the iteration cap or
    a stated budget, named individually, or "nothing deferred". Scope
    the user described but did not hand you counts as not reached.
