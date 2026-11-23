@@ -71,7 +71,7 @@ EVALS_DIR = "evals"
 # Case input files are staged here, outside every directory claude plugin eval
 # fences off from the agent (see FENCED_DIRS).
 INPUTS_DIR = "eval-inputs"
-# A link inside each case directory to INPUTS_DIR, granted with
+# Copies of a case's inputs inside its case directory, granted with
 # context.add_dirs so the no-skill arm of an ablation can read the inputs too.
 CASE_INPUTS = "inputs"
 CANARY = "skill-evals-canary"
@@ -737,9 +737,15 @@ def stage(name: str, src: Path, dest: Path) -> list[str]:
                 opts.get("timeout_seconds", TIMEOUT_SECONDS),
                 [CASE_INPUTS],
             )
-            # add_dirs must name a path inside the case directory, but may
-            # resolve through a link into the plugin under test.
-            (case_dir / CASE_INPUTS).symlink_to(Path("..", "..", INPUTS_DIR))
+            # plugin eval requires plain files and directories under the
+            # eval directory, including the context.add_dirs inputs.
+            for f in case.get("files", []):
+                rel = input_path(f)
+                if rel == Path(f):
+                    continue
+                target = case_dir / CASE_INPUTS / rel.relative_to(INPUTS_DIR)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(staged / rel, target)
             continue
         graders = {
             f"expectation-{n}": f"---\ntype: llm\nweight: 1\n---\n\n{expectation}\n"
