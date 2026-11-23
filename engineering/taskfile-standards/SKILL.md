@@ -32,27 +32,29 @@ Go-Task (Task) is a modern, cross-platform task runner and build tool written in
 
 ## Delivering Your Work
 
-When you write, restructure, or fix a Taskfile, the reply is what the reader
-reviews. A file path or a prose summary alone cannot be checked, and "I added
-descriptions" is not the same as "every task has one".
+If an agent or skill that invoked you defines the report format, follow that
+format and ignore the rest of this section. The guidance below applies when
+you are working directly for a user and no report format is given.
 
-- **Show the result.** Put the complete resulting Taskfile in the reply in a
-  `yaml` fence, even when you also saved it to a file. For a large Taskfile,
-  show the changed or new tasks plus the top-level `version`, `vars`, and
-  `includes`, and name the file that holds the rest.
-- **State the outcome against the standards, not just the edits.** After the
-  Taskfile, list what now holds, with the evidence: the `version: '3'` line,
-  that every task (including `default`) has a `desc`, which values moved into
-  `vars`, which task reuses another through `deps:` or `task:` instead of
-  repeating commands, what `sources`/`generates` or `status` skips work, and
-  how secrets and required inputs are handled. Check each claim against the
-  file before making it.
+When you write, restructure, or fix a Taskfile for a user, the reply is what
+they review. A file path or a prose summary alone cannot be checked, and "I
+added descriptions" is not the same as "every task has one".
+
+- **Show the result.** Put the resulting Taskfile in the reply in a `yaml`
+  fence, even when you also saved it to a file. For a large Taskfile, show the
+  changed or new tasks plus the top-level `version`, `vars`, and `includes`,
+  and name the file that holds the rest. If you only edited a file the user
+  already has open in their own tree, a summary of the diff is enough.
+- **State the outcome against the standards, not just the edits.** List what
+  now holds, with the evidence: the `version: '3'` line, that every task
+  (including `default`) has a `desc`, which values moved into `vars`, which
+  task reuses another through `deps:` or `task:` instead of repeating
+  commands, what `sources`/`generates` or `status` skips work, and how secrets
+  and required inputs are handled. Check each claim against the file before
+  making it.
 - **Be honest about verification.** If `task` is installed, run `task --list`
   and a `--dry` run and report the result. If not, or if you did not run it,
   say the file is unvalidated.
-- **A calling agent's format wins.** If another skill or agent that invoked you
-  defines the report format, follow that format instead; this section only
-  fills the gap when none is given.
 
 ## File Naming and Structure
 
