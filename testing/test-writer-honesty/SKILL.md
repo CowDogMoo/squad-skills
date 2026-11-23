@@ -3,7 +3,7 @@ name: test-writer-honesty
 description: "Discipline rules for any test-writing run and its final report: read existing test files before editing, never clobber or recreate existing tests with Write, never fall back to Write when Edit fails with 'text not found', tie the report to `git diff --stat` as ground truth, and report build, test, coverage, and iteration-cap outcomes truthfully without changing code under test. Use when writing or extending unit tests, recovering from failed Edit attempts on test files, or writing the final report for a test run (including zero-work or out-of-iterations runs) in any language. Do NOT use as a repo-wide coverage queue or gap-discovery loop (use enqueue-coverage-targets or score-coverage-and-report-gaps), or for general coverage questions, CI lookups, or flaky-test debugging."
 metadata:
   author: Jayson Grace
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Test-Writer Honesty
@@ -38,8 +38,9 @@ The pattern that has failed prior runs:
 
 1. If the target tree is read-only (such as staged fixtures or mounted inputs), copy the enclosing module/package directory byte-for-byte into a writable scratch directory under `"${TMPDIR:-/tmp}"` using `Bash` (`work=$(mktemp -d "${TMPDIR:-/tmp}/work.XXXXXX") && cp -R <src-dir>/. "$work/" && echo "$work"`), using a fresh `mktemp -d` directory for every copy so no stale files or `.git` from another run or package leak in. Copying into `"${TMPDIR:-/tmp}"` avoids permission denials on protected working directories while keeping `go.mod` / package metadata intact. Never substitute `Write` for `cp`.
 2. Call `Read` on the test file you are about to edit so its exact current lines are in context.
-3. Pick an exact multi-line `old_string` anchor directly from the lines `Read` returned and apply `Edit`.
-4. **3-strike and blocked-edit skip rule:** If `Edit` still fails after 3 re-read-and-retry attempts on the same file — or if sandbox permissions block creating a byte-for-byte copy and block editing in place — **STOP trying to edit that file, do NOT call `Write`, and do NOT stall waiting for interactive input in an autonomous run.** Emit your final report (§16) and list the package/module under **Skipped** with the concrete reason.
+3. Pick an exact multi-line `old_string` anchor directly from the lines `Read` returned and apply `Edit`. When the failed `Edit` was reported to you rather than made by you, that report is attempt 1 and your `Edit` here is the retry.
+4. **Report the recovery (§16 Edit recovery):** state that you re-`Read` the file and retried `Edit`, quote the anchor you copied from the `Read` output, and give the attempt count and result. Keep the cause factual: the original `old_string` did not match the file's current contents. Without this record, the user cannot tell a verified retry from a guess, nor see which lines their failed anchor should have matched.
+5. **3-strike and blocked-edit skip rule:** If `Edit` still fails after 3 re-read-and-retry attempts on the same file — or if sandbox permissions block creating a byte-for-byte copy and block editing in place — **STOP trying to edit that file, do NOT call `Write`, and do NOT stall waiting for interactive input in an autonomous run.** Emit your final report (§16) and list the package/module under **Skipped** with the concrete reason.
 
 ## 3. `git diff` is the ground truth for your report
 
@@ -244,6 +245,7 @@ you didn't get to, say why.
 Every run — whether tests were added, packages were skipped, or the iteration budget ran out before any edit — ends with an explicit report containing every field below (if your calling agent supplies a table or section template, use its layout while preserving all of these ground-truth fields and values):
 
 - **Existing Tests Read & Preserved:** Each pre-existing test file you `Read` before editing, confirmation that `Edit` (never `Write`) was used on existing test files, the existing test functions kept unremoved and unrenamed, and confirmation of `0` `-<test-decl>` lines in `git diff` (or `none — no test files edited` on a zero-work run).
+- **Edit recovery** (include only when an `Edit` failed with "text not found" this run, or the caller reported one): the file you re-`Read`, the verbatim `old_string` anchor you retried with (its first line or two in a fenced block, copied from the `Read` output), the attempt count, and the result: the retry succeeded, or the file was skipped after 3 attempts (§2).
 - **Working copy:** `in place`, or the scratch directory path when you edited a copy (§2), so readers know whether their own tree changed; when you staged untracked files in the user's repository as a baseline (§3), list those paths here.
 - **Files Touched:** Exact paths from `git diff --stat`, or `none`.
 - **`git diff --stat`:** Verbatim `git diff --stat` output in a fenced code block (or `(empty — zero files changed)` when `git diff --stat` printed nothing because zero files changed).
