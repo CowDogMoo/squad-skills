@@ -535,12 +535,14 @@ module.exports = {
    `{Type}` on `@param` or `@returns` (`@throws {ErrorType}` is the sole tag
    that names a type in braces, because TypeScript signatures do not declare
    thrown error types).
-4. **Include the documented code in your response.** Even after editing a file
-   in place or writing a working copy, present the documented declarations in
-   a code block in your reply (the full file when concise, or every documented
-   export with its attached JSDoc block and signature) so callers and reviewers
-   can verify block attachment, tag syntax, and descriptions directly. Note any
-   exported declarations intentionally left undocumented as trivial.
+4. **Show the documented code only when the user cannot see the edits.** When
+   the documented declarations cannot be written where the user will see them,
+   or when the user asks for them, present them in a code block in your reply
+   (the full file when concise, or every documented export with its attached
+   JSDoc block and signature) so reviewers can verify block attachment, tag
+   syntax, and descriptions directly. If a calling agent or task defines a
+   report format, follow that format instead. Note any exported declarations
+   intentionally left undocumented as trivial.
 
 ### Auditing Existing JSDoc
 
@@ -578,7 +580,7 @@ fix is ready to apply.
 - [ ] Async behavior documented when non-obvious
 - [ ] Cleanup requirements documented
 - [ ] Deprecated exports marked with `@deprecated`
-- [ ] Documented declarations (JSDoc blocks attached directly above signatures) shown in the response
+- [ ] Documented declarations shown in the response when the edits cannot be written where the user sees them or the user asks (a calling agent's report format takes precedence)
 
 ### Common Patterns
 
