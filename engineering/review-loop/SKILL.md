@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: "Shared fix-in-place review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents or a repo-scale review that fixes code in place. Not review criteria (those are the per-language review-criteria skills) and not security audits."
+description: "Shared review loop for the go-review, rust-review, python-review and nodejs-review agents: discovery, edit vs readonly mode, verify-after-edit, budget, severity scale and report formats, with language, globs, verify commands and categories supplied by the caller. Use when running one of those agents, or for any file- or repo-scale source review that either fixes in place or is report only/readonly, including prompts that inject a Pre-discovered source files list. Not for explaining review practice, reviewing a one-line diff, review criteria (the per-language review-criteria skills), or security audits."
 ---
 # Review Loop
 
@@ -64,7 +64,10 @@ core logic and the public API, and list what you did not read.
 1. **Explicit file list first.** If the prompt names files or injects a
    `Pre-discovered source files` block, those files are the complete,
    frozen set. Skip Glob, do not Glob to double-check, and do not
-   re-filter.
+   re-filter. A file that appears elsewhere in the prompt or the
+   directory but not in the list is out of scope: do not review it and
+   do not mention it in the report (read it only if a listed file
+   cannot be understood without it).
 2. **Injected lint output.** If the prompt injects the caller's warnings
    block, use it verbatim as the lint result and skip the lint run.
 3. Otherwise Glob the caller's pattern once from the repo root and apply

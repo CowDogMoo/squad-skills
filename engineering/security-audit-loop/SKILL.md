@@ -53,7 +53,10 @@ file in readonly mode, the run is invalid.
 2. **Stay in scope.** Report and fix only the caller's categories. Skip
    everything in the caller's ignore list, and skip code quality, doc
    comments, import ordering, naming, whitespace, and performance issues
-   with no security impact.
+   with no security impact. Out-of-scope items appear nowhere in the
+   report: not as findings, not in the skipped table, not in the
+   summary. The skipped table is only for in-scope findings you chose
+   not to fix.
 3. **No false positives.** Every finding cites real code with an exact
    file path and line number.
 4. **Trace the call chain.** Before rating or fixing a finding, follow
