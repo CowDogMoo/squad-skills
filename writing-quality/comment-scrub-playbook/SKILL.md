@@ -194,24 +194,28 @@ build-verify command (`go build ./...`, `cargo check`,
 The reader sees only your final message, so it must carry every
 decision itself. Use this shape unless the caller dictates another:
 
-1. **Decision table.** One row per comment block that is not exempt,
-   columns `Location | Comment | Decision | Category | Why`.
+1. **Decision table.** One row per comment block, except the exempt
+   content in item 2, columns `Location | Comment | Decision |
+   Category | Also fired | Why`. Convention markers such as `TODO` or
+   `FIXME` get a row unless the caller named them exempt: `KEEP`,
+   category `3`, why "not fired: convention marker".
    - Every row has exactly one decision (`DELETE`, `TRIM`, `KEEP`, or
-     `FIX_GAP`) and a category number 1-5. For `DELETE`/`TRIM` it is
-     the category that fired. List every category that fired,
-     primary first, and never drop one because a narrower rule also
-     applies. Numbered step labels always cite Category 5 and
-     Category 2 (a strong tell in `detect-llm-tells`): `5, 2`. Add
-     Category 1 when the label's text also restates the next line:
-     `5, 2, 1`. Plain narration that restates the next line, with no
-     step label, is Category 1 only: cite `1`.
-   - For `KEEP`, the category is the one you tested and why it did not
-     win, for example `1, overridden by exported-doc protection` or
-     `1, not fired: records why (incident reference)`. Never leave
-     the category blank.
-2. **Exempt list.** A separate list of the always-exempt content you
-   found (directives such as `//go:generate`, `//nolint`, `# noqa`,
-   `# type:`, convention markers such as `TODO`, license headers),
+     `FIX_GAP`) and exactly one category number 1-5 in `Category`.
+     For `DELETE`/`TRIM` it is the primary category that fired. Put
+     every other category that fired in `Also fired` (or `-`), and
+     never drop one because a narrower rule also applies. Numbered
+     step labels always cite Category 2 (a strong tell in
+     `detect-llm-tells`) and Category 5: Category `2`, Also fired
+     `5`. Add Category 1 when the label's text also restates the next
+     line: Also fired `5, 1`. Plain narration that restates the next line,
+     with no step label, is Category `1` only.
+   - For `KEEP`, the category is the one you tested, and `Why` says
+     why it did not win, for example "overridden by exported-doc
+     protection" or "not fired: records why (incident reference)".
+     Never leave the category blank.
+2. **Exempt list.** A separate list of the caller's exempt
+   directives you found (such as `//go:generate`, `//nolint`,
+   `# noqa`, `# type:`), plus license headers and generated files,
    each marked kept and exempt, not scored, so it does not get a
    decision row or a category.
 3. **Trimmed text.** For every `TRIM`, show the before and after
@@ -330,7 +334,7 @@ Decision: `DELETE` all three comment lines. Category 5 visual noise
 (numbered step labels in source comments are always deletions). The
 code is already three statements — the numbered prose is redundant.
 Each label also restates its statement and is a Category 2 tell, so
-the category cell reads `5, 2, 1`. Format strings showing step numbers to end users are exempt; these are
+the row reads Category `2`, Also fired `5, 1`. Format strings showing step numbers to end users are exempt; these are
 comments, not strings.
 
 ## Troubleshooting

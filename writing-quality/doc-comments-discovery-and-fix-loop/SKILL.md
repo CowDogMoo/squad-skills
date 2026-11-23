@@ -163,7 +163,8 @@ so it must carry the evidence itself. Whatever shape the caller's
    never in the fix queue.
 6. **Verify.** The verify command and its result (PASS/FAIL).
 7. **Deferred.** Anything not reached because of the iteration cap or
-   a stated budget, named individually, or "nothing deferred".
+   a stated budget, named individually, or "nothing deferred". Scope
+   the user described but did not hand you counts as not reached.
 
 Every file touched must appear in the report.
 
@@ -174,9 +175,13 @@ When the user gives a small iteration budget ("only N iterations",
 you are applying and why (the Phase 2 priority list, with entry
 points and most-referenced public API first), do the work within that
 budget when files are available rather than stopping at advice, and
-end with the "Deferred" list naming what was not reached. Stop at the
-budget; do not quietly exceed it. Reserve the last iteration for
-verify plus the report.
+end with the "Deferred" list naming what was not reached. If the user
+describes more than the files you were given ("the codebase has
+hundreds of files"), that remainder is deferred: name it (for example
+"the rest of the codebase beyond `store.go`") and never write
+"nothing deferred". State the iterations used out of the budget
+(for example "4 of 5 iterations"). Stop at the budget; do not quietly
+exceed it. Reserve the last iteration for verify plus the report.
 
 ## Cross-cutting discipline rules
 
