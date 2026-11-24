@@ -3,7 +3,7 @@ name: doc-comments-discovery-and-fix-loop
 description: Discover public/exported declarations missing or carrying deficient doc comments, prioritize by impact, apply proportional fixes in a read-then-edit loop, verify the result compiles, and report. Use when asked to document a package's public API or audit doc-comment coverage. Do NOT use to delete useless or LLM-generated comments — that is comment-scrub-playbook.
 metadata:
   author: Jayson Grace
-  version: 1.2.0
+  version: 1.3.0
 ---
 
 # Doc Comments Discovery and Fix Loop
@@ -70,8 +70,9 @@ catalog every public declaration with at least one of:
 
 - No doc comment at all.
 - Doc comment is a fragment, not a complete sentence.
-- Doc comment is redundant (restates the name; "Process processes
-  the data").
+- Doc comment is a pure verb-echo tautology that repeats only the
+  identifier ("Get gets.", "Process processes the data.") without
+  stating what the declaration returns or acts on.
 - Doc comment violates the language's convention shape (caller's
   style ruleset specifies which — first-word rule for Go, summary
   line for Python, `///` vs `//!` for Rust, `@param`/`@returns`
@@ -81,11 +82,28 @@ catalog every public declaration with at least one of:
   Google-style, `@param`/`@throws` for Node).
 - Module-level / file-level / package-level docstring missing.
 
-**Before prioritizing, drop self-documenting names.** Do NOT catalog a
-declaration whose name already fully conveys its behavior — getters,
-`String`/`new`/`len`/`is_empty`, trivial constructors. A doc that would
-only restate the identifier is a non-finding: record it in the skipped
-table as "trivial" and never put it in the fix queue.
+**Leave already-adequate comments alone.** If an existing doc
+comment is a complete sentence that follows the language's opener
+convention and states what the declaration returns or does (such as
+a constructor summary like "NewClient returns a Client."), it is
+already adequate. Do not catalog it as deficient, and never extend
+or pad it with internal details from the function body. Record it in
+the skipped table as "already adequate" and leave it untouched.
+
+**Skip declarations where a comment would only restate a name or
+type, or require speculation.** Do not put a declaration in the fix
+queue when:
+
+- Its name alone already conveys its behavior (getters,
+  `String`/`new`/`len`/`is_empty`, trivial constructors), or
+- It is an undocumented function type, callback signature, or type
+  alias that has no callers or references in the inspected files.
+  When no code in scope uses a type, any comment either restates the
+  type signature in prose or guesses what the type does to its
+  arguments. Both are forbidden: keep the declaration in the
+  discovery list with outcome `skipped` (and in the skipped table)
+  noting that a comment would restate the type or speculate on
+  unused behavior, and do not edit it.
 
 **Prioritize:**
 
@@ -168,12 +186,16 @@ include all of these:
    long ones), so the reader can check the language's opener rule
    (for example, a Go comment starting with the declared name)
    without opening the file.
-4. **Method.** One line saying the fixes were applied with Edit after
-   Read, how many edits, and that no file was rewritten wholesale.
-   Mention the copy set-up if inputs were read-only.
-5. **Skipped table.** Every declaration deliberately not documented,
-   with the reason (trivial, private/unexported, generated,
-   build-failed, already adequate). Private names appear here only,
+4. **Method.** State that you read the file first and applied all
+   doc-comment fixes with the Edit tool (how many edits), and that
+   no file was rewritten wholesale. If inputs were read-only, note
+   in a separate sentence that an unmodified byte-identical copy was
+   staged before any Edit; do not phrase the staging copy as an
+   exception to "no file was rewritten wholesale".
+5. **Skipped table.** Every declaration deliberately left untouched,
+   with the reason (trivial, unreferenced type signature,
+   private/unexported, generated, build-failed, already adequate).
+   Private names and already-adequate declarations appear here,
    never in the fix queue.
 6. **Verify.** The verify command and its result (PASS/FAIL), plus
    the comments-only check from Phase 3 step 5: the diff and
@@ -212,23 +234,39 @@ These hold regardless of language.
   any of those, skip it.
 - **No new dependencies.** Doc-comment changes never require
   import or dependency changes.
-- **Document only what the code shows.** State behavior you can see
-  in the declaration and its callers: what it returns, which error
-  it yields, what is clamped or overwritten. Do not assert
-  properties the code does not establish (thread-safety, performance
-  guarantees, intended future use) or pad an adequate comment with
-  more words. If you suspect something, put it in the report as an
-  open question instead of the comment.
-- **Respect existing good comments.** Only fix doc comments that
-  are missing, fragments, factually wrong, or convention-violating.
-  Do NOT lateral-rewrite for style preference. When adding sections
-  (Args/Returns/Raises, `# Errors`, `@param`) to an existing
-  comment, keep the original summary line verbatim.
-- **Proportionality.** One-line getter → one-line comment.
-  Complex constructor or async function → multi-paragraph with
-  convention sections. Self-documenting names
-  (`Info`/`Warn`/`Close`/`new`/`len`/`is_empty`/getters) may need
-  NO comment — list as trivial in the skipped table.
+- **Document only what the code shows.** State only what the
+  declaration's body and in-scope callers establish: what it does,
+  what it returns, and when it returns an error. Stop at one or two
+  sentences for a short function or type. Do not assert properties
+  the code does not establish (thread-safety, performance
+  guarantees, intended future use, or how an unreferenced type is
+  applied). Do not pad comments with negative claims (what a
+  function does not return, which sentinel an error is not, or
+  whether an error is exported for comparison), obvious consequences
+  ("returns nil on success", "writes nothing on error"), or
+  narration of the order in which conditions are checked.
+- **Never restate a name or type.** Do not write a comment that only
+  turns the identifier into a sentence or translates a type
+  signature into prose (such as describing `type Handler func(*T)` as
+  "a function that takes or modifies a T"). If the inspected code has
+  no callers or implementation showing a type's contract beyond its
+  signature, skip it rather than restating the type or guessing its
+  role.
+- **Respect existing good comments.** Leave any existing doc comment
+  alone when it is a complete sentence that follows the language's
+  opener rule and states what the declaration returns or does, even
+  if it is a single line. Never append extra sentences to an
+  already-adequate comment to describe internal body details, helper
+  calls, or parameter bounds. Only edit an existing comment when it
+  is a fragment, factually wrong, missing a language-mandated
+  section (`# Safety`/`# Errors` in Rust, `Args:`/`Raises:` in
+  Python, `@param` in JSDoc), or a pure verb-echo tautology ("Get
+  gets.").
+- **Proportionality.** Short function or type → one or two
+  sentences. Complex multi-step or async function → multi-paragraph
+  with the language's required sections. Self-documenting names
+  (`Info`/`Warn`/`Close`/`new`/`len`/`is_empty`/getters) and
+  unreferenced type signatures need NO comment — mark them skipped.
 - **No trivial struct/field docs.** Only document fields when the
   name is genuinely ambiguous or semantics are non-obvious (units,
   encoding, invariants, lifetime/ownership).
@@ -267,7 +305,9 @@ The skill is the loop. The caller owns:
 
 ## Anti-goals
 
-- Do NOT rewrite already-adequate doc comments for style.
+- Do NOT rewrite, extend, or pad already-adequate doc comments.
+- Do NOT document an unreferenced type or callback signature by
+  restating its type in prose or guessing how callers use it.
 - Do NOT add return-type hints in Python (`-> None` is always
   inferable; only non-obvious return types).
 - Do NOT add `@type` JSDoc tags when the file is TypeScript —
