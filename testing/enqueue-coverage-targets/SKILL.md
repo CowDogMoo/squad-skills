@@ -3,7 +3,7 @@ name: enqueue-coverage-targets
 description: "Raise test coverage in Go, Node.js/TypeScript, Python, or Rust: a bundled script measures coverage once and prints a queue of every package or file below target (also saved to /tmp/squad-targets.txt), then you drain the queue by reading source and writing tests, and re-measure only at the end. Do NOT use for a one-off 'write a test for this function' request or for measuring coverage without writing tests (use score-coverage-and-report-gaps for the report-only case)."
 metadata:
   author: Jayson Grace
-  version: 2.1.1
+  version: 2.1.2
 ---
 
 # Enqueue Coverage Targets
@@ -32,10 +32,10 @@ before Step 2:
 
 ## Step 1 — Orchestrate (your first tool call after loading this skill)
 
-Run the queue builder as **one standalone command**, with the target from the
-request and the project directory as an argument. It auto-detects the language
-from `go.mod`, `Cargo.toml`, `package.json`, or `.py` files; pass the language
-too if the repo is mixed:
+Run the queue builder as **one standalone command** — before reading any
+project file — with the target from the request and the project directory as an
+argument. It auto-detects the language from `go.mod`, `Cargo.toml`,
+`package.json`, or `.py` files; pass the language too if the repo is mixed:
 
 ```bash
 SQUAD_COVERAGE_TARGET=90 bash scripts/enqueue.sh python /path/to/project
@@ -75,9 +75,9 @@ to the top-level package when sources aren't at the repo root).
 
 If the script reports `UNKNOWN_PROJECT`, `NOT_A_<LANG>_PROJECT`,
 `NO_COVERAGE_TOOL`, or `NO_COVERAGE_DATA`, the queue is empty on purpose.
-Stop immediately and send the fenced report below in its early-stop form
+Stop immediately and send the report below in its early-stop form
 (`Before: not measured`, `After: not measured`, `Files Touched: none`,
-`Tests Added: none`).
+`Diff Summary: none`, `Tests Added: none`).
 Don't install packages on the user's system, don't create source files to
 test, and don't pivot to a different language. A run that silently changes
 scope is worse than one that reports it can't proceed.
@@ -214,23 +214,35 @@ fails), don't create one; skip `git diff` and report
 failure.
 
 Copy the real re-measured percentage into the report. If you skip
-re-measurement, the `After` field says `not measured` — a projected number is
-a fabrication, and the caller's report format treats it as one.
+re-measurement, the `After` column and field say `not measured` — a projected
+number is a fabrication, and the caller's report format treats it as one.
 
 Emit the caller's OUTPUT FORMAT report as a transcript of what happened, not
 a projection. The reader sees only this final message, so every claim about
 how the run went has to be in it. When the caller doesn't dictate a format,
-always emit this fenced `text` block:
+lead with one sentence stating the outcome directly (the `Before` and
+re-measured `After` coverage against the target, or the early-stop reason with
+`Files Touched: none` and `After: not measured`), then emit this Markdown
+report as the rest of the reply (not wrapped in an outer code fence, with no
+opening remark about formatter passes and no trailing chatter after `Run
+Record`):
 
-```text
-Coverage Report
-  Target: <N>%   Before: <overall % from Step 1 | not measured>   After: <re-measured % | not measured>
-  Working Copy: <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
-Files Touched: <none, or newline-indented `<relative-path> (Edit | Write)` lines>
-Diff Summary: <none | not available (no git baseline) | `git diff --stat -- <touched files>` output plus confirmation that 0 existing test functions were removed or renamed>
-Tests Added: <none, or newline-indented `<test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
-Skipped: <none, or newline-indented `<unit or function> — <specific reason>` lines>
-Run Record:
+```markdown
+## Coverage Report
+
+| Target | Before | After |
+| --- | --- | --- |
+| <N>% | <overall % from Step 1 \| not measured> | <re-measured % \| not measured> |
+
+- **Target:** <N>%
+- **Before:** <overall % from Step 1 | not measured>
+- **After:** <re-measured % | not measured>
+- **Working Copy:** <in place | <$work path> (verbatim Read+Write | cp -R baseline of <source>, staged in git; originals untouched)>
+- **Files Touched:** <none, or newline-indented `- <relative-path> (Edit | Write)` lines>
+- **Diff Summary:** <none | not available (no git baseline) | `git diff --stat -- <touched files>` output plus confirmation that 0 existing test functions were removed or renamed>
+- **Tests Added:** <none, or newline-indented `- <test name> in <file> — covers <function or lines from /tmp/squad-uncovered.out>` lines>
+- **Skipped:** <none, or newline-indented `- <unit or function> — <specific reason>` lines>
+- **Run Record:**
   1. First command: <exact standalone enqueue.sh command with target and language>; queue: <units and %>
   2. Reference read: <references/<lang>.md — applied: <naming and idiom> | none (no supported project)>
   3. Targets from /tmp/squad-uncovered.out: <unit: functions or line ranges | none>
@@ -245,16 +257,17 @@ Run Record:
   `none`.
 - **Tests Added** — only new test functions added this run, each tied to the
   function or lines from `/tmp/squad-uncovered.out` it covers, or `none`.
-- **After** — from Step 3 re-measurement, or the literal `not measured`.
+- **After** — from Step 3 re-measurement, or the literal `not measured` (in
+  both the `After` table column and the `- **After:**` field).
 - **Run Record** — in the order it happened, naming `Edit` vs `Write` for each
   file and confirming existing test functions were preserved in `git diff`.
   Never claim a file was edited or existing tests were kept without having
   `Read` the file first and verified `git diff`; with no git baseline, say
   the preservation was not verified.
-- **Early stop** (nothing to queue): keep the fenced block and write literal
-  `Before: not measured`, `After: not measured`, `Files Touched: none`,
-  `Diff Summary: none`, and `Tests Added: none`, with the script's reason
-  under `Skipped`.
+- **Early stop** (nothing to queue): emit the same Markdown report (not wrapped
+  in an outer code fence) with literal `not measured` in both the table and
+  bullet fields for `Before` and `After`, literal `none` for `Files Touched`,
+  `Diff Summary`, and `Tests Added`, and the script's reason under `Skipped`.
 
 ## Constraints that override your judgment
 
