@@ -24,6 +24,8 @@ import sys
 import librosa
 import numpy as np
 
+PEAK_FLOOR_DB = -60.0  # a peak this far under the file's strongest salience is silence or the CQT's padded edge, not a note
+
 
 def parse_tuning(s: str) -> list[tuple[str, float]]:
     names = [n.strip().replace("♯", "#").replace("♭", "b") for n in s.split(",") if n.strip()]
@@ -66,7 +68,7 @@ def drop_octave_duplicates(peaks, s, freqs, ratio=0.5, tol_cents=40):
     return keep
 
 
-def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True, tune_cents=0.0):
+def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, bar_offset, tuning, collapse_octaves=False, on_grid_only=True, tune_cents=0.0, filter_scale=1.0):
     shift = 2 ** (-tune_cents / 1200.0)  # a guitar N cents sharp: divide measured Hz by 2^(N/1200) to land on the grid
     hop = 512
     # Put the CQT bins on the guitar's actual grid: with the lowest bin at C1
@@ -75,12 +77,12 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
     fmin = librosa.note_to_hz("C1") / shift
     bpo = 36
     n_bins = 6 * bpo
-    C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=n_bins, bins_per_octave=bpo))
+    C = np.abs(librosa.cqt(y, sr=sr, hop_length=hop, fmin=fmin, n_bins=n_bins, bins_per_octave=bpo, filter_scale=filter_scale))
     freqs = librosa.cqt_frequencies(n_bins, fmin=fmin, bins_per_octave=bpo)
     sal = librosa.salience(C, freqs=freqs, harmonics=[1, 2, 3, 4, 5], weights=[1, 0.8, 0.6, 0.5, 0.4], fill_value=0)
     times = librosa.times_like(sal, sr=sr, hop_length=hop)
     slot_len = 60.0 / bpm * bars_per_meter / grid  # seconds per grid slot
-    n_slots = int((times[-1] - offset_s) / slot_len)
+    n_slots = int(round((len(y) / sr - offset_s) / slot_len, 6))
     rng = (freqs >= fmin_hz) & (freqs <= fmax_hz)
     ref = float(np.max(sal)) if np.max(sal) > 0 else 1.0
     rows = []
@@ -99,6 +101,7 @@ def analyze(y, sr, bpm, grid, bars_per_meter, offset_s, fmin_hz, fmax_hz, top, b
             # and none of the played notes (assuming the guitar is within
             # ~20 cents of A440 - pass --all-peaks otherwise).
             peaks = [j for j in peaks if abs(cents_off(freqs[j] * shift)) <= 20]
+        peaks = [j for j in peaks if s[j] >= ref * 10 ** (PEAK_FLOOR_DB / 20)]
         if collapse_octaves:
             peaks = drop_octave_duplicates(peaks, s, freqs)
         peaks.sort(key=lambda j: -s[j])
