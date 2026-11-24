@@ -186,7 +186,7 @@ def classify(rows, lowest: list[set[int]], voices: int):
                 if m in reason or not partner(lower):
                     continue
                 if (cs[lower]["db"] > cs[m]["db"]) if lower in cs else (presence(lower) > presence(m)):
-                    reason[m] = f"{name} above {name_of(lower)} (its {3 if k == 19 else 4}rd harmonic)".replace("4rd", "4th")
+                    reason[m] = f"{name} above {name_of(lower)} (its {'3rd' if k == 19 else '4th'} harmonic)"
         live = sorted((m for m in cs if m not in reason), key=lambda m: -cs[m]["db"])
         lead = cs[live[0]]["db"] if live else None
         kept = []
