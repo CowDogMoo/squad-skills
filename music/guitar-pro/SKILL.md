@@ -174,10 +174,12 @@ tab.to_riff()     # back into riff notation, so you can edit and rewrite it
 tab.transpose(-2) # move frets, keeping tuning fixed
 ```
 
-`info()` names the tuning when it recognizes it, which is usually the fastest
-answer to "what tuning is this in?" `to_riff()` closes the loop: read an
-existing tab, transform the notation as text, write it back out — no hand
-transcription.
+`info()` names the tuning when it recognizes it (`tuning_name` alongside the
+low-to-high `tuning` list), which is usually the fastest answer to "what tuning
+is this in?" Quote those lines from the tool output in your reply so the reader
+can check the tuning against what the file holds. `to_riff()` closes the loop:
+read an existing tab, transform the notation as text, write it back out — no
+hand transcription.
 
 **Read the user's file where it is; write results under a new name.** Every
 command here takes the input path directly, so there is nothing to copy first:
@@ -206,10 +208,12 @@ note against the original:
 python scripts/gp_tab.py transpose song.gp5 song-down2.gp5 --semitones -2 --midi song-down2.mid
 ```
 
-It prints the original tuning, the method it used and why, the new tuning, and
-`verified: all N sounding notes ... are 2 semitone(s) lower`. A `VERIFY FAILED`
-line (exit 1) means the copy is wrong; do not deliver it. If the user wants the
-other method, call `tab.transpose(n)` or `tab.retune(n)` from Python instead.
+It prints four lines (`read`, `method:`, `wrote`, `verified:`) giving the
+original tuning, the method it used and why, the new tuning, and the
+note-by-note check. Quote all four lines verbatim in your reply, without
+replacing paths or words with `...`. A `VERIFY FAILED` line (exit 1) means the
+copy is wrong; do not deliver it. If the user wants the other method, call
+`tab.transpose(n)` or `tab.retune(n)` from Python instead.
 
 ### Guitar Pro 6/7+ files (`.gpx`, `.gp`)
 
@@ -324,16 +328,21 @@ Send files with the file-delivery tool rather than only describing them.
 not your tool output, so what you checked has to appear there:
 
 - The file name and where it is.
-- The reloaded-file facts, quoted from the tool: the `reloaded ...` line that
-  `riff` prints, or the measures, tempo, tuning name and note count from
-  `python scripts/gp_tab.py info FILE`. When the user asked for a tempo, a
-  tuning or a bar count, these are the numbers that show you hit it.
+- The file facts, backed by the tool's own printed lines quoted verbatim so a
+  reader can check every claim (tuning name and string pitches, tempo, measures,
+  note count) without opening the file: the `reloaded` line that `riff` prints,
+  the `read` line from `transpose`, or the `"tuning_name"`, `"tuning"`,
+  `"measures"`, `"tempo"` and `"notes"` lines from `python scripts/gp_tab.py info FILE`.
+  When you report what an existing file is in or confirm one you just wrote,
+  pair the plain-English answer with the printed line it came from.
 - The ASCII, pasted verbatim from `gp_tab.py ascii FILE` (or `--print-ascii`)
   in a code block - every string, including the empty ones, and the `PM` row.
   Never redraw or trim it by hand; a hand-drawn tab is a claim, the rendered
   one is evidence.
-- For a transposition: the original tuning, the method and why, and the
-  `verified:` line.
+- For a transposition: all four lines that `transpose` prints (`read`,
+  `method:`, `wrote`, and `verified:`) quoted verbatim in a code block, without
+  shortening them with `...`, so the original tuning, the method and why, the
+  new tuning, and the note check all appear as printed.
 - What you did not check (for example, that you have not opened it in Guitar
   Pro).
 
