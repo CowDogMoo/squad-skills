@@ -36,13 +36,30 @@ preset in `<skill-dir>/scripts/presets/`:
 **Never vote as a seat yourself.** Every model seat, including the lone
 default skeptic, MUST run in its own isolated subagent context so it evaluates
 only the staged artifacts and `TASK.md` without inheriting the parent
-conversation's rationalizations.
+conversation's rationalizations. Never evaluate the code or criteria in the
+parent session (not even an informal read-through summary) in place of spawning
+the seat subagents.
 
 `<skill-dir>` below is the directory containing this SKILL.md. All harness
 scripts are zero-dep Node (>= 18). Self-verify anytime:
 `node <skill-dir>/scripts/test.mjs` -> `harness tests passed`.
 
 ## Procedure
+
+Whenever `TASK.md` and task source/test files are in scope — whether the prompt
+asks "is it done?", "run quorum", "set up the completion gate", or "set up the
+model seats" — execute Steps 1–6 end-to-end in a fresh `<run>` directory
+(`mktemp -d`). Never write a standalone `seats.json` into the working directory
+and stop, and never leave prompt rendering, subagent spawning, `panel.json`, or
+`judge.mjs` as unexecuted "remaining steps". `<skill-dir>` and the target files
+may live on a read-only path: read-only inputs only mean you must not modify
+them in place, while `Bash` and `node` can still read `<skill-dir>/scripts/*`
+and copy the target files into `<run>/stage/` and `<run>/work/` where all
+writes happen. Never assume `Bash` is blocked from reading `<skill-dir>` or the
+target files without running the command. (Only when given a pre-staged run
+directory that already has `panel.json` and `ballots/` with no task source
+files to stage do you skip straight to adjudicating or applying the re-ask rule
+on that run directory.)
 
 ### 1. Write the brief and stage evidence (load-bearing — do not skip)
 
@@ -152,7 +169,8 @@ single assistant turn):
    empty fingerprints compare equal and would hide any edit.
 2. Launch the seat subagent: `skeptic` alone by default, or, for an opt-in
    panel, every rendered seat concurrently in parallel in one tool-call turn as
-   separate read-only subagents. Pass each subagent its exact rendered prompt
+   separate foreground read-only subagents (`run_in_background: false`). Pass
+   each subagent its exact rendered prompt
    from `<run>/prompts/<seat_id>.prompt.md` — never run panel seats one-by-one,
    never bundle multiple seats into a single subagent, and never evaluate a seat
    yourself in the parent session. Use a fresh-context agent type, never one
@@ -183,6 +201,14 @@ node <skill-dir>/scripts/run-seats.mjs <run>/prompts <run>/ballots --from-raw
 at most one markdown code fence, validates the ballot against `validateBallot`,
 and writes canonical `<run>/ballots/<seat_id>.json` only for schema-valid
 ballots (leaving invalid or prose responses absent so the judge fails closed).
+To keep multi-seat panel runs fast and within turn limits, batch the
+pre-subagent shell setup (`mktemp -d`, staging `<run>/stage/` and `<run>/work/`,
+`exec-seat.mjs` for `gates`, copying `<run>/seats.json`, `render-prompts.mjs`,
+recording the before-fingerprint, and printing `<run>/prompts/*.prompt.md`) into
+one `Bash` call, spawn all seat subagents in one parallel turn, and batch the
+post-subagent shell work (writing `<run>/raw/<seat_id>.txt`, checking the
+after-fingerprint, `run-seats.mjs --from-raw`, writing `<run>/panel.json`,
+`judge.mjs`, and `log-verdict.mjs`) into one `Bash` call.
 
 #### Headless CLI mode (automation / shell fallback)
 
@@ -327,9 +353,10 @@ the run dir, don't hand-edit ballots.
 Read `<run>/verdict.json` and make your response a self-contained audit record —
 the reader sees your report, not your intermediate tool calls or scratch files,
 so state the gate's setup, execution protocol, and outcome explicitly (when
-adjudicating a pre-staged run directory or answering a protocol question without
-running a full gate, include the items below that apply without inventing steps
-that did not run):
+given a pre-staged run directory that has only `panel.json` and `ballots/` with
+no task source files to judge, include the items below that apply without
+inventing steps that did not run; whenever `TASK.md` and task source files are
+in scope, execute the gate through Step 4 first rather than stopping at setup):
 
 1. **Verdict up front:** state `COMPLETE` or `NOT_COMPLETE` in exact caps. Never
    soften `NOT_COMPLETE` into "mostly complete", "done except...", or "NOT_COMPLETE
@@ -351,14 +378,18 @@ that did not run):
      because none was requested), or the opt-in `-panel` preset (such as
      `completion-panel.seats.json`: `skeptic`, `correctness`, `spec-coverage`)
      on explicit user request. Whenever a panel runs, confirm that every panel
-     seat's `persona` in `seats.json` carries the veto-scope rule and tell the
-     user that multi-seat panels are unmeasured and cost roughly one extra
-     seat's spend per added seat over the single-skeptic default.
+     seat's `persona` in `seats.json` carries the full veto-scope rule ("A veto
+     must cite an acceptance criterion's required artifact; the criterion's own
+     text is the bar — do not veto for style, robustness, or improvements the
+     criteria do not require.") and tell the user that multi-seat panels are
+     unmeasured and cost more than the single-seat default (roughly one extra
+     seat's spend per added seat).
    - **Subagent isolation:** state that each model seat ran in its own
-     fresh-context read-only subagent rather than in the parent session (and for
-     a multi-seat panel, that all seats were spawned concurrently in parallel as
-     separate subagents in one turn, never bundled into a single subagent), plus
-     whether the `<run>/stage/` content fingerprint matched before and after.
+     fresh-context read-only subagent rather than being judged in the parent
+     session (and for a multi-seat panel, that all three seats were spawned
+     concurrently in parallel as separate subagents in one turn, never bundled
+     into a single subagent or judged in the parent session), plus whether the
+     `<run>/stage/` content fingerprint matched before and after.
    - **Panel manifest (`panel.json`):** explicitly name `panel.json`, list every
      seat in it (`gates`, any execution seats, and every rendered model seat),
      and confirm that all are marked `"required": true` (plus
